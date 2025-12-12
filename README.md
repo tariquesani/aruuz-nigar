@@ -75,6 +75,13 @@ scanner.add_line("نقش فریادی ہے کس کی شوخیِ تحریر کا"
 results = scanner.scan_lines()
 ```
 
+## Attribution
+
+Based on Aruuz by Sayed Zeeshan Asghar  
+Original: GPL-2.0 licensed  
+Aruuz Nigar Python port: GPL-3.0 licensed  
+Ported by Dr. Tarique Sani, 2025
+
 ## Status
 
 🚧 **In Development** - Phase 1 (Heuristics Only)
