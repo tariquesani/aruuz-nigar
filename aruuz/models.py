@@ -6,6 +6,8 @@ This module contains data classes for words, lines, and output structures.
 
 from dataclasses import dataclass, field
 from typing import List, Optional
+from aruuz.utils.text import clean_line, clean_word
+from aruuz.utils.araab import remove_araab
 
 
 @dataclass
@@ -189,28 +191,47 @@ class Lines:
         """
         Initialize a Lines object from a line of poetry.
         
-        Note: Full text processing will be implemented in Step 5
-        after utility functions are created. This is a basic structure.
+        This method:
+        1. Cleans the line using clean_line() to remove punctuation
+        2. Splits the line into words by comma and space delimiters
+        3. Cleans each word using clean_word() to apply character replacements
+        4. Creates Words objects with cleaned words and calculates length
         
         Args:
             line: Line of Urdu poetry text
         """
-        # Store original line
-        self.original_line = line
+        # Clean the line to remove punctuation and zero-width characters
+        cleaned_line = clean_line(line)
+        
+        # Store original line (cleaned)
+        self.original_line = cleaned_line
         
         # Initialize words list
-        # Full parsing will be implemented in Step 5 using utils/text.py
         self.words_list: List[Words] = []
         
-        # Basic word splitting (will be enhanced in Step 5)
-        # For now, just create placeholder structure
-        if line.strip():
-            # Simple split by spaces - will be replaced with proper parsing
-            words = line.split()
-            for word_text in words:
-                if word_text.strip():
-                    word = Words()
-                    word.word = word_text.strip()
-                    word.length = len(word_text.strip())  # Temporary, will use araab removal
-                    if word.length > 0:
-                        self.words_list.append(word)
+        # Split by comma and space delimiters (matching C# behavior)
+        # C# uses: originalLine.Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
+        import re
+        delimiters_pattern = r'[, ]+'  # Match comma or space, one or more times
+        words_raw = re.split(delimiters_pattern, cleaned_line)
+        
+        # Process each word
+        for word_text in words_raw:
+            word_text = word_text.strip()
+            if word_text:
+                # Clean the word (applies character replacements)
+                # This matches the C# Replace() method
+                cleaned_word = clean_word(word_text)
+                
+                # Create Words object
+                word = Words()
+                word.word = cleaned_word
+                
+                # Calculate length after removing diacritics
+                # This matches: wrd.length = Araab.removeAraab(wrd.word).Length
+                word.length = len(remove_araab(cleaned_word))
+                
+                # Only add words with length > 0
+                # This matches: if (wrd.length > 0) wordsList.Add(wrd);
+                if word.length > 0:
+                    self.words_list.append(word)

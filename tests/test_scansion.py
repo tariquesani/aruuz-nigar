@@ -17,7 +17,7 @@ from aruuz.scansion import (
     locate_araab,
     contains_noon
 )
-from aruuz.models import Words
+from aruuz.models import Words, Lines
 
 
 class TestHelperFunctions(unittest.TestCase):
@@ -279,6 +279,96 @@ class TestEdgeCases(unittest.TestCase):
         word.taqti = []
         result = assign_code(word)
         self.assertIsInstance(result, str)
+
+
+class TestLinesParsing(unittest.TestCase):
+    """Test Lines class line parsing functionality."""
+
+    def test_basic_line_parsing(self):
+        """Test parsing a simple line into words."""
+        line = Lines("کتاب و قلم")
+        self.assertEqual(len(line.words_list), 3)
+        self.assertEqual(line.words_list[0].word, "کتاب")
+        self.assertEqual(line.words_list[1].word, "و")
+        self.assertEqual(line.words_list[2].word, "قلم")
+
+    def test_line_with_punctuation(self):
+        """Test that punctuation is removed from lines."""
+        line = Lines("کتاب، قلم! شعر؟")
+        # Punctuation should be removed, so we should get clean words
+        self.assertGreater(len(line.words_list), 0)
+        # Check that punctuation is not in words
+        for word in line.words_list:
+            self.assertNotIn(",", word.word)
+            self.assertNotIn("!", word.word)
+            self.assertNotIn("؟", word.word)
+
+    def test_line_with_comma_delimiter(self):
+        """Test splitting by comma delimiter."""
+        line = Lines("کتاب،قلم،شعر")
+        self.assertEqual(len(line.words_list), 3)
+        self.assertEqual(line.words_list[0].word, "کتاب")
+        self.assertEqual(line.words_list[1].word, "قلم")
+        self.assertEqual(line.words_list[2].word, "شعر")
+
+    def test_line_with_multiple_spaces(self):
+        """Test handling of multiple spaces."""
+        line = Lines("کتاب    قلم     شعر")
+        # Multiple spaces should be treated as single delimiter
+        self.assertEqual(len(line.words_list), 3)
+
+    def test_word_cleaning_applied(self):
+        """Test that clean_word transformations are applied."""
+        # Test ئ -> یٔ replacement
+        line = Lines("کتابئ")
+        self.assertEqual(len(line.words_list), 1)
+        self.assertEqual(line.words_list[0].word, "کتابیٔ")
+
+    def test_word_length_calculation(self):
+        """Test that word length is calculated after removing diacritics."""
+        line = Lines("کتاب")
+        self.assertEqual(len(line.words_list), 1)
+        # Length should be calculated after removing diacritics
+        word = line.words_list[0]
+        self.assertGreater(word.length, 0)
+        # Length should match the word without diacritics
+        from aruuz.utils.araab import remove_araab
+        expected_length = len(remove_araab(word.word))
+        self.assertEqual(word.length, expected_length)
+
+    def test_empty_line(self):
+        """Test handling of empty line."""
+        line = Lines("")
+        self.assertEqual(len(line.words_list), 0)
+        self.assertEqual(line.original_line, "")
+
+    def test_line_with_only_punctuation(self):
+        """Test line with only punctuation."""
+        line = Lines("،!؟")
+        # Should result in no words
+        self.assertEqual(len(line.words_list), 0)
+
+    def test_original_line_stored(self):
+        """Test that original (cleaned) line is stored."""
+        line = Lines("کتاب، قلم")
+        # Original line should be cleaned (punctuation removed)
+        self.assertIn("کتاب", line.original_line)
+        self.assertIn("قلم", line.original_line)
+        # But comma should be removed
+        self.assertNotIn("،", line.original_line)
+
+    def test_word_with_alif_madd(self):
+        """Test that ا + madd is converted to آ."""
+        # This tests clean_word functionality through Lines
+        line = Lines("ا\u0653ب")  # ا + madd
+        self.assertEqual(len(line.words_list), 1)
+        self.assertEqual(line.words_list[0].word, "آب")
+
+    def test_word_with_heh_goal(self):
+        """Test that \u06C2 is converted to \u06C1\u0654."""
+        line = Lines("ک\u06C2اں")
+        self.assertEqual(len(line.words_list), 1)
+        self.assertEqual(line.words_list[0].word, "ک\u06C1\u0654اں")
 
 
 if __name__ == '__main__':
