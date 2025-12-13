@@ -1,6 +1,6 @@
 # Aruuz Nigar - Urdu Poetry Scansion Tool
 
-A Python tool and library for scanning Urdu poetry into metres and feet (parsody/taqti analysis).
+A Python tool and library for scanning Urdu poetry into metres and feet (prosody/taqti analysis).
 
 ## Phase 1: Core Engine (Heuristics Only)
 
