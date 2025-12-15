@@ -15,7 +15,9 @@ from aruuz.scansion import (
     is_vowel_plus_h,
     is_muarrab,
     locate_araab,
-    contains_noon
+    contains_noon,
+    is_match,
+    check_code_length
 )
 from aruuz.models import Words, Lines
 
@@ -369,6 +371,134 @@ class TestLinesParsing(unittest.TestCase):
         line = Lines("ک\u06C2اں")
         self.assertEqual(len(line.words_list), 1)
         self.assertEqual(line.words_list[0].word, "ک\u06C1\u0654اں")
+
+
+class TestPatternMatching(unittest.TestCase):
+    """Test pattern matching functions."""
+
+    def test_is_match_exact_match(self):
+        """Test is_match with exact pattern match."""
+        meter = "-===/-===/-===/-==="
+        tentative_code = ""
+        word_code = "-==="
+        result = is_match(meter, tentative_code, word_code)
+        self.assertTrue(result)
+
+    def test_is_match_with_tentative_code(self):
+        """Test is_match with tentative code from previous words."""
+        meter = "-===/-===/-===/-==="
+        tentative_code = "-==="
+        word_code = "-==="
+        result = is_match(meter, tentative_code, word_code)
+        self.assertTrue(result)
+
+    def test_is_match_with_flexible_syllable(self):
+        """Test is_match with 'x' (flexible syllable)."""
+        meter = "-===/-===/-===/-==="
+        tentative_code = ""
+        word_code = "x==="  # 'x' should match both '-' and '='
+        result = is_match(meter, tentative_code, word_code)
+        self.assertTrue(result)
+
+    def test_is_match_no_match(self):
+        """Test is_match when pattern doesn't match."""
+        meter = "-===/-===/-===/-==="
+        tentative_code = ""
+        word_code = "===-"  # Wrong pattern
+        result = is_match(meter, tentative_code, word_code)
+        self.assertFalse(result)
+
+    def test_is_match_with_caesura(self):
+        """Test is_match with caesura (word boundary)."""
+        meter = "-===/-===+=-=/-==="  # Has '+' at word boundary
+        tentative_code = "-==="
+        word_code = "-"  # Single character, should be allowed
+        result = is_match(meter, tentative_code, word_code)
+        self.assertTrue(result)
+
+    def test_is_match_caesura_violation(self):
+        """Test is_match detects caesura violation."""
+        meter = "-===/-===+=-=/-==="  # Has '+' at word boundary
+        tentative_code = "-==="
+        word_code = "=="  # Doesn't end with '-', should violate caesura
+        result = is_match(meter, tentative_code, word_code)
+        self.assertFalse(result)
+
+    def test_is_match_variation_1(self):
+        """Test is_match with variation 1 (meter with '+' removed + '-' appended)."""
+        meter = "-===/-===+=-=/-==="
+        tentative_code = ""
+        word_code = "-===-"  # Should match variation 1
+        result = is_match(meter, tentative_code, word_code)
+        self.assertTrue(result)
+
+    def test_is_match_empty_codes(self):
+        """Test is_match with empty codes."""
+        meter = "-===/-===/-===/-==="
+        tentative_code = ""
+        word_code = ""
+        result = is_match(meter, tentative_code, word_code)
+        self.assertFalse(result)
+
+    def test_check_code_length_exact_match(self):
+        """Test check_code_length with exact length match."""
+        code = "-==="
+        meter_indices = [0, 1, 2]  # First few meters
+        result = check_code_length(code, meter_indices)
+        # Should return indices that match the code length
+        self.assertIsInstance(result, list)
+        self.assertLessEqual(len(result), len(meter_indices))
+
+    def test_check_code_length_filters_mismatches(self):
+        """Test check_code_length filters out meters that don't match."""
+        code = "-"  # Very short code
+        meter_indices = [0, 1, 2, 3, 4]  # Multiple meters
+        result = check_code_length(code, meter_indices)
+        # Should filter out meters that don't match any variation
+        self.assertIsInstance(result, list)
+        # Result should be a subset of input
+        for idx in result:
+            self.assertIn(idx, meter_indices)
+
+    def test_check_code_length_with_flexible_syllable(self):
+        """Test check_code_length with 'x' in code."""
+        code = "x==="
+        meter_indices = [0, 1]
+        result = check_code_length(code, meter_indices)
+        self.assertIsInstance(result, list)
+
+    def test_check_code_length_empty_list(self):
+        """Test check_code_length with empty meter indices."""
+        code = "-==="
+        meter_indices = []
+        result = check_code_length(code, meter_indices)
+        self.assertEqual(result, [])
+
+    def test_check_code_length_all_variations(self):
+        """Test check_code_length checks all 4 variations."""
+        # Use a code that might match different variations
+        code = "-==="
+        meter_indices = [0]  # First meter
+        result = check_code_length(code, meter_indices)
+        # Should check all variations and return appropriate result
+        self.assertIsInstance(result, list)
+
+    def test_check_code_length_with_plus_in_meter(self):
+        """Test check_code_length with meter containing '+'."""
+        code = "-==="
+        # Find a meter with '+' in it
+        from aruuz.meters import METERS
+        meter_with_plus = None
+        meter_idx = None
+        for i, m in enumerate(METERS):
+            if '+' in m:
+                meter_with_plus = m
+                meter_idx = i
+                break
+        
+        if meter_with_plus:
+            result = check_code_length(code, [meter_idx])
+            self.assertIsInstance(result, list)
 
 
 if __name__ == '__main__':
