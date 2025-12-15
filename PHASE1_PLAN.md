@@ -278,23 +278,6 @@ aruuz_python/
 
 **Convert from:** `Models/Scansion.cs` - `scanLines()` method (simplified, no database)
 
-**Class structure:**
-```python
-class Scansion:
-    def __init__(self):
-        self.lst_lines = []
-        self.num_lines = 0
-        self.fuzzy = False
-        self.free_verse = False
-        self.error_param = 2
-        self.meter = []  # List of meter indices to check
-    
-    def add_line(self, line: Lines):
-        # Add line to scan
-    
-    def scan_lines(self) -> List[scanOutput]:
-        # Main scanning method
-```
 
 **Methods to implement:**
 
