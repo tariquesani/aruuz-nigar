@@ -24,12 +24,20 @@ class TestTaqtiLengthOne(unittest.TestCase):
     """Test scansion for single-character words."""
 
     def test_alif_madd_long(self):
-        """Test آ (alif madd) is scanned as long syllable."""
+        """Test: آ (alif madd) should be scanned as long syllable (=).
+        
+        Alif madd (آ) represents a long vowel and should always produce
+        a long syllable code (=).
+        """
         result = length_one_scan("آ")
         self.assertEqual(result, "=", "آ should be scanned as long (=)")
 
     def test_regular_consonant_short(self):
-        """Test regular consonants are scanned as short syllables."""
+        """Test: Regular consonants should be scanned as short syllables (-).
+        
+        Single consonants without vowels should produce short syllable codes (-).
+        Tests: ک, ب, ت, د, ر, س, ل, م, ن
+        """
         test_cases = ["ک", "ب", "ت", "د", "ر", "س", "ل", "م", "ن"]
         for char in test_cases:
             with self.subTest(char=char):
@@ -37,7 +45,12 @@ class TestTaqtiLengthOne(unittest.TestCase):
                 self.assertEqual(result, "-", f"{char} should be scanned as short (-)")
 
     def test_assign_code_single_char(self):
-        """Test assign_code for single character words."""
+        """Test: assign_code() for single character words.
+        
+        Tests that assign_code correctly handles:
+        - آ should return = (long)
+        - ک should return - (short)
+        """
         word = Words()
         word.word = "آ"
         word.taqti = []
@@ -53,12 +66,22 @@ class TestTaqtiLengthTwo(unittest.TestCase):
     """Test scansion for two-character words."""
 
     def test_starts_with_alif_madd(self):
-        """Test words starting with آ."""
+        """Test: Words starting with آ should be =- (long-short).
+        
+        Example: آب (water) should produce =- where:
+        - آ is long (=)
+        - ب is short (-)
+        """
         result = length_two_scan("آب")
         self.assertEqual(result, "=-", "آب should be =- (long-short)")
 
     def test_ends_with_vowel_flexible(self):
-        """Test words ending with vowels are flexible."""
+        """Test: Words ending with vowels should be flexible (x).
+        
+        Words ending in ا،ی،ے،و،ہ should produce flexible syllable code (x)
+        because the final vowel can be long or short depending on context.
+        Tests: کا, کی, کے, کو, کہ
+        """
         # Words ending in ا،ی،ے،و،ہ should be flexible (x)
         test_cases = [
             ("کا", "x"),  # ends with ا
@@ -73,12 +96,22 @@ class TestTaqtiLengthTwo(unittest.TestCase):
                 self.assertEqual(result, expected, f"{word} should be flexible (x)")
 
     def test_default_two_char(self):
-        """Test default two-character words."""
+        """Test: Default two-character words should be = (long).
+        
+        Two-character words that don't match special patterns should
+        default to a single long syllable (=).
+        Example: کب
+        """
         result = length_two_scan("کب")
         self.assertEqual(result, "=", "Default two-char word should be =")
 
     def test_assign_code_two_char(self):
-        """Test assign_code for two-character words."""
+        """Test: assign_code() for two-character words.
+        
+        Tests that assign_code correctly processes two-character words
+        and returns valid scansion codes (=- or x).
+        Example: آب
+        """
         word = Words()
         word.word = "آب"
         word.taqti = []
@@ -90,7 +123,12 @@ class TestTaqtiLengthThree(unittest.TestCase):
     """Test scansion for three-character words."""
 
     def test_common_words(self):
-        """Test common three-character Urdu words."""
+        """Test: Common three-character Urdu words produce valid codes.
+        
+        Tests that length_three_scan produces valid scansion codes
+        containing only -, =, or x for common words.
+        Tests: کتاب (book), دوست (friend), شہر (city), گھر (home)
+        """
         test_cases = [
             ("کتاب", None),  # Should produce valid code
             ("دوست", None),
@@ -107,20 +145,32 @@ class TestTaqtiLengthThree(unittest.TestCase):
                               f"Code {result} should only contain -, =, or x")
 
     def test_starts_with_alif_madd(self):
-        """Test three-character words starting with آ."""
+        """Test: Three-character words starting with آ.
+        
+        Words starting with آ (alif madd) should produce valid scansion codes.
+        Example: آنا
+        """
         result = length_three_scan("آنا")
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
 
     def test_has_alif_at_center(self):
-        """Test words with alif at center position."""
+        """Test: Words with alif at center position.
+        
+        Words with alif (ا) at position 2 should produce codes of length 2-3.
+        Example: کتاب (book) - typically produces =- or similar pattern.
+        """
         result = length_three_scan("کتاب")
         self.assertIsInstance(result, str)
         # Should typically be =- or similar
         self.assertIn(len(result), [2, 3])
 
     def test_ends_with_vowel(self):
-        """Test words ending with vowels."""
+        """Test: Three-character words ending with vowels.
+        
+        Words ending with vowels should produce valid scansion codes.
+        Tests: کسی, گھر, دوست
+        """
         test_cases = ["کسی", "گھر", "دوست"]
         for word in test_cases:
             with self.subTest(word=word):
@@ -129,13 +179,23 @@ class TestTaqtiLengthThree(unittest.TestCase):
                 self.assertGreater(len(result), 0)
 
     def test_with_diacritics(self):
-        """Test three-character words with diacritics."""
+        """Test: Three-character words with diacritical marks.
+        
+        Words with diacritics (zabar, zer, paish, jazm, etc.) should
+        be processed correctly and produce valid codes.
+        Example: کتاب with zabar (fatha) diacritic.
+        """
         # Word with jazm (sukun)
         result = length_three_scan("ک\u064Eتاب")
         self.assertIsInstance(result, str)
 
     def test_assign_code_three_char(self):
-        """Test assign_code for three-character words."""
+        """Test: assign_code() for three-character words.
+        
+        Tests that assign_code correctly processes three-character words
+        and returns valid scansion codes containing only -, =, or x.
+        Example: کتاب (book)
+        """
         word = Words()
         word.word = "کتاب"
         word.taqti = []
@@ -149,7 +209,12 @@ class TestTaqtiLengthFour(unittest.TestCase):
     """Test scansion for four-character words."""
 
     def test_common_words(self):
-        """Test common four-character Urdu words."""
+        """Test: Common four-character Urdu words produce valid codes.
+        
+        Tests that length_four_scan produces valid scansion codes
+        for common four-character words.
+        Tests: کتابیں, دوستی, شہری, گھری
+        """
         test_cases = [
             ("کتابیں", None),
             ("دوستی", None),
@@ -164,18 +229,30 @@ class TestTaqtiLengthFour(unittest.TestCase):
                 self.assertTrue(all(c in "-=x" for c in result))
 
     def test_starts_with_alif_madd(self):
-        """Test four-character words starting with آ."""
+        """Test: Four-character words starting with آ.
+        
+        Words starting with آ (alif madd) should produce valid scansion codes.
+        Example: آناں
+        """
         result = length_four_scan("آناں")
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
 
     def test_has_alif_at_position_2(self):
-        """Test words with alif at position 2."""
+        """Test: Words with alif at position 2.
+        
+        Words with alif (ا) at the second position should produce valid codes.
+        Example: کتاب (book)
+        """
         result = length_four_scan("کتاب")
         self.assertIsInstance(result, str)
 
     def test_assign_code_four_char(self):
-        """Test assign_code for four-character words."""
+        """Test: assign_code() for four-character words.
+        
+        Tests that assign_code correctly processes four-character words.
+        Example: کتابیں
+        """
         word = Words()
         word.word = "کتابیں"
         word.taqti = []
@@ -188,7 +265,12 @@ class TestTaqtiLengthFive(unittest.TestCase):
     """Test scansion for five-character words."""
 
     def test_common_words(self):
-        """Test common five-character Urdu words."""
+        """Test: Common five-character Urdu words produce valid codes.
+        
+        Tests that length_five_scan produces valid scansion codes
+        for words that are 5+ characters after removing diacritics.
+        Tests: کتابیں, دوستی
+        """
         test_cases = [
             ("کتابیں", None),  # 5 chars with diacritics
             ("دوستی", None),
@@ -204,12 +286,20 @@ class TestTaqtiLengthFive(unittest.TestCase):
                     self.assertTrue(all(c in "-=x" for c in result))
 
     def test_longer_words(self):
-        """Test longer words (5+ characters)."""
+        """Test: Longer words (5+ characters) produce valid codes.
+        
+        Words with 5 or more characters should produce valid scansion codes.
+        Example: کتابیں
+        """
         result = length_five_scan("کتابیں")
         self.assertIsInstance(result, str)
 
     def test_assign_code_five_char(self):
-        """Test assign_code for five-character words."""
+        """Test: assign_code() for five-character words.
+        
+        Tests that assign_code correctly processes five-character words.
+        Example: کتابیں
+        """
         word = Words()
         word.word = "کتابیں"
         word.taqti = []
@@ -222,7 +312,11 @@ class TestNoonGhunna(unittest.TestCase):
     """Test noon ghunna (nasalization) handling."""
 
     def test_contains_noon(self):
-        """Test contains_noon function."""
+        """Test: contains_noon() correctly identifies words with ن (noon).
+        
+        Should return True for words containing ن: نظر, انگ, ہنس, باندھ
+        Should return False for words without ن: کتاب, آب
+        """
         self.assertTrue(contains_noon("نظر"))
         self.assertTrue(contains_noon("انگ"))
         self.assertTrue(contains_noon("ہنس"))
@@ -231,7 +325,13 @@ class TestNoonGhunna(unittest.TestCase):
         self.assertFalse(contains_noon("آب"))
 
     def test_noon_ghunna_length_3(self):
-        """Test noon_ghunna for 3-character words."""
+        """Test: noon_ghunna() adjustments for 3-character words.
+        
+        Tests noon ghunna (nasalization) adjustments when ن has jazm (sukun):
+        - آنت with jazm: =-- should become =-
+        - انگ with jazm: =- should remain =-
+        - ہنس with jazm: =- should become =
+        """
         # Test case: آنت with jazm on ن (should become =-)
         # آ + ن\u0652 + ت
         word = "آن\u0652ت"  # jazm (\u0652) on ن
@@ -254,7 +354,13 @@ class TestNoonGhunna(unittest.TestCase):
         self.assertEqual(result, "=", "ہنس with jazm should become =")
 
     def test_noon_ghunna_length_4(self):
-        """Test noon_ghunna for 4-character words."""
+        """Test: noon_ghunna() adjustments for 4-character words.
+        
+        Tests noon ghunna adjustments when ن has jazm at different positions:
+        - اندر with jazm on ن at pos 1: == should remain ==
+        - ہنسا with jazm on ن at pos 1: == should become -=
+        - باندھ with jazm on ن at pos 2: =-- should become =-
+        """
         # Jazm diacritic: \u0652
         jazm = "\u0652"
         
@@ -280,7 +386,11 @@ class TestNoonGhunna(unittest.TestCase):
         self.assertEqual(result, "=-", "باندھ with jazm on ن should become =-")
 
     def test_noon_ghunna_length_5(self):
-        """Test noon_ghunna for 5-character words."""
+        """Test: noon_ghunna() adjustments for 5-character words.
+        
+        Tests that noon_ghunna correctly processes 5-character words
+        with ن and jazm, producing valid scansion codes.
+        """
         # Test various 5-character cases
         test_cases = [
             ("آنت", "=--", "=-"),  # Should remove middle -
@@ -297,7 +407,11 @@ class TestTaqtiWithDiacritics(unittest.TestCase):
     """Test scansion with diacritical marks."""
 
     def test_with_zabar(self):
-        """Test words with zabar (fatha) diacritic."""
+        """Test: Words with zabar (fatha) diacritic produce valid codes.
+        
+        Zabar (\u064E) indicates a short 'a' vowel sound.
+        Example: کتاب with zabar on ک
+        """
         word = Words()
         word.word = "ک\u064Eتاب"  # ک with zabar
         word.taqti = []
@@ -306,7 +420,11 @@ class TestTaqtiWithDiacritics(unittest.TestCase):
         self.assertGreater(len(result), 0)
 
     def test_with_zer(self):
-        """Test words with zer (kasra) diacritic."""
+        """Test: Words with zer (kasra) diacritic produce valid codes.
+        
+        Zer (\u0650) indicates a short 'i' vowel sound.
+        Example: کتاب with zer on ک
+        """
         word = Words()
         word.word = "ک\u0650تاب"  # ک with zer
         word.taqti = []
@@ -314,7 +432,11 @@ class TestTaqtiWithDiacritics(unittest.TestCase):
         self.assertIsInstance(result, str)
 
     def test_with_paish(self):
-        """Test words with paish (damma) diacritic."""
+        """Test: Words with paish (damma) diacritic produce valid codes.
+        
+        Paish (\u064F) indicates a short 'u' vowel sound.
+        Example: کتاب with paish on ک
+        """
         word = Words()
         word.word = "ک\u064Fتاب"  # ک with paish
         word.taqti = []
@@ -322,7 +444,11 @@ class TestTaqtiWithDiacritics(unittest.TestCase):
         self.assertIsInstance(result, str)
 
     def test_with_jazm(self):
-        """Test words with jazm (sukun) diacritic."""
+        """Test: Words with jazm (sukun) diacritic produce valid codes.
+        
+        Jazm (\u0652) indicates absence of vowel (consonant cluster).
+        Example: کتاب with jazm on ک
+        """
         word = Words()
         word.word = "ک\u0652تاب"  # ک with jazm
         word.taqti = []
@@ -330,7 +456,11 @@ class TestTaqtiWithDiacritics(unittest.TestCase):
         self.assertIsInstance(result, str)
 
     def test_with_shadd(self):
-        """Test words with shadd (tashdid) diacritic."""
+        """Test: Words with shadd (tashdid) diacritic produce valid codes.
+        
+        Shadd (\u0651) indicates gemination (doubling) of a consonant.
+        Example: کتاب with shadd on ک
+        """
         word = Words()
         word.word = "ک\u0651تاب"  # ک with shadd
         word.taqti = []
@@ -342,7 +472,12 @@ class TestTaqtiSpecialCharacters(unittest.TestCase):
     """Test scansion with special characters (ھ، ں)."""
 
     def test_with_heh_doachashmee(self):
-        """Test words with ھ (heh doachashmee)."""
+        """Test: Words with ھ (heh doachashmee) are processed correctly.
+        
+        The character ھ should be removed for scansion purposes before
+        processing, as it's a special form of heh.
+        Example: کتابھ
+        """
         word = Words()
         word.word = "کتابھ"
         word.taqti = []
@@ -353,7 +488,12 @@ class TestTaqtiSpecialCharacters(unittest.TestCase):
         self.assertGreater(len(stripped), 0)
 
     def test_with_noon_ghunna_char(self):
-        """Test words with ں (noon ghunna character)."""
+        """Test: Words with ں (noon ghunna character) are processed correctly.
+        
+        The character ں should be removed for scansion purposes before
+        processing, as it's a special form of noon.
+        Example: کتابں
+        """
         word = Words()
         word.word = "کتابں"
         word.taqti = []
@@ -368,7 +508,14 @@ class TestTaqtiRealWords(unittest.TestCase):
     """Test scansion with real Urdu words."""
 
     def test_common_urdu_words(self):
-        """Test scansion of common Urdu words."""
+        """Test: Scansion of common Urdu words produces valid codes.
+        
+        Tests that assign_code correctly processes common Urdu words
+        and produces valid scansion codes with reasonable lengths.
+        Tests: آب (water), کتاب (book), دوست (friend), شہر (city),
+        گھر (home), کسی (someone), کے (of), کو (to/for), وہ (that/he/she),
+        یہ (this)
+        """
         test_words = [
             "آب",      # water
             "کتاب",    # book
@@ -410,7 +557,11 @@ class TestTaqtiEdgeCases(unittest.TestCase):
     """Test edge cases and error handling."""
 
     def test_empty_word(self):
-        """Test handling of empty word."""
+        """Test: Empty word is handled gracefully.
+        
+        assign_code should handle empty words without errors
+        and return a string result (may be empty).
+        """
         word = Words()
         word.word = ""
         word.taqti = []
@@ -419,7 +570,11 @@ class TestTaqtiEdgeCases(unittest.TestCase):
         self.assertIsInstance(result, str)
 
     def test_word_with_only_diacritics(self):
-        """Test word with only diacritics."""
+        """Test: Word containing only diacritics is handled gracefully.
+        
+        Words with only diacritical marks (no base characters) should
+        be processed without errors.
+        """
         word = Words()
         word.word = "\u064E\u0650\u064F"  # Only diacritics
         word.taqti = []
@@ -427,7 +582,11 @@ class TestTaqtiEdgeCases(unittest.TestCase):
         self.assertIsInstance(result, str)
 
     def test_very_long_word(self):
-        """Test very long word (6+ characters)."""
+        """Test: Very long words (6+ characters) produce valid codes.
+        
+        Words with 6 or more characters should produce valid scansion codes.
+        Example: کتابیں (may be 5+ characters after processing)
+        """
         word = Words()
         word.word = "کتابیں"  # May be 5+ after processing
         word.taqti = []
@@ -436,7 +595,12 @@ class TestTaqtiEdgeCases(unittest.TestCase):
         self.assertGreater(len(result), 0)
 
     def test_word_with_taqti_provided(self):
-        """Test word that already has taqti."""
+        """Test: Words with pre-provided taqti are handled correctly.
+        
+        If a word already has taqti (scansion) provided, assign_code
+        should use it if available and return a valid code.
+        Example: کتاب with taqti already set
+        """
         word = Words()
         word.word = "کتاب"
         word.taqti = ["کتاب"]  # Taqti provided
@@ -450,7 +614,12 @@ class TestTaqtiConsistency(unittest.TestCase):
     """Test consistency of scansion codes."""
 
     def test_same_word_consistency(self):
-        """Test that same word produces consistent results."""
+        """Test: Same word produces consistent scansion codes.
+        
+        Running assign_code multiple times on the same word should
+        produce identical results, ensuring deterministic behavior.
+        Tests: کتاب (book) - run 5 times
+        """
         word_text = "کتاب"
         results = []
         
@@ -466,7 +635,13 @@ class TestTaqtiConsistency(unittest.TestCase):
                        f"Same word {word_text} should produce consistent codes, got {results}")
 
     def test_code_format(self):
-        """Test that codes follow expected format."""
+        """Test: Scansion codes follow expected format.
+        
+        All scansion codes should:
+        - Only contain characters: -, =, or x
+        - Not be empty
+        Tests: آ, آب, کتاب, دوست, شہر
+        """
         test_words = ["آ", "آب", "کتاب", "دوست", "شہر"]
         
         for word_text in test_words:

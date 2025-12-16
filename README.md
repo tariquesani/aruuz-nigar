@@ -86,21 +86,45 @@ pip install -r requirements.txt
 ### Run Tests
 
 ```bash
-# Run all tests
+# Run all tests (verbose by default via pytest.ini)
 pytest
 
-# Run with verbose output
-pytest -v
+# Run with extra verbose output (shows more details)
+pytest -vv
 
 # Run specific test file
-pytest tests/test_taqti.py -v
+pytest tests/test_taqti.py
 
 # Run specific test class
-pytest tests/test_taqti.py::TestTaqtiRealWords -v
+pytest tests/test_taqti.py::TestTaqtiRealWords
+
+# Run specific test method
+pytest tests/test_taqti.py::TestTaqtiLengthTwo::test_starts_with_alif_madd
+
+# View test collection with docstrings (shows what tests will run)
+pytest --collect-only -v
 
 # Run with coverage (if pytest-cov is installed)
 pytest --cov=aruuz tests/
 ```
+
+**Viewing Test Docstrings:**
+
+Test docstrings contain detailed descriptions of what each test verifies.
+To see them:
+
+```bash
+# View all tests with their docstrings
+pytest --collect-only -v
+
+# View specific test's docstring
+pytest --collect-only -v tests/test_taqti.py::TestTaqtiLengthTwo::test_starts_with_alif_madd
+```
+
+Docstrings are also visible in:
+- **IDE test runners** (VS Code, PyCharm, etc.) - hover over test names or view test explorer
+- **HTML reports**: `pytest --html=report.html` (requires `pip install pytest-html`)
+- **When tests fail** - docstrings appear in traceback output
 
 ## Attribution
 
