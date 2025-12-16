@@ -4,3 +4,8 @@
 # Development/Testing dependencies
 pytest>=7.0.0
 
+# Web application dependencies
+# Note: Install Flask separately if markupsafe build fails:
+# pip install --only-binary :all: Flask
+Flask>=2.3.0
+

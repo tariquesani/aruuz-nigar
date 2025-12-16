@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ur" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urdu Scansion Tool - Word Testing</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Urdu Scansion Tool</h1>
+            <p class="subtitle">Test individual Urdu words</p>
+        </header>
+        
+        <main>
+            <form method="POST" action="/" class="scan-form">
+                <div class="form-group">
+                    <label for="word">Enter Urdu Word:</label>
+                    <textarea 
+                        id="word" 
+                        name="word" 
+                        dir="rtl" 
+                        lang="ur"
+                        placeholder="آب"
+                        required
+                        autofocus
+                    >{% if result %}{{ result.word }}{% endif %}</textarea>
+                </div>
+                
+                <button type="submit" class="submit-btn">Scan Word</button>
+            </form>
+            
+            {% if error %}
+            <div class="error-message">
+                <strong>Error:</strong> {{ error }}
+            </div>
+            {% endif %}
+            
+            {% if result %}
+            <div class="result-container" dir="rtl" lang="ur">
+                <h2>Result</h2>
+                <div class="result-item">
+                    <span class="label">Word:</span>
+                    <span class="value word-value">{{ result.word }}</span>
+                </div>
+                <div class="result-item">
+                    <span class="label">Code:</span>
+                    <span class="value code-value">{{ result.code }}</span>
+                </div>
+            </div>
+            {% endif %}
+        </main>
+        
+        <footer>
+            <p>Urdu Poetry Scansion Engine - Phase 1</p>
+        </footer>
+    </div>
+</body>
+</html>
+

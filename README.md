@@ -67,6 +67,8 @@ deactivate
 
 ## Usage
 
+### Python Library
+
 ```python
 from aruuz import Scansion
 
@@ -74,6 +76,27 @@ scanner = Scansion()
 scanner.add_line("نقش فریادی ہے کس کی شوخیِ تحریر کا")
 results = scanner.scan_lines()
 ```
+
+### Web Application (Flask)
+
+A simple web interface is available for testing single words with proper RTL display.
+
+**Install Flask:**
+```bash
+pip install -r requirements.txt
+```
+
+**Run the Flask app:**
+```bash
+python app.py
+```
+
+Then open your browser to: `http://127.0.0.1:5000`
+
+The web app provides:
+- RTL (right-to-left) text input for Urdu words
+- RTL display of scansion codes
+- Simple, clean interface for testing
 
 ## Testing
 
