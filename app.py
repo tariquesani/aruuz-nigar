@@ -63,12 +63,11 @@ def index():
                 code = assign_code(word_obj)
                 
                 # Reverse code for RTL display
-                code_rtl = reverse_code_for_rtl(code)
+                # code_rtl = reverse_code_for_rtl(code)
                 
                 result = {
                     'word': word_text,
                     'code': code,
-                    'code_rtl': code,
                     'length': word_obj.length
                 }
             except Exception as e:
