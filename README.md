@@ -75,6 +75,33 @@ scanner.add_line("نقش فریادی ہے کس کی شوخیِ تحریر کا"
 results = scanner.scan_lines()
 ```
 
+## Testing
+
+### Install Test Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Run Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_taqti.py -v
+
+# Run specific test class
+pytest tests/test_taqti.py::TestTaqtiRealWords -v
+
+# Run with coverage (if pytest-cov is installed)
+pytest --cov=aruuz tests/
+```
+
 ## Attribution
 
 Based on Aruuz by Sayed Zeeshan Asghar  
