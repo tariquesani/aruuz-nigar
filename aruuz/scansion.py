@@ -5,10 +5,15 @@ This module contains the main Scansion class that processes
 Urdu poetry lines and identifies meters.
 """
 
-from typing import List
-from aruuz.models import Words
+from typing import List, Optional
+from aruuz.models import Words, Lines, scanOutput
 from aruuz.utils.araab import remove_araab, ARABIC_DIACRITICS
-from aruuz.meters import METERS, METERS_VARIED, RUBAI_METERS, NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS
+from aruuz.meters import (
+    METERS, METERS_VARIED, RUBAI_METERS, 
+    METER_NAMES, METERS_VARIED_NAMES, RUBAI_METER_NAMES,
+    NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS,
+    afail, meter_index
+)
 
 
 def is_vowel_plus_h(char: str) -> bool:
@@ -1105,3 +1110,195 @@ def check_code_length(code: str, meter_indices: List[int]) -> List[int]:
             result.remove(meter_idx)
     
     return result
+
+
+class Scansion:
+    """
+    Main scansion engine for Urdu poetry.
+    
+    This class processes lines of Urdu poetry, assigns scansion codes to words,
+    and matches them against meter patterns.
+    """
+    
+    def __init__(self):
+        """Initialize a new Scansion instance."""
+        self.lst_lines: List[Lines] = []
+        self.num_lines: int = 0
+        self.is_checked: bool = False
+        self.free_verse: bool = False
+        self.fuzzy: bool = False
+        self.error_param: int = 8
+        self.meter: Optional[List[int]] = None
+    
+    def add_line(self, line: Lines) -> None:
+        """
+        Add a line to the scansion engine.
+        
+        Args:
+            line: Lines object containing the poetry line
+        """
+        self.lst_lines.append(line)
+        self.num_lines += 1
+    
+    def word_code(self, word: Words) -> Words:
+        """
+        Assign scansion code to a word using heuristics.
+        
+        This method uses the assign_code function to determine the scansion
+        code for a word based on its length and characteristics.
+        
+        Args:
+            word: Words object to assign code to
+            
+        Returns:
+            Words object with code assigned
+        """
+        # If word already has codes, return as is
+        if len(word.code) > 0:
+            return word
+        
+        # Use heuristics to assign code
+        code = assign_code(word)
+        
+        # Store code in word
+        word.code = [code]
+        
+        return word
+    
+    def scan_line(self, line: Lines, line_index: int) -> List[scanOutput]:
+        """
+        Process a single line and return possible scan outputs.
+        
+        This method:
+        1. Assigns codes to all words in the line
+        2. Builds a complete code string
+        3. Matches against all meters
+        4. Creates scanOutput objects for matches
+        
+        Args:
+            line: Lines object to scan
+            line_index: Index of the line (for reference)
+            
+        Returns:
+            List of scanOutput objects representing possible meter matches
+        """
+        results: List[scanOutput] = []
+        
+        # Step 1: Assign codes to all words
+        word_codes: List[str] = []
+        for word in line.words_list:
+            word = self.word_code(word)
+            if len(word.code) > 0:
+                word_codes.append(word.code[0])
+            else:
+                # If no code assigned, skip this word or use default
+                word_codes.append("-")
+        
+        # Step 2: Build complete code string
+        full_code = "".join(word_codes)
+        
+        if not full_code:
+            return results  # No code, no matches
+        
+        # Step 3: Get all possible meter indices
+        # Start with all regular meters
+        all_meter_indices = list(range(NUM_METERS))
+        
+        # Add varied meters if any
+        if NUM_VARIED_METERS > 0:
+            all_meter_indices.extend(range(NUM_METERS, NUM_METERS + NUM_VARIED_METERS))
+        
+        # Add rubai meters
+        if NUM_RUBAI_METERS > 0:
+            all_meter_indices.extend(range(
+                NUM_METERS + NUM_VARIED_METERS,
+                NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS
+            ))
+        
+        # Step 4: Filter meters by code length
+        matching_meters = check_code_length(full_code, all_meter_indices)
+        
+        # Step 5: For each matching meter, verify pattern match and create scanOutput
+        for meter_idx in matching_meters:
+            # Get meter pattern
+            if meter_idx < NUM_METERS:
+                meter_pattern = METERS[meter_idx]
+                meter_name = METER_NAMES[meter_idx]
+            elif meter_idx < NUM_METERS + NUM_VARIED_METERS:
+                meter_pattern = METERS_VARIED[meter_idx - NUM_METERS]
+                meter_name = METERS_VARIED_NAMES[meter_idx - NUM_METERS]
+            elif meter_idx < NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS:
+                meter_pattern = RUBAI_METERS[meter_idx - NUM_METERS - NUM_VARIED_METERS]
+                meter_name = RUBAI_METER_NAMES[meter_idx - NUM_METERS - NUM_VARIED_METERS] + " (رباعی)"
+            else:
+                continue  # Skip invalid indices
+            
+            # Verify pattern match: check if full code matches meter pattern
+            # Create meter variations and check if code matches any
+            meter_clean = meter_pattern.replace("/", "")
+            meter1 = meter_clean.replace("+", "")
+            meter2 = meter_clean.replace("+", "") + "-"
+            meter3 = meter_clean.replace("+", "-") + "-"
+            meter4 = meter_clean.replace("+", "-")
+            
+            matches = False
+            
+            # Check against all 4 variations
+            for meter_var in [meter1, meter2, meter3, meter4]:
+                if len(meter_var) == len(full_code):
+                    match = True
+                    for j in range(len(meter_var)):
+                        met_char = meter_var[j]
+                        code_char = full_code[j]
+                        if met_char == '-':
+                            if code_char != '-' and code_char != 'x':
+                                match = False
+                                break
+                        elif met_char == '=':
+                            if code_char != '=' and code_char != 'x':
+                                match = False
+                                break
+                    if match:
+                        matches = True
+                        break
+            
+            if matches:
+                # Create scanOutput
+                so = scanOutput()
+                so.original_line = line.original_line
+                so.words = line.words_list.copy()
+                so.word_taqti = word_codes.copy()
+                so.word_muarrab = [w.word for w in line.words_list]  # Use original word as muarrab for now
+                so.meter_name = meter_name
+                so.feet = afail(meter_pattern)  # Get feet breakdown
+                so.id = meter_idx
+                so.num_lines = 1
+                
+                results.append(so)
+        
+        return results
+    
+    def scan_lines(self) -> List[scanOutput]:
+        """
+        Main method to process all lines and return scan outputs.
+        
+        This method processes all lines added to the scansion engine,
+        assigns codes using heuristics, matches against meters, and
+        returns all possible scan outputs.
+        
+        Returns:
+            List of scanOutput objects, one per line per matching meter
+        """
+        all_results: List[scanOutput] = []
+        
+        if self.free_verse or self.fuzzy:
+            # For Phase 1, we don't handle free verse or fuzzy matching
+            return all_results
+        
+        # Process each line
+        for k in range(self.num_lines):
+            line = self.lst_lines[k]
+            line_results = self.scan_line(line, k)
+            all_results.extend(line_results)
+        
+        return all_results
