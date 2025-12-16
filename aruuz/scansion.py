@@ -419,6 +419,11 @@ def length_five_scan(substr: str) -> str:
     sub_string = substr.replace("\u06BE", "").replace("\u06BA", "")
     stripped = remove_araab(sub_string)
     
+    # --- FIX: aspirated + ی should force short medial vowel (e.g. اندھیرے) ---
+    if 'ھ' in substr:
+        for i in range(len(substr) - 2):
+            if substr[i+1] == 'ھ' and substr[i+2] == 'ی':
+                return "-=="    
     if len(stripped) == 3:
         code = length_three_scan(substr)
     elif len(stripped) == 4:
