@@ -1,232 +1,158 @@
-/* Urdu Scansion Tool - RTL-Aware Styling */
+/* Urdu Scansion Tool - Bootstrap 5.3 + RTL-Aware Styling */
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
+/* Body and Background */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     direction: rtl;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-color: #f8f9fa;
     min-height: 100vh;
-    padding: 20px;
-    color: #333;
+    color: #212529;
 }
 
-.container {
-    max-width: 700px;
-    margin: 0 auto;
-    background: white;
-    border-radius: 15px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
+/* Urdu Font Family */
+.urdu-text,
+.urdu-input {
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
 }
 
-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 30px;
-    text-align: center;
-}
-
-header h1 {
-    font-size: 2.5em;
-    margin-bottom: 10px;
-    font-weight: 600;
-}
-
-.subtitle {
-    font-size: 1.1em;
-    opacity: 0.9;
-}
-
-main {
-    padding: 40px;
-}
-
-/* Form Styling */
-.scan-form {
-    margin-bottom: 30px;
-}
-
-.form-group {
-    margin-bottom: 25px;
-}
-
-label {
-    display: block;
-    margin-bottom: 10px;
-    font-weight: 600;
-    color: #555;
-    font-size: 1.1em;
-    direction: ltr; /* Labels in LTR for English */
-    text-align: left;
-}
-
-textarea {
-    width: 100%;
-    min-height: 120px;
-    padding: 15px;
-    border: 2px solid #ddd;
-    border-radius: 8px;
-    font-size: 1.8em;
-    font-family: 'Segoe UI', 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif;
+/* Form Input Styling */
+.urdu-input {
+    font-size: 1.8rem;
     direction: rtl;
     text-align: right;
-    resize: vertical;
-    transition: border-color 0.3s ease;
+    line-height: 1.8;
 }
 
-textarea:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-textarea::placeholder {
+.urdu-input::placeholder {
     color: #999;
     opacity: 0.7;
 }
 
-.submit-btn {
-    width: 100%;
-    padding: 15px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 1.2em;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    direction: ltr; /* Button text in LTR */
+.urdu-input:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
 
-.submit-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-}
-
-.submit-btn:active {
-    transform: translateY(0);
-}
-
-/* Error Message */
-.error-message {
-    background: #fee;
-    border: 2px solid #fcc;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 20px;
-    color: #c33;
-    direction: ltr;
-    text-align: left;
-}
-
-.error-message strong {
-    font-weight: 600;
-}
-
-/* Result Container */
-.result-container {
-    background: #f8f9fa;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    padding: 25px;
-    margin-top: 20px;
-    direction: rtl;
-}
-
-.result-container h2 {
-    margin-bottom: 20px;
-    color: #667eea;
-    font-size: 1.5em;
-    direction: ltr;
-    text-align: left;
-}
-
-.result-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 15px;
-    padding: 10px;
-    background: white;
-    border-radius: 6px;
-    direction: rtl;
-}
-
-.result-item:last-child {
-    margin-bottom: 0;
-}
-
-.result-item .label {
-    font-weight: 600;
-    color: #666;
-    margin-left: 15px;
-    min-width: 80px;
-    direction: ltr;
-    text-align: left;
-}
-
-.result-item .value {
-    flex: 1;
-    font-size: 1.5em;
+/* Word Value Styling */
+.word-value {
+    font-size: 2rem;
     font-weight: 500;
+    color: #212529;
     direction: rtl;
     text-align: right;
 }
 
-.word-value {
-    font-family: 'Segoe UI', 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif;
-    color: #333;
-    font-size: 1.8em;
-}
-
+/* Code Value Styling */
 .code-value {
-    font-family: 'Courier New', monospace;
-    color: #667eea;
-    font-size: 2em;
+    font-family: 'Courier New', 'Courier', monospace;
+    font-size: 2.5rem;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    color: #0d6efd;
+    letter-spacing: 0.15em;
     direction: rtl;
+    text-align: right;
 }
 
-/* Footer */
-footer {
-    background: #f8f9fa;
-    padding: 20px;
-    text-align: center;
-    color: #666;
-    font-size: 0.9em;
+/* Card Enhancements */
+.card {
+    border: none;
+    border-radius: 15px;
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+}
+
+/* Button Enhancements */
+.btn-primary {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(13, 110, 253, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+/* Badge Styling */
+.badge {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
     direction: ltr;
+    text-align: left;
+    white-space: nowrap;
+}
+
+/* Result Items */
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+/* Header Styling - Using Bootstrap default heading color */
+header h1 {
+    color: #212529;
 }
 
 /* Responsive Design */
-@media (max-width: 600px) {
-    body {
-        padding: 10px;
+@media (max-width: 768px) {
+    .urdu-input {
+        font-size: 1.5rem;
     }
     
-    header h1 {
-        font-size: 2em;
-    }
-    
-    main {
-        padding: 20px;
-    }
-    
-    textarea {
-        font-size: 1.5em;
-    }
-    
-    .result-item .value {
-        font-size: 1.3em;
+    .word-value {
+        font-size: 1.6rem;
     }
     
     .code-value {
-        font-size: 1.6em;
+        font-size: 2rem;
     }
+    
+    .display-4 {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .urdu-input {
+        font-size: 1.3rem;
+    }
+    
+    .word-value {
+        font-size: 1.4rem;
+    }
+    
+    .code-value {
+        font-size: 1.8rem;
+    }
+    
+    .badge {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.6rem;
+    }
+}
+
+/* RTL-specific adjustments for Bootstrap components */
+/* Bootstrap 5 handles RTL automatically, but we ensure proper text alignment */
+[dir="rtl"] .text-end {
+    text-align: right !important;
+}
+
+[dir="ltr"] .text-end {
+    text-align: right !important;
+}
+
+/* Ensure English labels are LTR */
+.form-label {
+    direction: ltr;
+    text-align: left;
+}
+
+/* Footer styling */
+footer {
+    direction: ltr;
+    text-align: center;
 }
 

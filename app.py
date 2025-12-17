@@ -17,26 +17,6 @@ app.config['SECRET_KEY'] = 'dev-key-for-testing'
 app.config['JSON_AS_ASCII'] = False  # Important for Urdu JSON
 
 
-def reverse_code_for_rtl(code: str) -> str:
-    """
-    Reverse the scansion code for RTL display.
-    
-    Since codes are generated LTR (e.g., "=-"), but Urdu is RTL,
-    we reverse the code string for proper RTL display.
-    
-    Example:
-        "=-" -> "-=" (for RTL display)
-        "==-" -> "-=="
-    
-    Args:
-        code: The scansion code string (LTR)
-        
-    Returns:
-        Reversed code string for RTL display
-    """
-    return code[::-1]
-
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
     """Main route: display form and process word scanning."""
@@ -62,8 +42,6 @@ def index():
                 # Assign scansion code
                 code = assign_code(word_obj)
                 
-                # Reverse code for RTL display
-                # code_rtl = reverse_code_for_rtl(code)
                 
                 result = {
                     'word': word_text,
