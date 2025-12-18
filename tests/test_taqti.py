@@ -659,6 +659,104 @@ class TestTaqtiConsistency(unittest.TestCase):
                 self.assertGreater(len(result), 0,
                                  f"Code for {word_text} should not be empty")
 
+class TestTaqtiGoldenWords(unittest.TestCase):
+    """
+    Golden tests for word → scansion codes.
+
+    These tests assert metrical correctness at word level.
+    They are intentionally opinionated and based on accepted arūz usage.
+    """
+
+    def scan(self, text):
+        word = Words()
+        word.word = text
+        word.taqti = []
+        return assign_code(word)
+
+    def test_deterministic_words_exact(self):
+        """Words with no metrical ambiguity must return exact codes."""
+        cases = {
+            "دل": {"="},
+            "رات": {"=-"},
+            "آ": {"="},
+            "وہ": {"x"},
+            "یہ": {"x"},
+        }
+
+        for word, expected in cases.items():
+            with self.subTest(word=word):
+                result = self.scan(word)
+                self.assertEqual(
+                    set([result]),
+                    expected,
+                    f"{word} should scan exactly as {expected}, got {result}"
+                )
+
+    def test_ambiguous_words_must_include(self):
+        """
+        Ambiguous words must include at least one accepted metrical form.
+        False positives are acceptable; false negatives are not.
+        """
+        cases = {
+            "بہار": {"=-", "=="},
+            "خمار": {"=--", "=-=", "-=-"},
+            "اجالا": {"=-=", "--=", "-=="},
+            "اندھیرے": {"-=="},
+        }
+
+        for word, must_have in cases.items():
+            with self.subTest(word=word):
+                result = self.scan(word)
+                for code in must_have:
+                    if code in result:
+                        break
+                else:
+                    self.fail(
+                        f"{word} must include one of {must_have}, got {result}"
+                    )
+
+    def test_regression_words_must_not_include(self):
+        """
+        Regression tests for known-bad outputs.
+        These should NEVER reappear once fixed.
+        """
+        cases = {
+            "اندھیرے": {"==x"},
+        }
+
+        for word, forbidden in cases.items():
+            with self.subTest(word=word):
+                result = self.scan(word)
+                for bad in forbidden:
+                    self.assertNotIn(
+                        bad,
+                        result,
+                        f"{word} must not produce {bad}, got {result}"
+                    )
+
+    def test_real_poetic_usage_words(self):
+        """
+        Words tested in real shers where meter matching already works.
+        This anchors word-level scansion to line-level success.
+        """
+        words = [
+            "دم",
+            "اندھیرے",
+            "خمار",
+            "اجالا",
+            "چاروں",
+            "طرف",
+        ]
+
+        for word in words:
+            with self.subTest(word=word):
+                result = self.scan(word)
+                self.assertIsInstance(result, str)
+                self.assertGreater(len(result), 0)
+                self.assertTrue(
+                    all(c in "-=x" for c in result),
+                    f"{word} produced invalid code {result}"
+                )
 
 if __name__ == '__main__':
     unittest.main()
