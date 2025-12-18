@@ -149,6 +149,11 @@ Docstrings are also visible in:
 - **HTML reports**: `pytest --html=report.html` (requires `pip install pytest-html`)
 - **When tests fail** - docstrings appear in traceback output
 
+
+# Word-level scansion intentionally over-generates.
+# Canonical selection happens at line/meter level.
+
+
 ## Attribution
 
 Based on Aruuz by Sayed Zeeshan Asghar  
