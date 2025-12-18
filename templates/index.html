@@ -41,33 +41,62 @@
             </div>
             <div class="card-body" dir="rtl" lang="ur">
                 {% if line_data.results %}
-                    {% for result in line_data.results %}
-                    <div class="card border-success mb-3">
-                        <div class="card-header bg-success bg-opacity-10">
-                            <strong>Meter (Bahr):</strong> {{ result.meter_name }}
-                            {% if result.feet %}
-                            <br><small>Feet: {{ result.feet }}</small>
+                    {# Primary Bahr (first result) #}
+                    {% set primary = line_data.results[0] %}
+                    <div class="mb-3">
+                        <div class="mb-2">
+                            <strong>Meter (Bahr):</strong> {{ primary.meter_name }}
+                            {% if primary.feet %}
+                            <br><small>Feet: {{ primary.feet }}</small>
                             {% endif %}
                         </div>
-                        <div class="card-body" dir="rtl" lang="ur">
-                            <div class="mb-3">
-                                <span class="badge bg-primary me-2">Full Code:</span>
-                                <span class="code-value" dir="rtl">{{ result.full_code }}</span>
-                            </div>
-                            <div class="border-top pt-3">
-                                <div class="badge bg-info mb-2">Word-by-Word Codes:</div>
-                                <div class="d-flex flex-wrap">
-                                    {% for wc in result.word_codes %}
-                                    <div class="d-flex align-items-center p-2 bg-light rounded me-2 mb-2">
-                                        <span class="urdu-text me-2" style="font-size: 1.2rem;">{{ wc.word }}</span>
-                                        <span class="badge bg-dark" dir="rtl">{{ wc.code }}</span>
-                                    </div>
-                                    {% endfor %}
-                                </div>
+                        <div class="mb-3">
+                            <span class="badge bg-primary me-2">Full Code:</span>
+                            <span class="code-value" dir="rtl">{{ primary.full_code }}</span>
+                        </div>
+                        <div class="border-top pt-3">
+                            <div class="badge bg-info mb-2">Word-by-Word Codes:</div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered mb-0 text-center align-middle">
+                                    <tr>
+                                        {% for wc in primary.word_codes %}
+                                        <td class="bg-light">
+                                            <span class="urdu-text" style="font-size: 1.2rem;">{{ wc.word }}</span>
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr>
+                                        {% for wc in primary.word_codes %}
+                                        <td>
+                                            <span class="badge bg-dark" dir="rtl">{{ wc.code }}</span>
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                </table>
                             </div>
                         </div>
                     </div>
-                    {% endfor %}
+
+                    {# Additional Bahr (if any) #}
+                    {% if line_data.results|length > 1 %}
+                    <div class="mt-3">
+                        <h6 class="mb-2">Additional Bahr</h6>
+                        <ul class="list-group">
+                            {% for extra in line_data.results[1:] %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    {{ extra.meter_name }}
+                                </span>
+                                {% if extra.feet %}
+                                <span class="text-muted small">
+                                    Feet: {{ extra.feet }}
+                                </span>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
                 {% else %}
                     <div class="alert alert-warning">No meter matches found for this line.</div>
                 {% endif %}
