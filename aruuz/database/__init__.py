@@ -2,6 +2,8 @@
 Database module for Aruuz word lookup functionality.
 """
 
-# Will be populated as database components are implemented
-__all__ = []
+from aruuz.database.word_lookup import WordLookup
+from aruuz.database.config import get_db_path
+
+__all__ = ["WordLookup", "get_db_path"]
 
