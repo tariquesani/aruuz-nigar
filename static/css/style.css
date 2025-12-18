@@ -15,6 +15,12 @@ body {
     font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
 }
 
+/* Ensure card-body with RTL/Urdu uses Nastaliq font */
+.card-body[dir="rtl"],
+.card-body[lang="ur"] {
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif !important;
+}
+
 /* Form Input Styling */
 .urdu-input {
     font-size: 1.8rem;
@@ -84,6 +90,12 @@ body {
     direction: ltr;
     text-align: left;
     white-space: nowrap;
+}
+
+/* Code badges should be RTL */
+.badge[dir="rtl"] {
+    direction: rtl !important;
+    text-align: right !important;
 }
 
 /* Result Items */

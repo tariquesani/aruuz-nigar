@@ -17,10 +17,10 @@
         <div class="card mb-4">
             <div class="card-body">
                 <form method="POST" action="/" class="needs-validation" novalidate>
-                    <label for="word" class="form-label">Enter Urdu Word:</label>
-                    <textarea class="form-control form-control-lg urdu-input mb-3" id="word" name="word" dir="rtl" lang="ur" placeholder="آب" required autofocus rows="3">{% if result %}{{ result.word }}{% endif %}</textarea>
-                    <div class="invalid-feedback">Please enter an Urdu word.</div>
-                    <button type="submit" class="btn btn-primary btn-lg w-100">Scan Word</button>
+                    <label for="text" class="form-label">Enter Urdu Poetry Lines (one per line):</label>
+                    <textarea class="form-control form-control-lg urdu-input mb-3" id="text" name="text" dir="rtl" lang="ur" placeholder="نقش فریادی ہے کس کی شوخیِ تحریر کا&#10;کاغذی پیرہن میں ہے بند صدف کی طرح" required autofocus rows="5">{% if text_input %}{{ text_input }}{% endif %}</textarea>
+                    <div class="invalid-feedback">Please enter Urdu poetry lines.</div>
+                    <button type="submit" class="btn btn-primary btn-lg w-100">Scan Lines</button>
                 </form>
             </div>
         </div>
@@ -32,20 +32,48 @@
         </div>
         {% endif %}
         
-        {% if result %}
-        <div class="card border-success">
-            <div class="card-header bg-success bg-opacity-10">Result</div>
+        {% if line_results %}
+        {% for line_data in line_results %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary bg-opacity-10">
+                <strong class="urdu-text">Line {{ line_data.line_index + 1 }}:</strong>
+                <span class="urdu-text word-value ms-2">{{ line_data.original_line }}</span>
+            </div>
             <div class="card-body" dir="rtl" lang="ur">
-                <div class="d-flex align-items-center p-3 bg-light rounded mb-3">
-                    <span class="badge bg-secondary me-3">Word</span>
-                    <span class="urdu-text word-value flex-grow-1 text-end">{{ result.word }}</span>
-                </div>
-                <div class="d-flex align-items-center p-3 bg-light rounded">
-                    <span class="badge bg-primary me-3">Code</span>
-                    <span class="code-value flex-grow-1 text-end">{{ result.code }}</span>
-                </div>
+                {% if line_data.results %}
+                    {% for result in line_data.results %}
+                    <div class="card border-success mb-3">
+                        <div class="card-header bg-success bg-opacity-10">
+                            <strong>Meter (Bahr):</strong> {{ result.meter_name }}
+                            {% if result.feet %}
+                            <br><small>Feet: {{ result.feet }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="card-body" dir="rtl" lang="ur">
+                            <div class="mb-3">
+                                <span class="badge bg-primary me-2">Full Code:</span>
+                                <span class="code-value" dir="rtl">{{ result.full_code }}</span>
+                            </div>
+                            <div class="border-top pt-3">
+                                <div class="badge bg-info mb-2">Word-by-Word Codes:</div>
+                                <div class="d-flex flex-wrap">
+                                    {% for wc in result.word_codes %}
+                                    <div class="d-flex align-items-center p-2 bg-light rounded me-2 mb-2">
+                                        <span class="urdu-text me-2" style="font-size: 1.2rem;">{{ wc.word }}</span>
+                                        <span class="badge bg-dark" dir="rtl">{{ wc.code }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-warning">No meter matches found for this line.</div>
+                {% endif %}
             </div>
         </div>
+        {% endfor %}
         {% endif %}
         
         <footer class="text-center mt-5 text-muted">
