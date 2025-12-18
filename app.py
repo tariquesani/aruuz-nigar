@@ -9,7 +9,7 @@ and identify matching meters (bahr).
 
 from flask import Flask, render_template, request
 from aruuz.models import Lines
-from aruuz.scansion import Scansion
+from aruuz.scansion_db import ScansionWithDatabase
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'dev-key-for-testing'
@@ -36,8 +36,8 @@ def index():
                 if not lines:
                     error = "Please enter at least one line of Urdu poetry"
                 else:
-                    # Create Scansion instance
-                    scanner = Scansion()
+                    # Create ScansionWithDatabase instance (automatically uses DB if available)
+                    scanner = ScansionWithDatabase()
                     
                     # Add all lines
                     line_objects = []
