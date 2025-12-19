@@ -127,6 +127,7 @@ class scanOutput:
         text: Full poem text (optional)
         url: URL reference (optional)
         num_lines: Number of lines in the poem
+        is_dominant: True if this is the dominant meter from crunch()
     """
     original_line: str = ""
     words: List[Words] = field(default_factory=list)
@@ -142,6 +143,7 @@ class scanOutput:
     text: str = ""
     url: str = ""
     num_lines: int = 0
+    is_dominant: bool = False  # True if this is the dominant meter from crunch()
 
 
 @dataclass

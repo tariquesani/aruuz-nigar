@@ -7,7 +7,7 @@ setup(
     name='aruuz',
     version='0.1.0',
     description='Urdu Poetry Scansion Tool - Scans Urdu poetry into metres and feet',
-    author='Your Name',
+    author='Dr. Tarique Sani',
     packages=find_packages(),
     python_requires='>=3.8',
     install_requires=[

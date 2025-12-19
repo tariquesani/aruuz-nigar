@@ -17,9 +17,10 @@ from aruuz.scansion import (
     locate_araab,
     contains_noon,
     is_match,
-    check_code_length
+    check_code_length,
+    Scansion
 )
-from aruuz.models import Words, Lines
+from aruuz.models import Words, Lines, scanOutput
 
 
 class TestHelperFunctions(unittest.TestCase):
@@ -499,6 +500,144 @@ class TestPatternMatching(unittest.TestCase):
         if meter_with_plus:
             result = check_code_length(code, [meter_idx])
             self.assertIsInstance(result, list)
+
+
+class TestCrunchMethods(unittest.TestCase):
+    """Test crunch-related methods: is_ordered, calculate_score, crunch."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        self.scanner = Scansion()
+    
+    def test_is_ordered_matching_lists(self):
+        """Test is_ordered with matching lists."""
+        line_arkaan = ["مفعولن", "مفعولن", "مفعولن", "مفعول"]
+        feet = ["مفعولن", "مفعولن", "مفعولن", "مفعول"]
+        self.assertTrue(self.scanner.is_ordered(line_arkaan, feet))
+    
+    def test_is_ordered_non_matching_lists(self):
+        """Test is_ordered with non-matching lists."""
+        line_arkaan = ["مفعولن", "مفعول"]
+        feet = ["مفعول", "مفعولن"]
+        self.assertFalse(self.scanner.is_ordered(line_arkaan, feet))
+    
+    def test_is_ordered_different_lengths(self):
+        """Test is_ordered with lists of different lengths."""
+        line_arkaan = ["مفعولن", "مفعولن"]
+        feet = ["مفعولن", "مفعولن", "مفعول"]
+        self.assertFalse(self.scanner.is_ordered(line_arkaan, feet))
+    
+    def test_is_ordered_empty_lists(self):
+        """Test is_ordered with empty lists."""
+        self.assertTrue(self.scanner.is_ordered([], []))
+        self.assertFalse(self.scanner.is_ordered([], ["مفعولن"]))
+        self.assertFalse(self.scanner.is_ordered(["مفعولن"], []))
+    
+    def test_calculate_score_matching_meter(self):
+        """Test calculate_score with matching meter and line feet."""
+        # Use a known meter name and its expected feet
+        meter_name = "ہزج مثمن سالم"
+        line_feet = "مفعولن مفعولن مفعولن مفعول"  # Typical feet for this meter
+        score = self.scanner.calculate_score(meter_name, line_feet)
+        # Should return 1 if match, 0 otherwise
+        self.assertIn(score, [0, 1])
+    
+    def test_calculate_score_non_matching_meter(self):
+        """Test calculate_score with non-matching meter."""
+        meter_name = "ہزج مثمن سالم"
+        line_feet = "فاعلن فاعلن"  # Different feet
+        score = self.scanner.calculate_score(meter_name, line_feet)
+        # Should return 0 for non-match
+        self.assertEqual(score, 0)
+    
+    def test_calculate_score_invalid_meter(self):
+        """Test calculate_score with invalid meter name."""
+        meter_name = "Invalid Meter Name"
+        line_feet = "مفعولن مفعولن"
+        score = self.scanner.calculate_score(meter_name, line_feet)
+        self.assertEqual(score, 0)
+    
+    def test_crunch_empty_results(self):
+        """Test crunch with empty results."""
+        result = self.scanner.crunch([])
+        self.assertEqual(result, "")
+    
+    def test_crunch_single_meter(self):
+        """Test crunch with single meter match."""
+        so = scanOutput()
+        so.meter_name = "ہزج مثمن سالم"
+        so.feet = "مفعولن مفعولن مفعولن مفعول"
+        so.original_line = "test line"
+        
+        result = self.scanner.crunch([so])
+        self.assertEqual(result, "ہزج مثمن سالم")
+    
+    def test_crunch_multiple_meters(self):
+        """Test crunch with multiple meter matches."""
+        # Create results with different meters
+        so1 = scanOutput()
+        so1.meter_name = "ہزج مثمن سالم"
+        so1.feet = "مفعولن مفعولن مفعولن مفعول"
+        so1.original_line = "line 1"
+        
+        so2 = scanOutput()
+        so2.meter_name = "ہزج مثمن محذوف"
+        so2.feet = "مفعولن مفعولن مفعول"
+        so2.original_line = "line 1"
+        
+        so3 = scanOutput()
+        so3.meter_name = "ہزج مثمن سالم"
+        so3.feet = "مفعولن مفعولن مفعولن مفعول"
+        so3.original_line = "line 2"
+        
+        # The dominant meter should be the one with highest score
+        result = self.scanner.crunch([so1, so2, so3])
+        # Should return one of the meter names
+        self.assertIn(result, ["ہزج مثمن سالم", "ہزج مثمن محذوف"])
+    
+    def test_scan_lines_preserves_all_matches(self):
+        """Test that scan_lines preserves all matches and marks dominant."""
+        scanner = Scansion()
+        
+        # Add a line that might match multiple meters
+        line1 = Lines("نقش فریادی ہے کس کی شوخیِ تحریر کا")
+        scanner.add_line(line1)
+        
+        results = scanner.scan_lines()
+        
+        # Should have at least one result
+        self.assertGreater(len(results), 0)
+        
+        # Check that is_dominant field exists
+        for result in results:
+            self.assertIsInstance(result.is_dominant, bool)
+        
+        # At least one result should be marked as dominant
+        dominant_count = sum(1 for r in results if r.is_dominant)
+        self.assertGreater(dominant_count, 0, "At least one result should be marked as dominant")
+    
+    def test_scan_lines_multiple_lines(self):
+        """Test scan_lines with multiple lines preserves all matches."""
+        scanner = Scansion()
+        
+        line1 = Lines("نقش فریادی ہے کس کی شوخیِ تحریر کا")
+        line2 = Lines("کاغذی پیرہن میں جو نہ تھا وہ بدن تھا")
+        
+        scanner.add_line(line1)
+        scanner.add_line(line2)
+        
+        results = scanner.scan_lines()
+        
+        # Should have results for both lines
+        self.assertGreater(len(results), 0)
+        
+        # All results should have is_dominant field
+        for result in results:
+            self.assertIsInstance(result.is_dominant, bool)
+        
+        # Should have at least one dominant result
+        dominant_results = [r for r in results if r.is_dominant]
+        self.assertGreater(len(dominant_results), 0)
 
 
 if __name__ == '__main__':

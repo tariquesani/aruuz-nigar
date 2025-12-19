@@ -1283,6 +1283,122 @@ class Scansion:
         
         return results
     
+    def is_ordered(self, line_arkaan: List[str], feet: List[str]) -> bool:
+        """
+        Check if line feet are in the same order as meter feet.
+        
+        Args:
+            line_arkaan: List of feet from the line (e.g., ["مفعولن", "مفعولن"])
+            feet: List of feet from the meter (e.g., ["مفعولن", "مفعولن"])
+            
+        Returns:
+            True if feet are in the same order, False otherwise
+        """
+        if len(line_arkaan) != len(feet):
+            return False
+        
+        for i in range(len(line_arkaan)):
+            if line_arkaan[i] != feet[i]:
+                return False
+        
+        return True
+    
+    def calculate_score(self, meter: str, line_feet: str) -> int:
+        """
+        Calculate score for how well a line matches a meter.
+        
+        Score is 1 if:
+        - Line feet count matches meter feet count
+        - Line feet are in the same order as meter feet
+        
+        Score is 0 otherwise.
+        
+        Args:
+            meter: Meter name in Urdu (e.g., "ہزج مثمن سالم")
+            line_feet: Feet string from scanOutput (e.g., "مفعولن مفعولن مفعولن مفعول")
+            
+        Returns:
+            1 if perfect match, 0 otherwise
+        """
+        # Get all meter indices for this meter name
+        meter_indices = meter_index(meter)
+        
+        if not meter_indices:
+            return 0
+        
+        # Collect all unique feet from all meter variations
+        feet = []
+        residue = ""
+        for m_idx in meter_indices:
+            if m_idx < len(METERS):
+                residue += afail(METERS[m_idx]) + " "
+        
+        # Parse and deduplicate feet
+        for s in residue.split(' '):
+            s = s.strip()
+            if s and s not in feet:
+                feet.append(s)
+        
+        # Parse line feet
+        line_arkaan = []
+        for s in line_feet.split(' '):
+            s = s.strip()
+            if s and s not in line_arkaan:
+                line_arkaan.append(s)
+        
+        # Check if counts match and order matches
+        if len(line_arkaan) == len(feet):
+            if self.is_ordered(line_arkaan, feet):
+                return 1
+            else:
+                return 0
+        else:
+            return 0
+    
+    def crunch(self, results: List[scanOutput]) -> str:
+        """
+        Identify the dominant meter from multiple matches.
+        
+        Algorithm:
+        1. Collect all unique meter names from results
+        2. Score each meter by summing calculateScore() for all matching lines
+        3. Return the meter name with highest score
+        
+        Args:
+            results: List of scanOutput objects (multiple matches per line)
+            
+        Returns:
+            Name of the dominant meter (empty string if no results)
+        """
+        if not results:
+            return ""
+        
+        # Collect unique meter names
+        meter_names = []
+        for item in results:
+            if item.meter_name and item.meter_name not in meter_names:
+                meter_names.append(item.meter_name)
+        
+        if not meter_names:
+            return ""
+        
+        # Score each meter
+        scores = [0.0] * len(meter_names)
+        for i, meter_name in enumerate(meter_names):
+            for item in results:
+                if item.meter_name == meter_name:
+                    scores[i] += self.calculate_score(meter_name, item.feet)
+        
+        # Find meter with highest score
+        max_score = max(scores)
+        if max_score == 0:
+            return ""  # No valid matches
+        
+        # Get the meter name with highest score
+        # If there's a tie, return the first one
+        max_index = scores.index(max_score)
+        return meter_names[max_index]
+    
     def scan_lines(self) -> List[scanOutput]:
         """
         Main method to process all lines and return scan outputs.
@@ -1305,5 +1421,14 @@ class Scansion:
             line = self.lst_lines[k]
             line_results = self.scan_line(line, k)
             all_results.extend(line_results)
+        
+        # Identify dominant meter and mark results
+        if all_results:
+            dominant_meter = self.crunch(all_results)
+            if dominant_meter:
+                # Mark all results matching the dominant meter
+                for result in all_results:
+                    if result.meter_name == dominant_meter:
+                        result.is_dominant = True
         
         return all_results
