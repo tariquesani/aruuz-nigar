@@ -48,6 +48,30 @@ def is_muarrab(word: str) -> bool:
     return False
 
 
+def is_izafat(word: str) -> bool:
+    """
+    Check if last character is izafat marker.
+    
+    Checks if the last character is:
+    - ARABIC_DIACRITICS[1] (zer, \u0650)
+    - ARABIC_DIACRITICS[10] (izafat, \u0654)
+    - \u06C2 (ۂ)
+    
+    Args:
+        word: Word to check
+        
+    Returns:
+        True if last character is an izafat marker, False otherwise
+    """
+    if not word or len(word) == 0:
+        return False
+    
+    last_char = word[-1]
+    return (last_char == ARABIC_DIACRITICS[1] or 
+            last_char == ARABIC_DIACRITICS[10] or 
+            last_char == '\u06C2')
+
+
 def locate_araab(word: str) -> str:
     """
     Extract diacritical marks positions from a word.
