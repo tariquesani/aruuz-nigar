@@ -14,6 +14,7 @@ from aruuz.meters import (
     NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS,
     afail, afail_list, meter_index
 )
+from aruuz.database.word_lookup import WordLookup
 
 
 def is_vowel_plus_h(char: str) -> bool:
@@ -1125,8 +1126,15 @@ class Scansion:
     and matches them against meter patterns.
     """
     
-    def __init__(self):
-        """Initialize a new Scansion instance."""
+    def __init__(self, word_lookup: Optional[WordLookup] = None):
+        """
+        Initialize a new Scansion instance.
+        
+        Args:
+            word_lookup: Optional WordLookup instance for database access.
+                        If not provided, creates a WordLookup instance internally.
+                        If database is unavailable, gracefully handles the error.
+        """
         self.lst_lines: List[Lines] = []
         self.num_lines: int = 0
         self.is_checked: bool = False
@@ -1134,6 +1142,18 @@ class Scansion:
         self.fuzzy: bool = False
         self.error_param: int = 8
         self.meter: Optional[List[int]] = None
+        
+        # Initialize word_lookup for database access
+        if word_lookup is not None:
+            self.word_lookup = word_lookup
+        else:
+            # Create WordLookup instance internally with graceful fallback
+            try:
+                self.word_lookup = WordLookup()
+            except Exception:
+                # If database is unavailable, set to None
+                # Methods using word_lookup should check for None before use
+                self.word_lookup = None
     
     def add_line(self, line: Lines) -> None:
         """
