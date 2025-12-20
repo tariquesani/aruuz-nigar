@@ -1586,6 +1586,110 @@ class Scansion:
         
         return wrd
     
+    def compound_word(self, wrd: Words) -> Words:
+        """
+        Attempt to split a word into compound parts and combine their codes.
+        
+        This method tries to split a word at various positions and:
+        1. Uses find_word() on the first part (database lookup)
+        2. Uses word_code() on the second part (heuristics)
+        3. If both parts are valid, combines codes and muarrab via cartesian product
+        
+        Args:
+            wrd: Words object containing the word to process
+            
+        Returns:
+            Words object with combined codes and muarrab, with modified=True if successful
+        """
+        if self.word_lookup is None:
+            # If word_lookup is unavailable, return original word with modified flag
+            wd = Words()
+            wd.word = wrd.word
+            wd.modified = True
+            return wd
+        
+        wd = Words()
+        wd.word = wrd.word
+        stripped = remove_araab(wrd.word)
+        
+        # Iterate through possible split points (1 to length-2)
+        # C#: for (int i = 1; i < stripped.Length - 1; i++)
+        # This means i goes from 1 to stripped.Length - 2 (inclusive)
+        for i in range(1, len(stripped) - 1):
+            flag = False
+            first = Words()
+            # First part: from start to i
+            # C#: first.word = stripped.Substring(0, i)
+            first.word = stripped[:i]
+            # Use find_word() on first part (database lookup)
+            first = self.word_lookup.find_word(first)
+            
+            second = Words()
+            # Second part: from i to end
+            # C#: second.word = stripped.Substring(i, stripped.Length - i)
+            second.word = stripped[i:]
+            # Use word_code() on second part (heuristics)
+            second = self.word_code(second)
+            
+            # Check validity (matching C# logic)
+            # C#: if (first.id.Count > 0)
+            if len(first.id) > 0:
+                # C#: if (second.id.Count == 0)
+                if len(second.id) == 0:
+                    # C#: if (second.word.Length <= 2)
+                    if len(second.word) <= 2:
+                        # Use length_two_scan() on second part
+                        # C#: second.code.Add(lengthTwoScan(second.word))
+                        second.code.append(length_two_scan(second.word))
+                        # C#: second.id.Add(-1)
+                        second.id.append(-1)
+                        flag = True
+                else:  # Perfect match - both parts found
+                    flag = True
+            else:
+                # C#: if (second.id.Count > 0)
+                if len(second.id) > 0:
+                    # C#: if (first.word.Length <= 2)
+                    if len(first.word) <= 2:
+                        # Use length_two_scan() on first part
+                        # C#: first.code.Add(lengthTwoScan(first.word))
+                        first.code.append(length_two_scan(first.word))
+                        # C#: first.id.Add(-1)
+                        first.id.append(-1)
+                        flag = True
+            
+            # If flag is True, combine codes and muarrab via cartesian product
+            # C#: if (flag)
+            if flag:
+                # Combine words (matching C#: first.word += "" + second.word)
+                first.word = first.word + second.word
+                
+                # Cartesian product of codes
+                # C#: for (int k = 0; k < first.code.Count; k++)
+                #      for (int j = 0; j < second.code.Count; j++)
+                #          codes.Add(first.code[k] + second.code[j])
+                codes = []
+                for k in range(len(first.code)):
+                    for j in range(len(second.code)):
+                        codes.append(first.code[k] + second.code[j])
+                first.code = codes
+                
+                # Cartesian product of muarrab
+                # C#: for (int k = 0; k < first.muarrab.Count; k++)
+                #      for (int j = 0; j < second.muarrab.Count; j++)
+                #          muarrab.Add(first.muarrab[k] + second.muarrab[j])
+                muarrab = []
+                for k in range(len(first.muarrab)):
+                    for j in range(len(second.muarrab)):
+                        muarrab.append(first.muarrab[k] + second.muarrab[j])
+                first.muarrab = muarrab
+                wd = first
+                break
+        
+        # Set modified flag (matching C#: wd.modified = true)
+        wd.modified = True
+        return wd
+    
     def scan_line(self, line: Lines, line_index: int) -> List[scanOutput]:
         """
         Process a single line and return possible scan outputs.
