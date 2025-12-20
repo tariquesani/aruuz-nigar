@@ -101,6 +101,57 @@ def is_consonant_plus_consonant(word: str) -> bool:
         return False
 
 
+def remove_tashdid(word: str) -> str:
+    """
+    Remove shadd diacritic by replacing it with appropriate diacritics.
+    
+    This function processes shadd (ARABIC_DIACRITICS[0]) and replaces it
+    with appropriate diacritics (jazm + char + paish) based on context.
+    Only processes words that contain diacritical marks (muarrab).
+    
+    Args:
+        word: Word that may contain shadd diacritic
+        
+    Returns:
+        Modified word with shadd replaced, or original word if not muarrab
+    """
+    # Only process if word is muarrab (has diacritics)
+    if not is_muarrab(word):
+        return word
+    
+    wrd = ""
+    for i in range(len(word)):
+        if word[i] == ARABIC_DIACRITICS[0]:  # shadd
+            if i - 2 >= 0:  # There are at least 2 characters before this shadd
+                # Check if character at i-2 is NOT a diacritic
+                if word[i - 2] not in ARABIC_DIACRITICS:
+                    # Check if character at i-1 is NOT a diacritic
+                    if word[i - 1] not in ARABIC_DIACRITICS:
+                        # Remove last character from wrd, then add replacement
+                        if len(wrd) > 0:
+                            wrd = wrd[:-1]
+                        wrd += word[i - 1] + ARABIC_DIACRITICS[2] + word[i - 1] + ARABIC_DIACRITICS[8]
+                    else:
+                        # word[i-1] IS a diacritic
+                        # Remove last 2 characters from wrd, then add replacement
+                        if len(wrd) >= 2:
+                            wrd = wrd[:-2]
+                        wrd += word[i - 2] + ARABIC_DIACRITICS[2] + word[i - 2] + ARABIC_DIACRITICS[8]
+                else:
+                    # word[i-2] IS a diacritic
+                    wrd += ARABIC_DIACRITICS[2] + word[i - 1] + ARABIC_DIACRITICS[8]
+            else:
+                # i - 2 < 0, not enough characters before shadd
+                # Need at least i-1 >= 0 to access word[i-1]
+                if i - 1 >= 0:
+                    wrd += ARABIC_DIACRITICS[2] + word[i - 1] + ARABIC_DIACRITICS[8]
+        else:
+            # Not a shadd, add character as-is
+            wrd += word[i]
+    
+    return wrd
+
+
 def locate_araab(word: str) -> str:
     """
     Extract diacritical marks positions from a word.
