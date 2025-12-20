@@ -1294,6 +1294,298 @@ class Scansion:
         
         return word
     
+    def plural_form(self, substr: str, len_param: int) -> Words:
+        """
+        Handle plural forms by removing suffix and trying base form.
+        
+        Removes araab, strips "ال" prefix if present, removes last `len_param`
+        characters, then tries base form and base + "نا".
+        
+        Args:
+            substr: Word substring to process
+            len_param: Number of characters to remove from end
+            
+        Returns:
+            Words object with populated id list if found in database
+        """
+        if self.word_lookup is None:
+            # If word_lookup is unavailable, return empty Words
+            wrd = Words()
+            wrd.word = substr
+            return wrd
+        
+        wrd = Words()
+        wrd.word = substr
+        substr = remove_araab(substr)
+        
+        # Strip "ال" prefix if present (matching C#: substr[0] == 'ا' && substr[1] == 'ل')
+        if len(substr) >= 2 and substr[0] == 'ا' and substr[1] == 'ل':
+            substr = substr[2:]
+        
+        # Remove last len_param characters to get base form
+        # C#: substr.Remove(substr.Length - len, len) → Python: substr[:-len_param]
+        form1 = substr[:-len_param] if len(substr) > len_param else substr
+        form2 = form1 + "نا"
+        
+        # Try form1 first
+        wrd.word = form1
+        wrd = self.word_lookup.find_word(wrd)
+        
+        # If not found, try form2
+        if len(wrd.id) == 0:
+            wrd.word = form2
+            wrd = self.word_lookup.find_word(wrd)
+        
+        return wrd
+    
+    def plural_form_noon_ghunna(self, substr: str) -> Words:
+        """
+        Handle plural forms with noon ghunna.
+        
+        Removes araab, strips "ال" prefix if present, then searches for word as-is.
+        
+        Args:
+            substr: Word substring to process
+            
+        Returns:
+            Words object with populated id list if found in database
+        """
+        if self.word_lookup is None:
+            # If word_lookup is unavailable, return empty Words
+            wrd = Words()
+            wrd.word = substr
+            return wrd
+        
+        wrd = Words()
+        wrd.word = substr
+        substr = remove_araab(substr)
+        
+        # Strip "ال" prefix if present
+        if len(substr) >= 2 and substr[0] == 'ا' and substr[1] == 'ل':
+            substr = substr[2:]
+        
+        # Search for word as-is
+        wrd.word = substr
+        wrd = self.word_lookup.find_word(wrd)
+        
+        return wrd
+    
+    def plural_form_aat(self, substr: str) -> Words:
+        """
+        Handle plurals ending in -ات (aat).
+        
+        Tries multiple forms:
+        1. Base form (remove last 2 chars)
+        2. Base + "ہ"
+        3. Remove last 2 chars but keep 2nd-to-last char
+        4. If ends in "یات", remove last 3 chars but keep 3rd-to-last char
+        5. form5 (never initialized in C#, so this won't match)
+        
+        Args:
+            substr: Word substring to process (should end in -ات)
+            
+        Returns:
+            Words object with populated id list if found in database
+        """
+        if self.word_lookup is None:
+            # If word_lookup is unavailable, return empty Words
+            wrd = Words()
+            wrd.word = substr
+            return wrd
+        
+        wrd = Words()
+        wrd.word = substr
+        substr = remove_araab(substr)
+        
+        # Strip "ال" prefix if present
+        if len(substr) >= 2 and substr[0] == 'ا' and substr[1] == 'ل':
+            substr = substr[2:]
+        
+        length = len(substr)
+        
+        # form1: Remove last 2 characters (تصورات)
+        # C#: substr.Remove(substr.Length - 2, 2) → Python: substr[:-2]
+        form1 = substr[:-2] if length >= 2 else substr
+        # form2: form1 + "ہ" (نظریہ،کلیہ)
+        form2 = form1 + "ہ"
+        # form3: Remove last 2 chars, but only 1 char (keep 2nd-to-last)
+        # C#: substr.Remove(substr.Length - 2, 1) → Python: substr[:length-2] + substr[length-1:]
+        form3 = substr[:length-2] + substr[length-1:] if length >= 2 else substr
+        # form4: Remove last 3 chars, but only 1 char (keep 3rd-to-last)
+        # C#: substr.Remove(substr.Length - 3, 1) → Python: substr[:length-3] + substr[length-2:]
+        form4 = substr[:length-3] + substr[length-2:] if length >= 3 else substr
+        # form5: Never initialized in C# code, but declared as empty string
+        form5 = ""
+        
+        # Try form1 first
+        wrd.word = form1
+        wrd = self.word_lookup.find_word(wrd)
+        
+        if len(wrd.id) == 0:
+            # Try form2
+            wrd.word = form2
+            wrd = self.word_lookup.find_word(wrd)
+            if len(wrd.id) == 0:
+                # Try form3
+                wrd.word = form3
+                wrd = self.word_lookup.find_word(wrd)
+                if len(wrd.id) == 0:
+                    # Check if ends in "یات" before trying form4
+                    # C#: substr[length - 1] == 'ت' && substr[length - 2] == 'ا' && substr[length - 3] == 'ی'
+                    if length >= 3 and substr[length - 1] == 'ت' and substr[length - 2] == 'ا' and substr[length - 3] == 'ی':
+                        wrd.word = form4
+                        wrd = self.word_lookup.find_word(wrd)
+                        if len(wrd.id) == 0:
+                            # Try form5 (though it's empty, matching C# behavior)
+                            wrd.word = form5
+                            wrd = self.word_lookup.find_word(wrd)
+        
+        return wrd
+    
+    def plural_form_aan(self, substr: str) -> Words:
+        """
+        Handle plurals ending in -ان (aan).
+        
+        Tries multiple forms:
+        1. Base form (remove last 2 chars)
+        2. Base + "ہ"
+        3. Base + "ا"
+        4. Base + "نا"
+        
+        Args:
+            substr: Word substring to process (should end in -ان)
+            
+        Returns:
+            Words object with populated id list if found in database
+        """
+        if self.word_lookup is None:
+            # If word_lookup is unavailable, return empty Words
+            wrd = Words()
+            wrd.word = substr
+            return wrd
+        
+        wrd = Words()
+        wrd.word = substr
+        substr = remove_araab(substr)
+        
+        # Strip "ال" prefix if present
+        if len(substr) >= 2 and substr[0] == 'ا' and substr[1] == 'ل':
+            substr = substr[2:]
+        
+        length = len(substr)
+        
+        # form1: Remove last 2 characters (لڑکیاں)
+        form1 = substr[:-2] if length >= 2 else substr
+        # form2: form1 + "ہ" (رستوں)
+        form2 = form1 + "ہ"
+        # form3: form1 + "ا" (سودوں)
+        form3 = form1 + "ا"
+        # form4: form1 + "نا" (دکھاوں)
+        form4 = form1 + "نا"
+        
+        # Try form1 first
+        wrd.word = form1
+        wrd = self.word_lookup.find_word(wrd)
+        
+        if len(wrd.id) == 0:
+            # Try form2
+            wrd.word = form2
+            wrd = self.word_lookup.find_word(wrd)
+            if len(wrd.id) == 0:
+                # Try form3
+                wrd.word = form3
+                wrd = self.word_lookup.find_word(wrd)
+                if len(wrd.id) == 0:
+                    # Try form4
+                    wrd.word = form4
+                    wrd = self.word_lookup.find_word(wrd)
+        
+        return wrd
+    
+    def plural_form_ye(self, substr: str) -> Words:
+        """
+        Handle plurals ending in -ی (ye).
+        
+        Tries multiple forms:
+        1. Base + "نا" (where base = remove last 2 chars)
+        2. Base (remove last 2 chars)
+        
+        Args:
+            substr: Word substring to process (should end in -ی)
+            
+        Returns:
+            Words object with populated id list if found in database
+        """
+        if self.word_lookup is None:
+            # If word_lookup is unavailable, return empty Words
+            wrd = Words()
+            wrd.word = substr
+            return wrd
+        
+        wrd = Words()
+        wrd.word = substr
+        substr = remove_araab(substr)
+        
+        # Strip "ال" prefix if present
+        if len(substr) >= 2 and substr[0] == 'ا' and substr[1] == 'ل':
+            substr = substr[2:]
+        
+        length = len(substr)
+        
+        # form1: Remove last 2 chars, then add "نا" (ستائے)
+        # C#: substr.Remove(substr.Length - 2, 2) + "نا"
+        form1 = (substr[:-2] if length >= 2 else substr) + "نا"
+        # form2: Remove last 2 chars (استغنائے)
+        form2 = substr[:-2] if length >= 2 else substr
+        
+        # Try form1 first
+        wrd.word = form1
+        wrd = self.word_lookup.find_word(wrd)
+        
+        # If not found, try form2
+        if len(wrd.id) == 0:
+            wrd.word = form2
+            wrd = self.word_lookup.find_word(wrd)
+        
+        return wrd
+    
+    def plural_form_postfix_aan(self, substr: str) -> Words:
+        """
+        Handle plurals with -ان postfix.
+        
+        Removes last 2 characters (the -ان suffix) and searches for base form.
+        
+        Args:
+            substr: Word substring to process (should end in -ان)
+            
+        Returns:
+            Words object with populated id list if found in database
+        """
+        if self.word_lookup is None:
+            # If word_lookup is unavailable, return empty Words
+            wrd = Words()
+            wrd.word = substr
+            return wrd
+        
+        wrd = Words()
+        wrd.word = substr
+        substr = remove_araab(substr)
+        
+        # Strip "ال" prefix if present
+        if len(substr) >= 2 and substr[0] == 'ا' and substr[1] == 'ل':
+            substr = substr[2:]
+        
+        length = len(substr)
+        
+        # form1: Remove last 2 characters
+        form1 = substr[:-2] if length >= 2 else substr
+        
+        # Search for base form
+        wrd.word = form1
+        wrd = self.word_lookup.find_word(wrd)
+        
+        return wrd
+    
     def scan_line(self, line: Lines, line_index: int) -> List[scanOutput]:
         """
         Process a single line and return possible scan outputs.
