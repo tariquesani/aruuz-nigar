@@ -499,6 +499,29 @@ def afail(meter: str) -> str:
     return feet_str.strip()
 
 
+def afail_list(meter: str) -> List[Feet]:
+    """
+    Convert meter pattern to list of Feet objects with names and codes.
+    
+    Args:
+        meter: Meter pattern string (e.g., "-===/-===/-===/-===")
+        
+    Returns:
+        List of Feet objects, each containing foot name and code
+    """
+    feet_list = []
+    for part in meter.split('+'):
+        for foot_pattern in part.split('/'):
+            for i, foot in enumerate(FEET):
+                if foot == foot_pattern:
+                    feet_obj = Feet()
+                    feet_obj.foot = FEET_NAMES[i]
+                    feet_obj.code = FEET[i]
+                    feet_list.append(feet_obj)
+                    break
+    return feet_list
+
+
 def afail_hindi(meter_name: str) -> str:
     """
     Get afail for Hindi/Zamzama special meters.

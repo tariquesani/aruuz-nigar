@@ -73,7 +73,7 @@ class ScansionWithDatabase:
             METERS, METERS_VARIED, RUBAI_METERS,
             METER_NAMES, METERS_VARIED_NAMES, RUBAI_METER_NAMES,
             NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS,
-            afail, meter_index
+            afail, afail_list, meter_index
         )
         from aruuz.scansion import check_code_length
         
@@ -165,7 +165,8 @@ class ScansionWithDatabase:
                 so.word_taqti = word_codes.copy()
                 so.word_muarrab = [w.word for w in line.words_list]  # Use original word as muarrab for now
                 so.meter_name = meter_name
-                so.feet = afail(meter_pattern)  # Get feet breakdown
+                so.feet = afail(meter_pattern)  # Get feet breakdown as string
+                so.feet_list = afail_list(meter_pattern)  # Get feet breakdown as list with codes
                 so.id = meter_idx
                 so.num_lines = 1
                 

@@ -75,9 +75,18 @@ def index():
                                         'code': code
                                     })
                                 
+                                # Convert feet_list to list of dicts for template
+                                feet_list_dict = []
+                                for foot_obj in so.feet_list:
+                                    feet_list_dict.append({
+                                        'foot': foot_obj.foot,
+                                        'code': foot_obj.code
+                                    })
+                                
                                 line_results[idx]['results'].append({
                                     'meter_name': so.meter_name,
                                     'feet': so.feet,
+                                    'feet_list': feet_list_dict,
                                     'word_codes': word_codes,
                                     'full_code': ''.join(so.word_taqti),
                                     'original_line': so.original_line,
@@ -178,9 +187,18 @@ def test():
                                                 'code': code
                                             })
 
+                                        # Convert feet_list to list of dicts for template
+                                        feet_list_dict = []
+                                        for foot_obj in so.feet_list:
+                                            feet_list_dict.append({
+                                                'foot': foot_obj.foot,
+                                                'code': foot_obj.code
+                                            })
+                                        
                                         line_results[idx]['heuristic_results'].append({
                                             'meter_name': so.meter_name,
                                             'feet': so.feet,
+                                            'feet_list': feet_list_dict,
                                             'word_codes': word_codes,
                                             'full_code': ''.join(so.word_taqti),
                                             'original_line': so.original_line,
@@ -209,9 +227,18 @@ def test():
                                                 'from_db': from_db
                                             })
 
+                                        # Convert feet_list to list of dicts for template
+                                        feet_list_dict_db = []
+                                        for foot_obj in so.feet_list:
+                                            feet_list_dict_db.append({
+                                                'foot': foot_obj.foot,
+                                                'code': foot_obj.code
+                                            })
+                                        
                                         line_results[idx]['db_results'].append({
                                             'meter_name': so.meter_name,
                                             'feet': so.feet,
+                                            'feet_list': feet_list_dict_db,
                                             'word_codes': word_codes_db,
                                             'full_code': ''.join(so.word_taqti),
                                             'original_line': so.original_line,
@@ -328,9 +355,18 @@ def database():
                                         'code': code
                                     })
                                 
+                                # Convert feet_list to list of dicts for template
+                                feet_list_dict = []
+                                for foot_obj in so.feet_list:
+                                    feet_list_dict.append({
+                                        'foot': foot_obj.foot,
+                                        'code': foot_obj.code
+                                    })
+                                
                                 line_results[idx]['results'].append({
                                     'meter_name': so.meter_name,
                                     'feet': so.feet,
+                                    'feet_list': feet_list_dict,
                                     'word_codes': word_codes,
                                     'full_code': ''.join(so.word_taqti),
                                     'original_line': so.original_line,

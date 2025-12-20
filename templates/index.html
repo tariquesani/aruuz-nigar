@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Urdu Scansion Tool</title>
+    <title>Aruuz Nigar: a Urdu Scansion Tool</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,12 +12,12 @@
 </head>
 <body>
     <div class="container my-5">
-        <h1 class="text-center mb-4">Urdu Scansion Tool</h1>
+        <h1 class="text-center mb-4">Aruuz Nigar: a Urdu Scansion Tool</h1>
         
         <div class="card mb-4">
             <div class="card-body">
                 <form method="POST" action="/" class="needs-validation" novalidate>
-                    <label for="text" class="form-label">Enter Urdu Poetry Lines (one per line):</label>
+                    <label for="text" class="form-label">Enter Urdu Poetry Lines (one per line)</label>
                     <textarea class="form-control form-control-lg urdu-input mb-3" id="text" name="text" dir="rtl" lang="ur" placeholder="نقش فریادی ہے کس کی شوخیِ تحریر کا&#10;کاغذی پیرہن میں ہے بند صدف کی طرح" required autofocus rows="5">{% if text_input %}{{ text_input }}{% endif %}</textarea>
                     <div class="invalid-feedback">Please enter Urdu poetry lines.</div>
                     <button type="submit" class="btn btn-primary btn-lg w-100">Scan Lines</button>
@@ -27,16 +27,24 @@
         
         {% if error %}
         <div class="alert alert-danger alert-dismissible fade show">
-            <strong>Error:</strong> {{ error }}
+            <strong>Error</strong> {{ error }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
         {% endif %}
         
         {% if line_results %}
+        <div class="alert alert-light border mb-3 py-2" role="alert">
+            <small class="text-muted">
+                <strong>Legend:</strong> 
+                <span class="ms-2"><code class="text-dark">–</code> short syllable</span>
+                <span class="ms-3"><code class="text-dark">=</code> long syllable</span>
+                <span class="ms-3"><code class="text-dark">X</code> flexible as long or short</span>
+            </small>
+        </div>
         {% for line_data in line_results %}
         <div class="card mb-4">
             <div class="card-header bg-primary bg-opacity-10">
-                <strong class="urdu-text">Line {{ line_data.line_index + 1 }}:</strong>
+                <strong class="urdu-text">Line {{ line_data.line_index + 1 }}</strong>
                 <span class="urdu-text word-value ms-2">{{ line_data.original_line }}</span>
             </div>
             <div class="card-body" dir="rtl" lang="ur">
@@ -51,21 +59,18 @@
                     {% for result in line_data.results %}
                     <div class="mb-3 {% if result.is_dominant %}border border-success border-3 rounded p-3 bg-success bg-opacity-10{% else %}border rounded p-2{% endif %}">
                         <div class="mb-2">
-                            <strong>Meter (Bahr):</strong> 
+                            <strong>Meter (Bahr)</strong> 
                             <span class="{% if result.is_dominant %}fw-bold text-success{% endif %}">{{ result.meter_name }}</span>
                             {% if result.is_dominant %}
                             <span class="badge bg-success ms-2">Dominant</span>
                             {% endif %}
-                            {% if result.feet %}
-                            <br><small>Feet: {{ result.feet }}</small>
-                            {% endif %}
                         </div>
                         <div class="mb-3">
-                            <span class="badge bg-primary me-2">Full Code:</span>
+                            <span class="badge bg-primary me-2">Full Code</span>
                             <span class="code-value" dir="rtl">{{ result.full_code }}</span>
                         </div>
                         <div class="border-top pt-3">
-                            <div class="badge bg-info mb-2">Word-by-Word Codes:</div>
+                            <div class="badge bg-info mb-2">Word-by-Word Codes</div>
                             <div class="table-responsive">
                                 <table class="table table-bordered mb-0 text-center align-middle">
                                     <tr>
@@ -78,13 +83,43 @@
                                     <tr>
                                         {% for wc in result.word_codes %}
                                         <td>
-                                            <span class="badge bg-dark" dir="rtl">{{ wc.code }}</span>
+                                            <span dir="rtl">{{ wc.code }}</span>
                                         </td>
                                         {% endfor %}
                                     </tr>
                                 </table>
                             </div>
                         </div>
+                        {% if result.feet_list and result.feet_list|length > 0 %}
+                        <div class="border-top pt-3">
+                            <div class="badge bg-info mb-2">Feet (Arkaan)</div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered mb-0 text-center align-middle">
+                                    <tr>
+                                        {% for foot in result.feet_list %}
+                                        <td class="bg-light">
+                                            <span class="urdu-text" style="font-size: 1.2rem;">{{ foot.foot }}</span>
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr>
+                                        {% for foot in result.feet_list %}
+                                        <td>
+                                            <span dir="rtl">{{ foot.code }}</span>
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                        {% elif result.feet %}
+                        <div class="border-top pt-3">
+                            <div class="mb-3">
+                                <span class="badge bg-info me-2">Feet</span>
+                                <span class="code-value" dir="rtl">{{ result.feet }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 {% else %}
@@ -96,7 +131,7 @@
         {% endif %}
         
         <footer class="text-center mt-5 text-muted">
-            <p>Urdu Poetry Scansion Engine - Phase 1</p>
+            <p>Aruuz Nigar: a Urdu Scansion Tool - Phase 1</p>
         </footer>
     </div>
     
