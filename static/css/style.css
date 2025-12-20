@@ -168,3 +168,8 @@ footer {
     text-align: center;
 }
 
+/* Disable ALL scrolling chrome inside table wrappers (RTL-safe) */
+.table-responsive {
+    overflow-x: visible !important;
+    overflow-y: hidden !important;
+}
