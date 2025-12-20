@@ -72,6 +72,35 @@ def is_izafat(word: str) -> bool:
             last_char == '\u06C2')
 
 
+def is_consonant_plus_consonant(word: str) -> bool:
+    """
+    Check if positions 0 and 1 are both consonants (not ا،ی،ے،ہ).
+    
+    This function checks if both the first and second characters of the word
+    are consonants, meaning they are NOT one of the vowel characters:
+    ا (alif), ی (ye), ے (ye barree), or ہ (heh).
+    
+    Args:
+        word: Word to check
+        
+    Returns:
+        True if both positions 0 and 1 are consonants, False otherwise.
+        Returns False if word length is less than 2.
+    """
+    if not word or len(word) < 2:
+        return False
+    
+    # Check if position 1 is NOT a vowel
+    if not (word[1] == 'ا' or word[1] == 'ی' or word[1] == 'ے' or word[1] == 'ہ'):
+        # Check if position 0 is NOT a vowel
+        if not (word[0] == 'ا' or word[0] == 'ی' or word[0] == 'ے' or word[0] == 'ہ'):
+            return True
+        else:
+            return False
+    else:
+        return False
+
+
 def locate_araab(word: str) -> str:
     """
     Extract diacritical marks positions from a word.
