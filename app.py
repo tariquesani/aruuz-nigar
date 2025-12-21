@@ -7,10 +7,26 @@ This app provides a web interface to scan complete lines of Urdu poetry
 and identify matching meters (bahr).
 """
 
+import logging
 from flask import Flask, render_template, request
 from aruuz.models import Lines
-from aruuz.scansion_db import ScansionWithDatabase
 from aruuz.scansion import Scansion 
+
+# Configure logging to show DEBUG messages from aruuz modules
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# Enable DEBUG logging for aruuz modules
+logging.getLogger('aruuz').setLevel(logging.DEBUG)
+logging.getLogger('aruuz.scansion').setLevel(logging.DEBUG)
+logging.getLogger('aruuz.database').setLevel(logging.DEBUG)
+logging.getLogger('aruuz.database.word_lookup').setLevel(logging.DEBUG)
+
+# Reduce noise from other loggers
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'dev-key-for-testing'
@@ -37,7 +53,10 @@ def index():
                 if not lines:
                     error = "Please enter at least one line of Urdu poetry"
                 else:
-                    # Use pure heuristic Scansion for the main index route
+                    # Use Scansion with database integration (matches C# implementation)
+                    # Scansion() will automatically initialize WordLookup for database access
+                    # word_code() will try: database -> plural forms -> compound words -> heuristics
+                    logging.debug("[DEBUG] Flask app: Using Scansion() with database integration")
                     scanner = Scansion()
                     
                     # Add all lines
@@ -143,9 +162,11 @@ def test():
                         if not lines:
                             error = "Please enter at least one line of Urdu poetry"
                         else:
-                            # Create separate heuristic and database-backed scanners
+                            # Create two Scansion instances for comparison
+                            # Both use database integration (matches C# implementation)
+                            logging.debug("[DEBUG] Flask app: /test route - Creating two Scansion() instances for comparison")
                             heuristic_scanner = Scansion()
-                            db_scanner = ScansionWithDatabase()
+                            db_scanner = Scansion()  # Both use same database-enabled Scansion
 
                             # Build separate line objects for each scanner so they don't share Words
                             heuristic_line_objects = []
@@ -205,7 +226,7 @@ def test():
                                             'is_dominant': so.is_dominant
                                         })
 
-                                # --- Database-backed scansion (via resolver) ---
+                                # --- Database-backed scansion (via Scansion with database) ---
                                 # Use scan_lines() to get results with crunch() applied
                                 db_all_results = db_scanner.scan_lines()
                                 
@@ -300,7 +321,7 @@ def test():
 
 @app.route('/database', methods=['GET', 'POST'])
 def database():
-    """Route: process multiple lines of poetry using ScansionWithDatabase."""
+    """Route: process multiple lines of poetry using Scansion with database integration."""
     line_results = None
     error = None
     text_input = ""
@@ -318,8 +339,9 @@ def database():
                 if not lines:
                     error = "Please enter at least one line of Urdu poetry"
                 else:
-                    # Use database-backed ScansionWithDatabase in this route
-                    scanner = ScansionWithDatabase()
+                    # Use Scansion with database integration (matches C# implementation)
+                    logging.debug("[DEBUG] Flask app: /database route - Using Scansion() with database integration")
+                    scanner = Scansion()
                     
                     # Add all lines
                     line_objects = []

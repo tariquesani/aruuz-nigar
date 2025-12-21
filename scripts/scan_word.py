@@ -16,6 +16,7 @@ Usage:
 
 import sys
 import argparse
+import logging
 from pathlib import Path
 
 # Fix Windows console encoding for Unicode
@@ -26,6 +27,19 @@ if sys.platform == 'win32':
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
     except (AttributeError, ValueError):
         pass
+
+# Configure logging to show DEBUG messages from aruuz modules
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# Enable DEBUG logging for aruuz modules
+logging.getLogger('aruuz').setLevel(logging.DEBUG)
+logging.getLogger('aruuz.scansion').setLevel(logging.DEBUG)
+logging.getLogger('aruuz.database').setLevel(logging.DEBUG)
+logging.getLogger('aruuz.database.word_lookup').setLevel(logging.DEBUG)
 
 # Add parent directory to path to import aruuz
 sys.path.insert(0, str(Path(__file__).parent.parent))

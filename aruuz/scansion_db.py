@@ -5,11 +5,15 @@ This module provides ScansionWithDatabase class that wraps Scansion and uses
 WordCodeResolver to coordinate database and heuristic strategies for word code resolution.
 """
 
+import logging
 from typing import List, Optional
 from aruuz.models import Words, Lines, scanOutput
 from aruuz.scansion import Scansion
 from aruuz.resolver import WordCodeResolver
 from aruuz.database.word_lookup import WordLookup
+
+# Set up logger for debug statements
+logger = logging.getLogger(__name__)
 
 
 class ScansionWithDatabase:
@@ -32,15 +36,19 @@ class ScansionWithDatabase:
                     uses default path from config. If database is unavailable,
                     gracefully falls back to heuristics-only mode.
         """
+        logger.debug(f"[DEBUG] ScansionWithDatabase.__init__() called with db_path: {db_path}")
         # Internal heuristics engine (unchanged)
         self._scansion = Scansion()
         
         # Initialize resolver with database lookup (if available)
         try:
             word_lookup = WordLookup(db_path) if db_path else WordLookup()
+            logger.debug(f"[DEBUG] ScansionWithDatabase.__init__() WordLookup initialized successfully")
             self._resolver = WordCodeResolver(db_lookup=word_lookup)
-        except Exception:
+            logger.debug(f"[DEBUG] ScansionWithDatabase.__init__() WordCodeResolver initialized with database lookup")
+        except Exception as e:
             # Gracefully fall back to heuristics-only if DB unavailable
+            logger.debug(f"[DEBUG] ScansionWithDatabase.__init__() WordLookup initialization failed: {e}, falling back to heuristics-only")
             self._resolver = WordCodeResolver(db_lookup=None)
     
     def add_line(self, line: Lines) -> None:
@@ -214,6 +222,7 @@ class ScansionWithDatabase:
         Returns:
             Words object with code assigned
         """
+        logger.debug(f"[DEBUG] ScansionWithDatabase.word_code() called with word: '{word.word}'")
         return self._resolver.resolve(word)
     
     # Expose internal Scansion properties for compatibility

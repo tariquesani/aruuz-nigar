@@ -5,10 +5,14 @@ Provides WordCodeResolver class that coordinates multiple strategies for resolvi
 word scansion codes (database lookup and heuristics).
 """
 
+import logging
 from typing import Optional
 from aruuz.models import Words
 from aruuz.scansion import Scansion
 from aruuz.utils.araab import remove_araab
+
+# Set up logger for debug statements
+logger = logging.getLogger(__name__)
 
 
 class WordCodeResolver:
@@ -42,25 +46,36 @@ class WordCodeResolver:
         Returns:
             Words object with code assigned
         """
+        logger.debug(f"[DEBUG] WordCodeResolver.resolve() called with word: '{word.word}'")
+        
         # If word already has codes, return as is
         if len(word.code) > 0:
+            logger.debug(f"[DEBUG] WordCodeResolver.resolve() word already has codes, returning early")
             return word
         
         # Strategy 1: Try database lookup first (if available)
         if self.db_lookup:
+            logger.debug(f"[DEBUG] WordCodeResolver.resolve() db_lookup is available, trying database lookup")
             try:
                 word = self.db_lookup.find_word(word)
                 
                 # If database lookup found results
                 if len(word.id) > 0:
+                    logger.debug(f"[DEBUG] WordCodeResolver.resolve() database lookup found {len(word.id)} result(s), applying variations")
                     # Apply special 3-character word handling
                     word = self._apply_db_word_variations(word)
                     return word
-            except Exception:
+                else:
+                    logger.debug(f"[DEBUG] WordCodeResolver.resolve() database lookup returned no results, falling back to heuristics")
+            except Exception as e:
                 # On any DB error, fall back to heuristics
+                logger.debug(f"[DEBUG] WordCodeResolver.resolve() database lookup raised exception: {e}, falling back to heuristics")
                 pass
+        else:
+            logger.debug(f"[DEBUG] WordCodeResolver.resolve() db_lookup is None, skipping database lookup")
         
         # Strategy 2: Fallback to heuristics
+        logger.debug(f"[DEBUG] WordCodeResolver.resolve() using heuristics fallback")
         return self._heuristic_scansion.word_code(word)
     
     def _apply_db_word_variations(self, word: Words) -> Words:

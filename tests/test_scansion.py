@@ -4,6 +4,7 @@ Tests for scansion engine.
 Tests word code assignment methods with known words.
 """
 
+import logging
 import unittest
 from aruuz.scansion import (
     length_one_scan,
@@ -21,6 +22,19 @@ from aruuz.scansion import (
     Scansion
 )
 from aruuz.models import Words, Lines, scanOutput
+
+# Configure logging to show DEBUG messages from aruuz modules during tests
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# Enable DEBUG logging for aruuz modules
+logging.getLogger('aruuz').setLevel(logging.DEBUG)
+logging.getLogger('aruuz.scansion').setLevel(logging.DEBUG)
+logging.getLogger('aruuz.database').setLevel(logging.DEBUG)
+logging.getLogger('aruuz.database.word_lookup').setLevel(logging.DEBUG)
 
 
 class TestHelperFunctions(unittest.TestCase):
