@@ -1024,66 +1024,69 @@ class CodeTree:
         
         for i in range(len(lst)):
             sc = scanPath()
-            sc.meters = lst[i].meters
+            sc.meters = list(lst[i].meters)  # Copy meters list
             
             code = ""
+            # Process all but the last location (j = 0 to Count-2)
+            # After loop, j will be Count-1 (last valid index from range)
             j = 0
-            
-            # Process all but the last location
             for j in range(len(lst[i].location) - 1):
                 if j == 0:
-                    # First element (root) - add as is
-                    L = codeLocation()
-                    L.code_ref = -1
-                    L.word = "root"
-                    L.word_ref = -1
-                    L.code = ""
+                    # First element (root) - add as is with empty code
+                    L = codeLocation(
+                        code="",
+                        code_ref=-1,
+                        word="root",
+                        word_ref=-1,
+                        fuzzy=0
+                    )
                     sc.location.append(L)
                     code = ""
                 
                 word_ref = lst[i].location[j].word_ref
                 # Check if next location is from the same word
                 if word_ref == lst[i].location[j + 1].word_ref:
-                    # Same word - accumulate code
+                    # Same word - accumulate code (don't add location yet)
                     code += lst[i].location[j].code
                 else:
                     # Different word - create new location with accumulated code
-                    cL = codeLocation()
-                    cL.code_ref = lst[i].location[j].code_ref
-                    cL.word = lst[i].location[j].word
-                    cL.word_ref = lst[i].location[j].word_ref
                     code += lst[i].location[j].code
-                    cL.code = code
-                    code = ""
+                    cL = codeLocation(
+                        code=code,
+                        code_ref=lst[i].location[j].code_ref,
+                        word=lst[i].location[j].word,
+                        word_ref=lst[i].location[j].word_ref,
+                        fuzzy=lst[i].location[j].fuzzy
+                    )
                     sc.location.append(cL)
+                    code = ""
             
-            # Handle last location
-            # After the loop, j is len(lst[i].location) - 1 (the last index processed)
-            # In C#, j-1 is checked against the last location
+            # After loop in C#, j = Count-1 (incremented after last iteration)
+            # In Python, after range(n), j = n-1, so we need j+1 to get the last index
+            # But we want j to represent the last index, so we set it explicitly
             if len(lst[i].location) > 1:
-                # j is now len(lst[i].location) - 1 after the loop
-                # Check if location[j-1] (second-to-last) has same wordRef as last location
-                last_idx = len(lst[i].location) - 1
-                prev_idx = last_idx - 1  # j - 1
-                word_ref2 = lst[i].location[prev_idx].word_ref
-                if word_ref2 == lst[i].location[last_idx].word_ref:
-                    # Last location is from same word as previous - add last location's code
-                    code += lst[i].location[last_idx].code
+                # j is currently Count-2 (last value from range), so j+1 is Count-1 (last index)
+                j_last = len(lst[i].location) - 1  # Explicitly use last index
+                word_ref2 = lst[i].location[j_last - 1].word_ref  # Second-to-last
+                if word_ref2 == lst[i].location[j_last].word_ref:
+                    # Last location is from same word as previous - add to accumulated code
+                    code += lst[i].location[j_last].code
                 else:
                     # Last location is from different word - use only last location's code
-                    code = lst[i].location[last_idx].code
+                    code = lst[i].location[j_last].code
             else:
-                # Only one location (shouldn't happen, but handle it)
+                # Only one location (edge case)
                 code = lst[i].location[0].code
             
-            # Add final location
+            # Add final location with accumulated/selected code
             last_idx = len(lst[i].location) - 1
-            cL2 = codeLocation()
-            cL2.code_ref = lst[i].location[last_idx].code_ref
-            cL2.word = lst[i].location[last_idx].word
-            cL2.word_ref = lst[i].location[last_idx].word_ref
-            cL2.code = code
-            
+            cL2 = codeLocation(
+                code=code,
+                code_ref=lst[i].location[last_idx].code_ref,
+                word=lst[i].location[last_idx].word,
+                word_ref=lst[i].location[last_idx].word_ref,
+                fuzzy=lst[i].location[last_idx].fuzzy
+            )
             sc.location.append(cL2)
             result.append(sc)
         
