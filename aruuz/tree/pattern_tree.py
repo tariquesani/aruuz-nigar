@@ -10,6 +10,7 @@ from aruuz.models import codeLocation, scanPath
 from aruuz.meters import (
     NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS
 )
+from aruuz.tree.state_machine import original_hindi_meter, zamzama_meter
 
 
 class PatternTree:
@@ -143,13 +144,124 @@ class PatternTree:
         Returns:
             List of scanPath objects with detected meters
         """
-        # TODO: Implement state machine traversal in next phase
-        # This will call StateMachine.original_hindi_meter() for state transitions
-        # and check syllable counts at leaf nodes to determine meters
         main_list: List[scanPath] = []
         
-        # Placeholder implementation - will be completed in pattern_tree_state_machine phase
-        # For now, return empty list to allow core structure to compile
+        # Calculate meter base offset
+        meter_base = NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS
+        
+        if len(self.children) > 0:
+            # Has children - recursively traverse
+            for i in range(len(self.children)):
+                # Get next state from state machine
+                local_state = original_hindi_meter(self.children[i].location.code, state)
+                
+                if local_state != -1:
+                    # Valid state transition - create new scanPath
+                    scpath = scanPath()
+                    # Copy existing locations
+                    for j in range(len(scn.location)):
+                        scpath.location.append(scn.location[j])
+                    # Add current child location
+                    scpath.location.append(self.children[i].location)
+                    
+                    # Recursively traverse child
+                    temp = self.children[i]._traverse_original_hindi(scpath, local_state)
+                    for j in range(len(temp)):
+                        main_list.append(temp[j])
+        else:
+            # Leaf node - check syllable count to determine meters
+            count = 0
+            for i in range(len(scn.location)):
+                if scn.location[i].code == "=":
+                    count += 2
+                elif scn.location[i].code == "-":
+                    count += 1
+            
+            # Check patterns and add matching meters
+            if len(scn.location) > 0:
+                last_code = scn.location[len(scn.location) - 1].code
+                
+                if count == 30:
+                    if last_code == "=":
+                        scn.meters.append(meter_base)
+                        main_list.append(scn)
+                elif count == 31:
+                    if len(scn.location) >= 2:
+                        second_last_code = scn.location[len(scn.location) - 2].code
+                        if last_code == "-" and second_last_code == "=":
+                            scn.meters.append(meter_base)
+                            main_list.append(scn)
+                elif count == 22:
+                    if last_code == "=":
+                        scn.meters.append(meter_base + 1)
+                        main_list.append(scn)
+                elif count == 23:
+                    if len(scn.location) >= 2:
+                        second_last_code = scn.location[len(scn.location) - 2].code
+                        if last_code == "-" and second_last_code == "=":
+                            scn.meters.append(meter_base + 1)
+                            main_list.append(scn)
+                elif count == 32:
+                    if last_code == "=":
+                        scn.meters.append(meter_base + 2)
+                        main_list.append(scn)
+                elif count == 33:
+                    if len(scn.location) >= 2:
+                        second_last_code = scn.location[len(scn.location) - 2].code
+                        if last_code == "-" and second_last_code == "=":
+                            scn.meters.append(meter_base + 2)
+                            main_list.append(scn)
+                elif count == 14:
+                    if last_code == "=":
+                        scn.meters.append(meter_base + 3)
+                        main_list.append(scn)
+                elif count == 15:
+                    if len(scn.location) >= 2:
+                        second_last_code = scn.location[len(scn.location) - 2].code
+                        if last_code == "-" and second_last_code == "=":
+                            scn.meters.append(meter_base + 3)
+                            main_list.append(scn)
+                elif count == 16:
+                    if last_code == "=":
+                        scn.meters.append(meter_base + 4)
+                        main_list.append(scn)
+                elif count == 17:
+                    if len(scn.location) >= 2:
+                        second_last_code = scn.location[len(scn.location) - 2].code
+                        if last_code == "-" and second_last_code == "=":
+                            scn.meters.append(meter_base + 4)
+                            main_list.append(scn)
+                elif count == 10:
+                    if last_code == "=":
+                        scn.meters.append(meter_base + 5)
+                        main_list.append(scn)
+                elif count == 11:
+                    if len(scn.location) >= 2:
+                        second_last_code = scn.location[len(scn.location) - 2].code
+                        if last_code == "-" and second_last_code == "=":
+                            scn.meters.append(meter_base + 5)
+                            main_list.append(scn)
+                elif count == 24:
+                    if last_code == "=":
+                        scn.meters.append(meter_base + 6)
+                        main_list.append(scn)
+                elif count == 25:
+                    if len(scn.location) >= 2:
+                        second_last_code = scn.location[len(scn.location) - 2].code
+                        if last_code == "-" and second_last_code == "=":
+                            scn.meters.append(meter_base + 6)
+                            main_list.append(scn)
+                elif count == 8:
+                    if last_code == "=":
+                        scn.meters.append(meter_base + 7)
+                        main_list.append(scn)
+                elif count == 9:
+                    if len(scn.location) >= 2:
+                        second_last_code = scn.location[len(scn.location) - 2].code
+                        if last_code == "-" and second_last_code == "=":
+                            scn.meters.append(meter_base + 7)
+                            main_list.append(scn)
+        
         return main_list
     
     def _traverse_zamzama(self, scn: scanPath, state: int) -> List[scanPath]:
@@ -167,13 +279,74 @@ class PatternTree:
         Returns:
             List of scanPath objects with detected meters
         """
-        # TODO: Implement state machine traversal in next phase
-        # This will call StateMachine.zamzama_meter() for state transitions
-        # and check syllable counts at leaf nodes to determine meters
         main_list: List[scanPath] = []
         
-        # Placeholder implementation - will be completed in pattern_tree_state_machine phase
-        # For now, return empty list to allow core structure to compile
+        # Calculate meter base offset
+        meter_base = NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS
+        
+        if len(self.children) > 0:
+            # Has children - recursively traverse
+            for i in range(len(self.children)):
+                # Get next state from state machine
+                local_state = zamzama_meter(self.children[i].location.code, state)
+                
+                if local_state != -1:
+                    # Valid state transition - create new scanPath
+                    scpath = scanPath()
+                    # Copy existing locations
+                    for j in range(len(scn.location)):
+                        scpath.location.append(scn.location[j])
+                    # Add current child location
+                    scpath.location.append(self.children[i].location)
+                    
+                    # Recursively traverse child
+                    temp = self.children[i]._traverse_zamzama(scpath, local_state)
+                    for j in range(len(temp)):
+                        main_list.append(temp[j])
+        else:
+            # Leaf node - check syllable count to determine meters
+            count = 0
+            for i in range(len(scn.location)):
+                if scn.location[i].code == "=":
+                    count += 2
+                elif scn.location[i].code == "-":
+                    count += 1
+            
+            # Check patterns and add matching meters
+            if len(scn.location) > 0:
+                last_code = scn.location[len(scn.location) - 1].code
+                
+                if count == 32:
+                    if last_code == "=":
+                        scn.meters.append(meter_base + 8)
+                        main_list.append(scn)
+                elif count == 33:
+                    if len(scn.location) >= 2:
+                        second_last_code = scn.location[len(scn.location) - 2].code
+                        if last_code == "-" and second_last_code == "=":
+                            scn.meters.append(meter_base + 8)
+                            main_list.append(scn)
+                elif count == 24:
+                    if last_code == "=":
+                        scn.meters.append(meter_base + 9)
+                        main_list.append(scn)
+                elif count == 25:
+                    if len(scn.location) >= 2:
+                        second_last_code = scn.location[len(scn.location) - 2].code
+                        if last_code == "-" and second_last_code == "=":
+                            scn.meters.append(meter_base + 9)
+                            main_list.append(scn)
+                elif count == 16:
+                    if last_code == "=":
+                        scn.meters.append(meter_base + 10)
+                        main_list.append(scn)
+                elif count == 17:
+                    if len(scn.location) >= 2:
+                        second_last_code = scn.location[len(scn.location) - 2].code
+                        if last_code == "-" and second_last_code == "=":
+                            scn.meters.append(meter_base + 10)
+                            main_list.append(scn)
+        
         return main_list
     
     def _traverse_hindi(self, scn: scanPath, state: int) -> List[scanPath]:
