@@ -1271,10 +1271,10 @@ class Scansion:
     
     def word_code(self, word: Words) -> Words:
         """
-        Assign scansion code to a word using heuristics.
+        Assign scansion code to a word using database lookup (if available) or heuristics.
         
-        This method uses the assign_code function to determine the scansion
-        code for a word based on its length and characteristics.
+        This method first tries database lookup if available, then falls back to
+        heuristics using the assign_code function.
         
         Args:
             word: Words object to assign code to
@@ -1286,11 +1286,68 @@ class Scansion:
         if len(word.code) > 0:
             return word
         
-        # Use heuristics to assign code
+        # Strategy 1: Try database lookup first (if available)
+        if self.word_lookup is not None:
+            try:
+                word = self.word_lookup.find_word(word)
+                
+                # If database lookup found results
+                if len(word.id) > 0:
+                    # Apply special 3-character word handling
+                    word = self._apply_db_word_variations(word)
+                    return word
+            except Exception:
+                # On any DB error, fall back to heuristics
+                pass
+        
+        # Strategy 2: Fallback to heuristics
         code = assign_code(word)
         
         # Store code in word
         word.code = [code]
+        
+        return word
+    
+    def _apply_db_word_variations(self, word: Words) -> Words:
+        """
+        Apply special 3-character word handling for DB results.
+        
+        Mirrors C# logic (lines 1846-1869) for post-processing database results.
+        
+        For 3-character words ending in 'ا' (alif):
+        - If word starts with 'آ': add alternative code "==" or "=x" if not already present
+        - If word doesn't start with 'آ': add alternative code "-=" or "-x" if not already present
+        
+        Args:
+            word: Words object from database lookup
+            
+        Returns:
+            Words object with additional code variations if applicable
+        """
+        # Remove araab and special characters (ھ \u06BE and ں \u06BA) for scansion purposes
+        # C#: string subString = Araab.removeAraab(wrd.word.Replace("\u06BE", "").Replace("\u06BA", ""));
+        sub_string = word.word.replace("\u06BE", "").replace("\u06BA", "")
+        sub_string = remove_araab(sub_string)
+        
+        # C#: if (subString.Length == 3)
+        if len(sub_string) == 3:
+            # C#: if(subString[2] == 'ا')
+            if sub_string[2] == 'ا':  # Third character is alif
+                # C#: if (subString[0] == 'آ')
+                if sub_string[0] == 'آ':  # First character is alif madd
+                    # C#: if (!wrd.code[0].Equals("==") && !wrd.code[0].Equals("=x"))
+                    if len(word.code) > 0 and word.code[0] != "==" and word.code[0] != "=x":
+                        # C#: wrd.id.Add(-1);
+                        # C#: wrd.code.Add("==");
+                        word.id.append(-1)
+                        word.code.append("==")
+                else:  # First character is not alif madd
+                    # C#: if (!wrd.code[0].Equals("-=") && !wrd.code[0].Equals("-x"))
+                    if len(word.code) > 0 and word.code[0] != "-=" and word.code[0] != "-x":
+                        # C#: wrd.id.Add(-1);
+                        # C#: wrd.code.Add("-=");
+                        word.id.append(-1)
+                        word.code.append("-=")
         
         return word
     
@@ -1876,32 +1933,41 @@ class Scansion:
         else:
             return 0
     
-    def crunch(self, results: List[scanOutput]) -> str:
+    def crunch(self, results: List[scanOutput]) -> List[scanOutput]:
         """
-        Identify the dominant meter from multiple matches.
+        Consolidate multiple meter matches and return only those matching dominant meter.
         
         Algorithm:
         1. Collect all unique meter names from results
         2. Score each meter by summing calculateScore() for all matching lines
-        3. Return the meter name with highest score
+        3. Sort scores and meter names together (maintain pairing)
+        4. Select meter with highest score
+        5. Return all scanOutput objects matching the selected meter
         
         Args:
             results: List of scanOutput objects (multiple matches per line)
             
         Returns:
-            Name of the dominant meter (empty string if no results)
+            List of scanOutput objects for the dominant meter only
         """
         if not results:
-            return ""
+            return []
         
-        # Collect unique meter names
+        # Collect unique meter names (matching C# logic)
         meter_names = []
         for item in results:
-            if item.meter_name and item.meter_name not in meter_names:
-                meter_names.append(item.meter_name)
+            if item.meter_name:
+                # Check if already in list
+                found = False
+                for existing in meter_names:
+                    if existing == item.meter_name:
+                        found = True
+                        break
+                if not found:
+                    meter_names.append(item.meter_name)
         
         if not meter_names:
-            return ""
+            return []
         
         # Score each meter
         scores = [0.0] * len(meter_names)
@@ -1910,15 +1976,24 @@ class Scansion:
                 if item.meter_name == meter_name:
                     scores[i] += self.calculate_score(meter_name, item.feet)
         
-        # Find meter with highest score
-        max_score = max(scores)
-        if max_score == 0:
-            return ""  # No valid matches
+        # Sort scores and meter names together (maintain pairing)
+        # Create list of tuples, sort by score, then extract
+        paired = list(zip(scores, meter_names))
+        paired.sort(key=lambda x: x[0])  # Sort by score (ascending)
         
-        # Get the meter name with highest score
-        # If there's a tie, return the first one
-        max_index = scores.index(max_score)
-        return meter_names[max_index]
+        # Get the meter with highest score (last after sort)
+        final_meter = paired[-1][1] if paired else ""
+        
+        if not final_meter:
+            return []
+        
+        # Filter results: return only scanOutput objects matching final_meter
+        filtered_results = []
+        for item in results:
+            if item.meter_name == final_meter:
+                filtered_results.append(item)
+        
+        return filtered_results
     
     def scan_lines(self) -> List[scanOutput]:
         """
@@ -1943,13 +2018,11 @@ class Scansion:
             line_results = self.scan_line(line, k)
             all_results.extend(line_results)
         
-        # Identify dominant meter and mark results
+        # Consolidate results: crunch() returns only results matching dominant meter
         if all_results:
-            dominant_meter = self.crunch(all_results)
-            if dominant_meter:
-                # Mark all results matching the dominant meter
-                for result in all_results:
-                    if result.meter_name == dominant_meter:
-                        result.is_dominant = True
+            all_results = self.crunch(all_results)
+            # Mark all returned results as dominant (they're already filtered)
+            for result in all_results:
+                result.is_dominant = True
         
         return all_results
