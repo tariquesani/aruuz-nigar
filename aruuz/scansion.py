@@ -5,14 +5,15 @@ This module contains the main Scansion class that processes
 Urdu poetry lines and identifies meters.
 """
 
+import warnings
 from typing import List, Optional
 from aruuz.models import Words, Lines, scanOutput, scanPath
 from aruuz.utils.araab import remove_araab, ARABIC_DIACRITICS
 from aruuz.meters import (
-    METERS, METERS_VARIED, RUBAI_METERS, 
-    METER_NAMES, METERS_VARIED_NAMES, RUBAI_METER_NAMES,
-    NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS,
-    afail, afail_list, meter_index
+    METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS,
+    METER_NAMES, METERS_VARIED_NAMES, RUBAI_METER_NAMES, SPECIAL_METER_NAMES,
+    NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, NUM_SPECIAL_METERS,
+    afail, afail_list, meter_index, afail_hindi
 )
 from aruuz.database.word_lookup import WordLookup
 from aruuz.tree.code_tree import CodeTree
@@ -901,6 +902,12 @@ def is_match(meter: str, tentative_code: str, word_code: str) -> bool:
     """
     Check if a meter pattern matches a code sequence.
     
+    .. deprecated:: 
+        This function is deprecated. Use the tree-based matching via 
+        `CodeTree._is_match()` or `Scansion.find_meter()` instead.
+        This function is kept for backward compatibility and will be removed
+        in a future version.
+    
     This function compares a meter pattern with a tentative code (already processed)
     and a word code. It handles 4 variations of the meter pattern:
     1. Original meter with '+' removed
@@ -918,6 +925,12 @@ def is_match(meter: str, tentative_code: str, word_code: str) -> bool:
     Returns:
         True if any variation of the meter matches the code, False otherwise
     """
+    warnings.warn(
+        "is_match() is deprecated. Use tree-based matching via CodeTree._is_match() "
+        "or Scansion.find_meter() instead. This function will be removed in a future version.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     if len(tentative_code) + len(word_code) == 0:
         return False
     
@@ -1080,6 +1093,12 @@ def check_code_length(code: str, meter_indices: List[int]) -> List[int]:
     """
     Filter meter indices by checking if code length matches any meter variation.
     
+    .. deprecated:: 
+        This function is deprecated. Use the tree-based matching via 
+        `CodeTree._check_code_length()` or `Scansion.find_meter()` instead.
+        This function is kept for backward compatibility and will be removed
+        in a future version.
+    
     This function checks if the given code length matches any of the 4 variations
     of each meter pattern. Meters that don't match any variation are removed.
     
@@ -1096,6 +1115,13 @@ def check_code_length(code: str, meter_indices: List[int]) -> List[int]:
     Returns:
         List of meter indices that match at least one variation
     """
+    warnings.warn(
+        "check_code_length() is deprecated. Use tree-based matching via "
+        "CodeTree._check_code_length() or Scansion.find_meter() instead. "
+        "This function will be removed in a future version.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     result = list(meter_indices)  # Copy the list
     
     for meter_idx in meter_indices:
@@ -1782,13 +1808,12 @@ class Scansion:
     
     def scan_line(self, line: Lines, line_index: int) -> List[scanOutput]:
         """
-        Process a single line and return possible scan outputs.
+        Process a single line and return possible scan outputs using tree-based matching.
         
         This method:
         1. Assigns codes to all words in the line
-        2. Builds a complete code string
-        3. Matches against all meters
-        4. Creates scanOutput objects for matches
+        2. Uses tree-based find_meter() to find matching meters
+        3. Converts scanPath results to scanOutput objects
         
         Args:
             line: Lines object to scan
@@ -1799,96 +1824,81 @@ class Scansion:
         """
         results: List[scanOutput] = []
         
-        # Step 1: Assign codes to all words
-        word_codes: List[str] = []
+        # Step 1: Assign codes to all words (needed for tree building)
         for word in line.words_list:
-            word = self.word_code(word)
-            if len(word.code) > 0:
-                word_codes.append(word.code[0])
-            else:
-                # If no code assigned, skip this word or use default
-                word_codes.append("-")
+            self.word_code(word)
         
-        # Step 2: Build complete code string
-        full_code = "".join(word_codes)
+        # Step 2: Use tree-based find_meter() to get matching scanPaths
+        # find_meter() handles tree building, pattern matching, and meter filtering
+        scan_paths = self.find_meter(line)
         
-        if not full_code:
-            return results  # No code, no matches
+        if not scan_paths:
+            return results  # No matches found
         
-        # Step 3: Get all possible meter indices
-        # Start with all regular meters
-        all_meter_indices = list(range(NUM_METERS))
-        
-        # Add varied meters if any
-        if NUM_VARIED_METERS > 0:
-            all_meter_indices.extend(range(NUM_METERS, NUM_METERS + NUM_VARIED_METERS))
-        
-        # Add rubai meters
-        if NUM_RUBAI_METERS > 0:
-            all_meter_indices.extend(range(
-                NUM_METERS + NUM_VARIED_METERS,
-                NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS
-            ))
-        
-        # Step 4: Filter meters by code length
-        matching_meters = check_code_length(full_code, all_meter_indices)
-        
-        # Step 5: For each matching meter, verify pattern match and create scanOutput
-        for meter_idx in matching_meters:
-            # Get meter pattern
-            if meter_idx < NUM_METERS:
-                meter_pattern = METERS[meter_idx]
-                meter_name = METER_NAMES[meter_idx]
-            elif meter_idx < NUM_METERS + NUM_VARIED_METERS:
-                meter_pattern = METERS_VARIED[meter_idx - NUM_METERS]
-                meter_name = METERS_VARIED_NAMES[meter_idx - NUM_METERS]
-            elif meter_idx < NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS:
-                meter_pattern = RUBAI_METERS[meter_idx - NUM_METERS - NUM_VARIED_METERS]
-                meter_name = RUBAI_METER_NAMES[meter_idx - NUM_METERS - NUM_VARIED_METERS] + " (رباعی)"
-            else:
-                continue  # Skip invalid indices
+        # Step 3: Convert scanPath results to scanOutput objects
+        for sp in scan_paths:
+            if not sp.meters:
+                continue  # Skip paths with no matching meters
             
-            # Verify pattern match: check if full code matches meter pattern
-            # Create meter variations and check if code matches any
-            meter_clean = meter_pattern.replace("/", "")
-            meter1 = meter_clean.replace("+", "")
-            meter2 = meter_clean.replace("+", "") + "-"
-            meter3 = meter_clean.replace("+", "-") + "-"
-            meter4 = meter_clean.replace("+", "-")
+            # Extract words and codes from scanPath location (skip index 0 which is root)
+            words_list: List[Words] = []
+            word_taqti_list: List[str] = []
             
-            matches = False
+            for i in range(1, len(sp.location)):
+                loc = sp.location[i]
+                if loc.word_ref >= 0 and loc.word_ref < len(line.words_list):
+                    words_list.append(line.words_list[loc.word_ref])
+                    word_taqti_list.append(loc.code)
             
-            # Check against all 4 variations
-            for meter_var in [meter1, meter2, meter3, meter4]:
-                if len(meter_var) == len(full_code):
-                    match = True
-                    for j in range(len(meter_var)):
-                        met_char = meter_var[j]
-                        code_char = full_code[j]
-                        if met_char == '-':
-                            if code_char != '-' and code_char != 'x':
-                                match = False
-                                break
-                        elif met_char == '=':
-                            if code_char != '=' and code_char != 'x':
-                                match = False
-                                break
-                    if match:
-                        matches = True
-                        break
+            # Build full code string from word codes
+            full_code = "".join(word_taqti_list)
             
-            if matches:
-                # Create scanOutput
+            if not full_code:
+                continue  # Skip if no code
+            
+            # Step 4: Create scanOutput for each matching meter
+            for meter_idx in sp.meters:
                 so = scanOutput()
                 so.original_line = line.original_line
-                so.words = line.words_list.copy()
-                so.word_taqti = word_codes.copy()
-                so.word_muarrab = [w.word for w in line.words_list]  # Use original word as muarrab for now
-                so.meter_name = meter_name
-                so.feet = afail(meter_pattern)  # Get feet breakdown as string
-                so.feet_list = afail_list(meter_pattern)  # Get feet breakdown as list with codes
-                so.id = meter_idx
+                so.words = words_list.copy()
+                so.word_taqti = word_taqti_list.copy()
+                so.word_muarrab = [w.word for w in words_list]  # Use original word as muarrab
                 so.num_lines = 1
+                
+                # Determine meter pattern, name, and feet based on meter index
+                if meter_idx < NUM_METERS:
+                    # Regular meter
+                    meter_pattern = METERS[meter_idx]
+                    so.meter_name = METER_NAMES[meter_idx]
+                    so.feet = afail(meter_pattern)
+                    so.feet_list = afail_list(meter_pattern)
+                    so.id = meter_idx
+                elif meter_idx < NUM_METERS + NUM_VARIED_METERS:
+                    # Varied meter
+                    meter_pattern = METERS_VARIED[meter_idx - NUM_METERS]
+                    so.meter_name = METERS_VARIED_NAMES[meter_idx - NUM_METERS]
+                    so.feet = afail(meter_pattern)
+                    so.feet_list = afail_list(meter_pattern)
+                    so.id = meter_idx
+                elif meter_idx < NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS:
+                    # Rubai meter
+                    meter_pattern = RUBAI_METERS[meter_idx - NUM_METERS - NUM_VARIED_METERS]
+                    so.meter_name = RUBAI_METER_NAMES[meter_idx - NUM_METERS - NUM_VARIED_METERS] + " (رباعی)"
+                    so.feet = afail(meter_pattern)
+                    so.feet_list = afail_list(meter_pattern)
+                    so.id = -2
+                elif meter_idx < NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS + NUM_SPECIAL_METERS:
+                    # Special meter (Hindi/Zamzama)
+                    special_idx = meter_idx - NUM_METERS - NUM_VARIED_METERS - NUM_RUBAI_METERS
+                    if special_idx < len(SPECIAL_METER_NAMES):
+                        so.meter_name = SPECIAL_METER_NAMES[special_idx]
+                        so.feet = afail_hindi(so.meter_name)
+                        so.feet_list = []  # Special meters don't have standard feet_list
+                        so.id = -2 - special_idx
+                    else:
+                        continue  # Skip invalid special meter index
+                else:
+                    continue  # Skip invalid meter index
                 
                 results.append(so)
         
