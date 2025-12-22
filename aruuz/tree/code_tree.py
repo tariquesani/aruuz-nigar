@@ -560,6 +560,340 @@ class CodeTree:
             else:
                 return []
     
+    def _min(self, x: int, y: int, z: int) -> int:
+        """
+        Find the minimum of three integers.
+        
+        Args:
+            x: First integer
+            y: Second integer
+            z: Third integer
+            
+        Returns:
+            The minimum of x, y, and z
+        """
+        a = x
+        if x > y:
+            if y > z:
+                a = z
+            else:
+                a = y
+        elif x > z:
+            if y > z:
+                a = z
+            else:
+                a = y
+        else:
+            a = x
+        return a
+    
+    def _levenshtein_distance(self, pattern: str, code: str) -> int:
+        """
+        Calculate Levenshtein distance between pattern and code with special handling.
+        
+        This method calculates edit distance with special rules:
+        - 'x' in code matches any character in pattern (except '~')
+        - '~' in pattern matches '-' in code with zero cost
+        - Other mismatches have cost 1 (deletion, insertion, or substitution)
+        
+        Args:
+            pattern: Pattern string (may contain '~' characters)
+            code: Code string (may contain 'x' characters)
+            
+        Returns:
+            Levenshtein distance between pattern and code
+        """
+        m = len(pattern)
+        n = len(code)
+        d = [[0] * (n + 1) for _ in range(m + 1)]
+        
+        # Initialize first row and column
+        for i in range(m + 1):
+            d[i][0] = i
+        for j in range(n + 1):
+            d[0][j] = j
+        
+        # Fill the distance matrix
+        for i in range(1, m + 1):
+            for j in range(1, n + 1):
+                if ((pattern[i - 1] == code[j - 1]) or (code[j - 1] == 'x')) and pattern[i - 1] != '~':
+                    # Characters match, or code has 'x' (wildcard)
+                    d[i][j] = d[i - 1][j - 1]
+                else:
+                    if pattern[i - 1] == '~':
+                        # '~' in pattern matches '-' in code with zero cost
+                        if code[j - 1] == '-':
+                            d[i][j] = d[i - 1][j - 1]
+                        else:
+                            # Deletion, insertion, or substitution
+                            d[i][j] = self._min(
+                                d[i - 1][j] + 1,      # deletion
+                                d[i][j - 1] + 1,      # insertion
+                                d[i - 1][j - 1] + 1   # substitution
+                            )
+                    else:
+                        # Regular mismatch - deletion, insertion, or substitution
+                        d[i][j] = self._min(
+                            d[i - 1][j] + 1,      # deletion
+                            d[i][j - 1] + 1,      # insertion
+                            d[i - 1][j - 1] + 1   # substitution
+                        )
+        
+        return d[m][n]
+    
+    def _check_code_length_fuzzy(self, code: str, indices: List[int]) -> List[int]:
+        """
+        Filter meter indices using fuzzy matching (Levenshtein distance).
+        
+        This method checks if the given code matches any of the 4 variations
+        of each meter pattern using Levenshtein distance. Meters are kept if
+        the minimum distance across all variations is <= errorParam.
+        
+        The 4 variations are:
+        1. Original meter with '+' removed
+        2. Meter with '+' removed + '~' appended
+        3. Meter with '+' replaced by '~' + '~' appended
+        4. Meter with '+' replaced by '~'
+        
+        Args:
+            code: Scansion code string (e.g., "=-=")
+            indices: List of meter indices to check
+            
+        Returns:
+            List of meter indices that match within errorParam distance
+        """
+        result = list(indices)  # Copy the list
+        
+        if len(code) == 0:
+            return result
+        
+        for meter_idx in indices:
+            # Get meter pattern based on index
+            if meter_idx < NUM_METERS:
+                meter = METERS[meter_idx].replace("/", "")
+            elif meter_idx < NUM_METERS + NUM_VARIED_METERS:
+                meter = METERS_VARIED[meter_idx - NUM_METERS].replace("/", "")
+            elif meter_idx < NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS:
+                meter = RUBAI_METERS[meter_idx - NUM_METERS - NUM_VARIED_METERS].replace("/", "")
+            else:
+                # Invalid index, skip
+                continue
+            
+            # Create 4 variations (must create before removing '+' from meter)
+            meter2 = meter.replace("+", "") + "~"
+            meter3 = meter.replace("+", "~") + "~"
+            meter4 = meter.replace("+", "~")
+            meter = meter.replace("+", "")
+            
+            # Calculate Levenshtein distance for each variation
+            flag1 = self._levenshtein_distance(meter, code)
+            flag2 = self._levenshtein_distance(meter2, code)
+            flag3 = self._levenshtein_distance(meter3, code)
+            flag4 = self._levenshtein_distance(meter4, code)
+            
+            # Keep meter if minimum distance is within errorParam
+            min_distance = min(flag4, self._min(flag1, flag2, flag3))
+            if min_distance > self.error_param:
+                result.remove(meter_idx)
+        
+        return result
+    
+    def _traverse_fuzzy(self, scn: scanPath) -> List[scanPath]:
+        """
+        Fuzzy traversal of the code tree for pattern matching.
+        
+        This method recursively traverses the tree without filtering meters
+        during traversal. All children are explored, and meter filtering happens
+        only at leaf nodes using Levenshtein distance.
+        
+        Args:
+            scn: Current scanPath containing meter indices and location path
+            
+        Returns:
+            List of scanPath objects representing matching paths through the tree
+        """
+        main_list: List[scanPath] = []
+        
+        if len(scn.meters) == 0:
+            return main_list
+        
+        if len(self.children) > 0:
+            # Build tentative code from current path
+            code = ""
+            fuzz = 0
+            for i in range(len(scn.location)):
+                code += scn.location[i].code
+                fuzz += scn.location[i].fuzzy
+            
+            # Traverse all children without filtering
+            for k in range(len(self.children)):
+                indices = list(scn.meters)  # Copy meter indices
+                
+                scpath = scanPath()
+                scpath.meters = indices
+                for i in range(len(scn.location)):
+                    scpath.location.append(scn.location[i])
+                scpath.location.append(self.children[k].location)
+                
+                # Recursively traverse child
+                temp = self.children[k]._traverse_fuzzy(scpath)
+                for i in range(len(temp)):
+                    main_list.append(temp[i])
+            
+            return main_list
+        else:
+            # Tree leaf - check final code length using fuzzy matching
+            code = ""
+            for i in range(len(scn.location)):
+                code += scn.location[i].code
+            
+            # Filter meters by code length using fuzzy matching
+            met = self._check_code_length_fuzzy(code, scn.meters)
+            if len(met) != 0:
+                scn.meters = met
+                sp = [scn]
+                return sp
+            else:
+                return []
+    
+    def _check_meter_free_verse(self, code: str, indices: List[int]) -> List[int]:
+        """
+        Filter meter indices for free verse matching.
+        
+        This method checks if the code can be matched by any foot pattern
+        from the meter. It splits the meter into feet and tries to match
+        the code character by character against the feet.
+        
+        Args:
+            code: Scansion code string (e.g., "=-=")
+            indices: List of meter indices to check
+            
+        Returns:
+            List of meter indices that match the code using foot patterns
+        """
+        result = list(indices)  # Copy the list
+        
+        if len(code) == 0:
+            return result
+        
+        for meter_idx in indices:
+            # Get meter pattern based on index
+            if meter_idx < NUM_METERS:
+                meter = METERS[meter_idx]
+            elif meter_idx < NUM_METERS + NUM_VARIED_METERS:
+                meter = METERS_VARIED[meter_idx - NUM_METERS]
+            else:
+                # Skip rubai meters for free verse (not in C# implementation)
+                continue
+            
+            # Split meter into feet
+            # Replace spaces, then replace '+' and '/' with spaces, then split
+            residue = meter.replace(" ", "")
+            residue = residue.replace("+", " ")
+            residue = residue.replace("/", " ")
+            feet = []
+            for s in residue.split():
+                # Only add unique feet
+                if s not in feet:
+                    feet.append(s)
+            
+            # Try to match code against feet
+            f = True  # Flag indicating if match is successful
+            j = 0
+            while j < len(code):
+                index = -1
+                # Try each foot
+                for k in range(len(feet)):
+                    flag = True
+                    index = k
+                    # Check if foot fits at current position
+                    if j + len(feet[k]) > len(code):
+                        index = -1
+                        flag = False
+                    else:
+                        # Check if code slice matches foot
+                        slice_code = code[j:j + len(feet[k])]
+                        for z in range(len(feet[k])):
+                            if not ((slice_code[z] == feet[k][z]) or (slice_code[z] == 'x')):
+                                flag = False
+                                index = -1
+                                break
+                    
+                    if flag:
+                        break
+                
+                if index >= 0:
+                    # Found matching foot - advance position
+                    j = j + len(feet[index])
+                else:
+                    # No matching foot found
+                    f = False
+                    break
+            
+            # Remove meter if match failed
+            if not f:
+                result.remove(meter_idx)
+        
+        return result
+    
+    def _traverse_free_verse(self, scn: scanPath) -> List[scanPath]:
+        """
+        Free verse traversal of the code tree for pattern matching.
+        
+        This method recursively traverses the tree without filtering meters
+        during traversal. All children are explored, and meter filtering happens
+        only at leaf nodes using foot pattern matching.
+        
+        Args:
+            scn: Current scanPath containing meter indices and location path
+            
+        Returns:
+            List of scanPath objects representing matching paths through the tree
+        """
+        main_list: List[scanPath] = []
+        
+        if len(scn.meters) == 0:
+            return main_list
+        
+        if len(self.children) > 0:
+            # Build tentative code from current path
+            code = ""
+            fuzz = 0
+            for i in range(len(scn.location)):
+                code += scn.location[i].code
+                fuzz += scn.location[i].fuzzy
+            
+            # Traverse all children without filtering
+            for k in range(len(self.children)):
+                indices = list(scn.meters)  # Copy meter indices
+                
+                scpath = scanPath()
+                scpath.meters = indices
+                for i in range(len(scn.location)):
+                    scpath.location.append(scn.location[i])
+                scpath.location.append(self.children[k].location)
+                
+                # Recursively traverse child
+                temp = self.children[k]._traverse_free_verse(scpath)
+                for i in range(len(temp)):
+                    main_list.append(temp[i])
+            
+            return main_list
+        else:
+            # Tree leaf - check final code length using free verse matching
+            code = ""
+            for i in range(len(scn.location)):
+                code += scn.location[i].code
+            
+            # Filter meters by code length using free verse matching
+            met = self._check_meter_free_verse(code, scn.meters)
+            if len(met) != 0:
+                scn.meters = met
+                sp = [scn]
+                return sp
+            else:
+                return []
+    
     def find_meter(self, meters: Optional[List[int]] = None) -> List[scanPath]:
         """
         Find matching meters using tree traversal.
@@ -616,13 +950,11 @@ class CodeTree:
         
         # Call appropriate traversal method based on mode
         if self.fuzzy:
-            # Fuzzy matching traversal (to be implemented)
-            # main_list = self._traverse_fuzzy(scn)
-            main_list = []  # Placeholder until _traverse_fuzzy is implemented
+            # Fuzzy matching traversal
+            main_list = self._traverse_fuzzy(scn)
         elif self.free_verse:
-            # Free verse traversal (to be implemented)
-            # main_list = self._traverse_free_verse(scn)
-            main_list = []  # Placeholder until _traverse_free_verse is implemented
+            # Free verse traversal
+            main_list = self._traverse_free_verse(scn)
         else:
             # Regular traversal
             main_list = self._traverse(scn)
