@@ -8,7 +8,7 @@ from typing import List, Optional
 from aruuz.models import codeLocation, Lines, Words, scanPath
 from aruuz.meters import (
     METERS, METERS_VARIED, RUBAI_METERS,
-    NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS
+    NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, USAGE
 )
 
 
@@ -559,3 +559,200 @@ class CodeTree:
                 return sp
             else:
                 return []
+    
+    def find_meter(self, meters: Optional[List[int]] = None) -> List[scanPath]:
+        """
+        Find matching meters using tree traversal.
+        
+        This is the main entry point for meter matching. It builds a scanPath
+        from the tree structure and traverses it to find matching meters.
+        
+        Args:
+            meters: Optional list of meter indices to check. If None or empty,
+                   all meters are checked. Special values:
+                   - [-2]: Check only rubai meters
+                   - Contains -1: Also use PatternTree for additional matches
+        
+        Returns:
+            List of scanPath objects representing matching paths through the tree
+        """
+        flag = False
+        indices: List[int] = []
+        
+        # Determine meter indices to check
+        if meters is None or len(meters) == 0:
+            # No meters specified - add all meters
+            # First add meters with usage == 1
+            for i in range(NUM_METERS):
+                if USAGE[i] == 1:
+                    indices.append(i)
+            # Then add meters with usage == 0
+            for i in range(NUM_METERS):
+                if USAGE[i] == 0:
+                    indices.append(i)
+            # Finally add rubai meters
+            for i in range(NUM_METERS, NUM_METERS + NUM_RUBAI_METERS):
+                indices.append(i)
+        else:
+            if meters[0] == -2:
+                # Special case: only rubai meters
+                for i in range(NUM_METERS, NUM_METERS + NUM_RUBAI_METERS):
+                    indices.append(i)
+            else:
+                # Add all non--1 meters, set flag if -1 found
+                for meter_idx in meters:
+                    if meter_idx != -1:
+                        indices.append(meter_idx)
+                    else:
+                        flag = True
+        
+        # Create root scanPath
+        main_list: List[scanPath] = []
+        scn = scanPath()
+        scn.meters = indices
+        # Add root location
+        root_loc = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+        scn.location.append(root_loc)
+        
+        # Call appropriate traversal method based on mode
+        if self.fuzzy:
+            # Fuzzy matching traversal (to be implemented)
+            # main_list = self._traverse_fuzzy(scn)
+            main_list = []  # Placeholder until _traverse_fuzzy is implemented
+        elif self.free_verse:
+            # Free verse traversal (to be implemented)
+            # main_list = self._traverse_free_verse(scn)
+            main_list = []  # Placeholder until _traverse_free_verse is implemented
+        else:
+            # Regular traversal
+            main_list = self._traverse(scn)
+            
+            # If flag is set or meters was empty, also use PatternTree for additional matches
+            # TODO: Implement PatternTree integration when PatternTree class is available
+            # This will call _get_code() to extract all code paths, build PatternTree,
+            # call is_match(), compress results, and add to main_list
+            if flag or (meters is None or len(meters) == 0):
+                # PatternTree integration will be added here in a future phase
+                # For now, we only use regular traversal results
+                pass
+        
+        return main_list
+    
+    def _get_code(self, scn: scanPath) -> List[scanPath]:
+        """
+        Extract all code paths from the tree.
+        
+        This method recursively traverses the tree and collects all complete
+        paths (from root to leaf) as scanPath objects. This is used for
+        PatternTree integration.
+        
+        Args:
+            scn: Current scanPath containing location path
+        
+        Returns:
+            List of scanPath objects representing all paths through the tree
+        """
+        main_list: List[scanPath] = []
+        
+        if len(self.children) > 0:
+            # Not a leaf - recursively get codes from children
+            for k in range(len(self.children)):
+                scpath = scanPath()
+                # Copy current location path
+                for i in range(len(scn.location)):
+                    scpath.location.append(scn.location[i])
+                # Add current child location
+                scpath.location.append(self.children[k].location)
+                
+                # Recursively get codes from child
+                temp = self.children[k]._get_code(scpath)
+                for i in range(len(temp)):
+                    main_list.append(temp[i])
+        else:
+            # Tree leaf - return the current path
+            main_list.append(scn)
+        
+        return main_list
+    
+    def _compress_list(self, lst: List[scanPath]) -> List[scanPath]:
+        """
+        Compress a list of scanPath objects by merging locations from the same word.
+        
+        This method processes scanPath objects and merges consecutive locations
+        that belong to the same word into a single location with combined code.
+        This is used for PatternTree result processing.
+        
+        Args:
+            lst: List of scanPath objects to compress
+        
+        Returns:
+            List of compressed scanPath objects
+        """
+        result: List[scanPath] = []
+        
+        for i in range(len(lst)):
+            sc = scanPath()
+            sc.meters = lst[i].meters
+            
+            code = ""
+            j = 0
+            
+            # Process all but the last location
+            for j in range(len(lst[i].location) - 1):
+                if j == 0:
+                    # First element (root) - add as is
+                    L = codeLocation()
+                    L.code_ref = -1
+                    L.word = "root"
+                    L.word_ref = -1
+                    L.code = ""
+                    sc.location.append(L)
+                    code = ""
+                
+                word_ref = lst[i].location[j].word_ref
+                # Check if next location is from the same word
+                if word_ref == lst[i].location[j + 1].word_ref:
+                    # Same word - accumulate code
+                    code += lst[i].location[j].code
+                else:
+                    # Different word - create new location with accumulated code
+                    cL = codeLocation()
+                    cL.code_ref = lst[i].location[j].code_ref
+                    cL.word = lst[i].location[j].word
+                    cL.word_ref = lst[i].location[j].word_ref
+                    code += lst[i].location[j].code
+                    cL.code = code
+                    code = ""
+                    sc.location.append(cL)
+            
+            # Handle last location
+            # After the loop, j is len(lst[i].location) - 1 (the last index processed)
+            # In C#, j-1 is checked against the last location
+            if len(lst[i].location) > 1:
+                # j is now len(lst[i].location) - 1 after the loop
+                # Check if location[j-1] (second-to-last) has same wordRef as last location
+                last_idx = len(lst[i].location) - 1
+                prev_idx = last_idx - 1  # j - 1
+                word_ref2 = lst[i].location[prev_idx].word_ref
+                if word_ref2 == lst[i].location[last_idx].word_ref:
+                    # Last location is from same word as previous - add last location's code
+                    code += lst[i].location[last_idx].code
+                else:
+                    # Last location is from different word - use only last location's code
+                    code = lst[i].location[last_idx].code
+            else:
+                # Only one location (shouldn't happen, but handle it)
+                code = lst[i].location[0].code
+            
+            # Add final location
+            last_idx = len(lst[i].location) - 1
+            cL2 = codeLocation()
+            cL2.code_ref = lst[i].location[last_idx].code_ref
+            cL2.word = lst[i].location[last_idx].word
+            cL2.word_ref = lst[i].location[last_idx].word_ref
+            cL2.code = code
+            
+            sc.location.append(cL2)
+            result.append(sc)
+        
+        return result
