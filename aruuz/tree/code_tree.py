@@ -5,7 +5,11 @@ This module implements tree structures for matching word codes to meter patterns
 """
 
 from typing import List, Optional
-from aruuz.models import codeLocation, Lines, Words
+from aruuz.models import codeLocation, Lines, Words, scanPath
+from aruuz.meters import (
+    METERS, METERS_VARIED, RUBAI_METERS,
+    NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS
+)
 
 
 class CodeTree:
@@ -153,3 +157,405 @@ class CodeTree:
                     tree.add_child(cd)
         
         return tree
+    
+    def _is_match(self, meter: str, tentative_code: str, word_code: str) -> bool:
+        """
+        Check if a meter pattern matches a code sequence.
+        
+        This method compares a meter pattern with a tentative code (already processed)
+        and a word code. It handles 4 variations of the meter pattern:
+        1. Original meter with '+' removed
+        2. Meter with '+' removed + '-' appended
+        3. Meter with '+' replaced by '-' + '-' appended
+        4. Meter with '+' replaced by '-'
+        
+        It also checks caesura positions (word boundaries marked by '+' in meter).
+        
+        Args:
+            meter: Meter pattern string (e.g., "-===/-===/-===/-===")
+            tentative_code: Already processed code from previous words
+            word_code: Code for the current word
+            
+        Returns:
+            True if any variation of the meter matches the code, False otherwise
+        """
+        if len(tentative_code) + len(word_code) == 0:
+            return False
+        
+        # Remove '/' from meter
+        meter_original = meter.replace("/", "")
+        
+        # Caesura detection (must check before removing '+')
+        # If meter has '+' at position after tentativeCode + wordCode, 
+        # wordCode must end with '-'
+        if len(meter_original) > len(tentative_code) + len(word_code):
+            caesura_pos = len(tentative_code) + len(word_code) - 1
+            if caesura_pos >= 0 and caesura_pos < len(meter_original) and meter_original[caesura_pos] == '+':
+                if len(word_code) >= 2:
+                    if word_code[-1] != '-':
+                        return False  # Word-boundary caesura violation
+                # If word_code length == 1, it's allowed (no check needed)
+        
+        # Create 4 variations of the meter
+        meter2 = meter_original.replace("+", "") + "-"
+        meter3 = meter_original.replace("+", "-") + "-"
+        meter4 = meter_original.replace("+", "-")
+        meter = meter_original.replace("+", "")
+        
+        # Flags for each variation (True = match, False = no match)
+        flag1 = True
+        flag2 = True
+        flag3 = True
+        flag4 = True
+        
+        code = word_code
+        
+        # Variation 1: Original meter
+        if not (len(meter) < len(tentative_code) + len(word_code)):
+            meter_sub = meter[len(tentative_code):]
+            i = 0
+            while i < len(code):
+                if i >= len(meter_sub):
+                    flag1 = False
+                    break
+                met = meter_sub[i]
+                cd = code[i]
+                
+                # Pattern matching
+                if met == '-':
+                    if cd == '-' or cd == 'x':
+                        i += 1
+                    else:
+                        flag1 = False
+                        break
+                elif met == '=':
+                    if cd == '=' or cd == 'x':
+                        i += 1
+                    else:
+                        flag1 = False
+                        break
+        else:
+            flag1 = False
+        
+        # Variation 2: meter2 (meter with '+' removed + '-' appended)
+        meter = meter2
+        i = 0
+        if not (len(meter) < len(tentative_code) + len(word_code)):
+            meter_sub = meter[len(tentative_code):]
+            while i < len(code):
+                if i >= len(meter_sub):
+                    flag2 = False
+                    break
+                met = meter_sub[i]
+                cd = code[i]
+                
+                # Special check for last character
+                if i == len(code) - 1:
+                    if cd != '-':
+                        flag2 = False
+                        break
+                
+                # Pattern matching
+                if met == '-':
+                    if cd == '-' or cd == 'x':
+                        i += 1
+                    else:
+                        flag2 = False
+                        break
+                elif met == '=':
+                    if cd == '=' or cd == 'x':
+                        i += 1
+                    else:
+                        flag2 = False
+                        break
+        else:
+            flag2 = False
+        
+        # Variation 3: meter3 (meter with '+' replaced by '-' + '-' appended)
+        meter = meter3
+        i = 0
+        if not (len(meter) < len(tentative_code) + len(word_code)):
+            meter_sub = meter[len(tentative_code):]
+            while i < len(code):
+                if i >= len(meter_sub):
+                    flag3 = False
+                    break
+                met = meter_sub[i]
+                cd = code[i]
+                
+                # Special check for last character
+                if i == len(code) - 1:
+                    if cd != '-':
+                        flag3 = False
+                        break
+                
+                # Pattern matching
+                if met == '-':
+                    if cd == '-' or cd == 'x':
+                        i += 1
+                    else:
+                        flag3 = False
+                        break
+                elif met == '=':
+                    if cd == '=' or cd == 'x':
+                        i += 1
+                    else:
+                        flag3 = False
+                        break
+        else:
+            flag3 = False
+        
+        # Variation 4: meter4 (meter with '+' replaced by '-')
+        meter = meter4
+        i = 0
+        if not (len(meter) < len(tentative_code) + len(word_code)):
+            meter_sub = meter[len(tentative_code):]
+            while i < len(code):
+                if i >= len(meter_sub):
+                    flag4 = False
+                    break
+                met = meter_sub[i]
+                cd = code[i]
+                
+                # Pattern matching
+                if met == '-':
+                    if cd == '-' or cd == 'x':
+                        i += 1
+                    else:
+                        flag4 = False
+                        break
+                elif met == '=':
+                    if cd == '=' or cd == 'x':
+                        i += 1
+                    else:
+                        flag4 = False
+                        break
+        else:
+            flag4 = False
+        
+        # Return True if any variation matches
+        return flag1 or flag2 or flag3 or flag4
+    
+    def _check_code_length(self, code: str, indices: List[int]) -> List[int]:
+        """
+        Filter meter indices by checking if code length matches any meter variation.
+        
+        This method checks if the given code length matches any of the 4 variations
+        of each meter pattern. Meters that don't match any variation are removed.
+        
+        The 4 variations are:
+        1. Original meter with '+' removed
+        2. Meter with '+' removed + '-' appended
+        3. Meter with '+' replaced by '-' + '-' appended
+        4. Meter with '+' replaced by '-'
+        
+        Args:
+            code: Scansion code string (e.g., "=-=")
+            indices: List of meter indices to check
+            
+        Returns:
+            List of meter indices that match at least one variation
+        """
+        result = list(indices)  # Copy the list
+        
+        for meter_idx in indices:
+            # Get meter pattern based on index
+            if meter_idx < NUM_METERS:
+                meter = METERS[meter_idx].replace("/", "")
+            elif meter_idx < NUM_METERS + NUM_VARIED_METERS:
+                meter = METERS_VARIED[meter_idx - NUM_METERS].replace("/", "")
+            elif meter_idx < NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS:
+                meter = RUBAI_METERS[meter_idx - NUM_METERS - NUM_VARIED_METERS].replace("/", "")
+            else:
+                # Invalid index, skip
+                continue
+            
+            # Create 4 variations
+            meter1 = meter.replace("+", "")
+            meter2 = meter.replace("+", "") + "-"
+            meter3 = meter.replace("+", "-") + "-"
+            meter4 = meter.replace("+", "-")
+            
+            # Flags for each variation (True = mismatch, False = match)
+            # In C#, flag=True means mismatch, so we invert the logic
+            flag1 = False
+            flag2 = False
+            flag3 = False
+            flag4 = False
+            
+            # Variation 1: Original meter
+            if len(meter1) == len(code):
+                for j in range(len(meter1)):
+                    met = meter1[j]
+                    cd = code[j]
+                    if met == '-':
+                        if cd == '-' or cd == 'x':
+                            pass  # Match
+                        else:
+                            flag1 = True  # Mismatch
+                            break
+                    elif met == '=':
+                        if cd == '=' or cd == 'x':
+                            pass  # Match
+                        else:
+                            flag1 = True  # Mismatch
+                            break
+            else:
+                flag1 = True  # Length mismatch
+            
+            # Variation 2: meter2
+            if len(meter2) == len(code):
+                for j in range(len(meter2)):
+                    met = meter2[j]
+                    cd = code[j]
+                    if met == '-':
+                        if cd == '-' or cd == 'x':
+                            pass  # Match
+                        else:
+                            flag2 = True  # Mismatch
+                            break
+                    elif met == '=':
+                        if cd == '=' or cd == 'x':
+                            pass  # Match
+                        else:
+                            flag2 = True  # Mismatch
+                            break
+            else:
+                flag2 = True  # Length mismatch
+            
+            # Variation 3: meter3
+            if len(meter3) == len(code):
+                for j in range(len(meter3)):
+                    met = meter3[j]
+                    cd = code[j]
+                    if met == '-':
+                        if cd == '-' or cd == 'x':
+                            pass  # Match
+                        else:
+                            flag3 = True  # Mismatch
+                            break
+                    elif met == '=':
+                        if cd == '=' or cd == 'x':
+                            pass  # Match
+                        else:
+                            flag3 = True  # Mismatch
+                            break
+            else:
+                flag3 = True  # Length mismatch
+            
+            # Variation 4: meter4
+            if len(meter4) == len(code):
+                for j in range(len(meter4)):
+                    met = meter4[j]
+                    cd = code[j]
+                    if met == '-':
+                        if cd == '-' or cd == 'x':
+                            pass  # Match
+                        else:
+                            flag4 = True  # Mismatch
+                            break
+                    elif met == '=':
+                        if cd == '=' or cd == 'x':
+                            pass  # Match
+                        else:
+                            flag4 = True  # Mismatch
+                            break
+            else:
+                flag4 = True  # Length mismatch
+            
+            # Remove meter if all variations mismatch
+            if flag1 and flag2 and flag3 and flag4:
+                result.remove(meter_idx)
+        
+        return result
+    
+    def _traverse(self, scn: scanPath) -> List[scanPath]:
+        """
+        Regular traversal of the code tree for pattern matching.
+        
+        This method recursively traverses the tree, checking each node against
+        meter patterns. It filters out meters that don't match and continues
+        traversal only for matching paths.
+        
+        Args:
+            scn: Current scanPath containing meter indices and location path
+            
+        Returns:
+            List of scanPath objects representing matching paths through the tree
+        """
+        main_list: List[scanPath] = []
+        
+        if len(scn.meters) == 0:
+            return main_list
+        
+        if len(self.children) > 0:
+            # Build tentative code from current path
+            code = ""
+            for i in range(len(scn.location)):
+                code += scn.location[i].code
+            
+            # Check each child against meters
+            for k in range(len(self.children)):
+                flag = False
+                tentative_code = code
+                word_code = self.children[k].location.code
+                indices = list(scn.meters)  # Copy meter indices
+                num_indices = len(scn.meters)
+                
+                # Check each meter index
+                for i in range(num_indices):
+                    meter_idx = scn.meters[i]
+                    
+                    if meter_idx < NUM_METERS:
+                        # Regular meter
+                        if not self._is_match(METERS[meter_idx], tentative_code, word_code):
+                            # Remove meter index that doesn't match
+                            if meter_idx in indices:
+                                indices.remove(meter_idx)
+                        else:
+                            flag = True
+                    elif meter_idx < NUM_METERS + NUM_VARIED_METERS and meter_idx >= NUM_METERS:
+                        # Varied meter
+                        if not self._is_match(METERS_VARIED[meter_idx - NUM_METERS], tentative_code, word_code):
+                            # Remove meter index that doesn't match
+                            if meter_idx in indices:
+                                indices.remove(meter_idx)
+                        else:
+                            flag = True
+                    elif meter_idx < NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS and meter_idx >= NUM_METERS + NUM_VARIED_METERS:
+                        # Rubai meter
+                        if not self._is_match(RUBAI_METERS[meter_idx - NUM_METERS - NUM_VARIED_METERS], tentative_code, word_code):
+                            # Remove meter index that doesn't match
+                            if meter_idx in indices:
+                                indices.remove(meter_idx)
+                        else:
+                            flag = True
+                
+                # If at least one meter matches, continue traversal
+                if flag:
+                    scpath = scanPath()
+                    scpath.meters = indices
+                    for i in range(len(scn.location)):
+                        scpath.location.append(scn.location[i])
+                    scpath.location.append(self.children[k].location)
+                    
+                    # Recursively traverse child
+                    temp = self.children[k]._traverse(scpath)
+                    for i in range(len(temp)):
+                        main_list.append(temp[i])
+            
+            return main_list
+        else:
+            # Tree leaf - check final code length
+            code = ""
+            for i in range(len(scn.location)):
+                code += scn.location[i].code
+            
+            # Filter meters by code length
+            met = self._check_code_length(code, scn.meters)
+            if len(met) != 0:
+                scn.meters = met
+                sp = [scn]
+                return sp
+            else:
+                return []
