@@ -6,7 +6,7 @@ Urdu poetry lines and identifies meters.
 """
 
 from typing import List, Optional
-from aruuz.models import Words, Lines, scanOutput
+from aruuz.models import Words, Lines, scanOutput, scanPath
 from aruuz.utils.araab import remove_araab, ARABIC_DIACRITICS
 from aruuz.meters import (
     METERS, METERS_VARIED, RUBAI_METERS, 
@@ -15,6 +15,7 @@ from aruuz.meters import (
     afail, afail_list, meter_index
 )
 from aruuz.database.word_lookup import WordLookup
+from aruuz.tree.code_tree import CodeTree
 
 
 def is_vowel_plus_h(char: str) -> bool:
@@ -1746,6 +1747,38 @@ class Scansion:
         # Set modified flag (matching C#: wd.modified = true)
         wd.modified = True
         return wd
+    
+    def find_meter(self, line: Lines, meters: Optional[List[int]] = None) -> List[scanPath]:
+        """
+        Build CodeTree from line and find matching meters using tree traversal.
+        
+        This method builds a tree structure from the word codes in the line and
+        uses tree-based traversal to efficiently match against meter patterns.
+        This is the main entry point for tree-based pattern matching.
+        
+        Args:
+            line: Lines object containing words with assigned codes
+            meters: Optional list of meter indices to check. If None, uses self.meter.
+                   If self.meter is also None, checks all meters.
+        
+        Returns:
+            List of scanPath objects representing matching paths through the tree
+        """
+        # Use self.meter if meters parameter is not provided
+        if meters is None:
+            meters = self.meter
+        
+        # Build CodeTree from line
+        # The build_from_line method handles both regular codes and taqti_word_graft codes
+        tree = CodeTree.build_from_line(
+            line,
+            error_param=self.error_param,
+            fuzzy=self.fuzzy,
+            free_verse=self.free_verse
+        )
+        
+        # Call tree.find_meter() to get scanPath results
+        return tree.find_meter(meters)
     
     def scan_line(self, line: Lines, line_index: int) -> List[scanOutput]:
         """
