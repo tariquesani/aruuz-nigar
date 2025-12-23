@@ -571,3 +571,172 @@ def rukn_code(name: str) -> str:
         if foot_name == name:
             return FEET[i]
     return ""
+
+
+def zamzama_feet(index: int, code: str) -> str:
+    """
+    Generate foot names for Zamzama meters from scansion code.
+    
+    Args:
+        index: Special meter index (8-10 for Zamzama)
+        code: Scansion code string (e.g., "==-==-==-==-==-==-==-==")
+        
+    Returns:
+        Space-separated string of foot names in Urdu
+        
+    Note:
+        This function matches the C# zamzamaFeet() implementation logic:
+        - Pattern "--=" maps to " فَعِلن"
+        - Pattern "==" maps to " فعْلن"
+    """
+    feet = ""
+    
+    # Remove trailing '-' if present
+    if code and code[-1] == '-':
+        code = code[:-1]
+    
+    len_code = len(code)
+    
+    # Iterate through code character by character
+    # Matches C# for loop: for (int i = 0; i < len; i++)
+    i = 0
+    while i < len_code:
+        if code[i] == '-':
+            # Check for pattern: --= (two dashes followed by equals)
+            # In C#: if(code[++i].Equals('-')) then if(code[++i].Equals('='))
+            # This means: check code[i+1] == '-', then check code[i+2] == '='
+            if i + 1 < len_code:
+                i += 1  # Pre-increment equivalent: ++i
+                if code[i] == '-':
+                    if i + 1 < len_code:
+                        i += 1  # Pre-increment again: ++i
+                        if code[i] == '=':
+                            feet += " فَعِلن"
+                            # At this point i points to the '=' character
+                            # The loop will increment i, so we'll skip past this pattern
+                        else:
+                            break
+                    else:
+                        break
+                else:
+                    break
+            else:
+                break
+        else:
+            # Check for pattern: == (two equals)
+            # In C#: if(code[++i].Equals('='))
+            # This means: check code[i+1] == '='
+            if i + 1 < len_code:
+                i += 1  # Pre-increment equivalent: ++i
+                if code[i] == '=':
+                    feet += " فعْلن"
+                    # At this point i points to the second '=' character
+                    # The loop will increment i, so we'll skip past this pattern
+                else:
+                    break
+            else:
+                break
+        i += 1  # Loop increment (equivalent to for loop i++)
+    
+    return feet
+
+
+def hindi_feet(index: int, code: str) -> str:
+    """
+    Generate foot names for Hindi meters from scansion code.
+    
+    Args:
+        index: Special meter index (0-7 for Hindi)
+        code: Scansion code string
+        
+    Returns:
+        Space-separated string of foot names in Urdu, or empty string if validation fails
+        
+    Note:
+        This function matches the C# hindiFeet() implementation logic:
+        - Uses greedy pattern matching (tries patterns in order, first match wins)
+        - Validates foot count based on index:
+          - index 0: 8 feet
+          - index 1: 6 feet
+          - index 2: 8 feet
+          - index 3: 4 feet
+          - index 4: 4 feet
+          - index 5: 3 feet
+          - index 6: 6 feet
+          - index 7: 2 feet
+    """
+    feet = ""
+    num_feet = 0
+    
+    # Foot patterns and their corresponding names
+    # Order matters: patterns are tried in this order
+    afail_patterns = ["==", "=-", "-==", "-=-", "-=", "=", "==-", "-==-"]
+    afail_names = ["فعلن", "فعْل", "فعولن", "فعول", "فَعَل", "فع", "فعْلان", "فعولان"]
+    
+    # Expected foot counts for each index
+    expected_feet = {
+        0: 8,
+        1: 6,
+        2: 8,
+        3: 4,
+        4: 4,
+        5: 3,
+        6: 6,
+        7: 2
+    }
+    
+    # Validate index
+    if index not in expected_feet:
+        return ""
+    
+    # Remove trailing '-' if present
+    if code and code[-1] == '-':
+        code = code[:-1]
+    
+    code_len = len(code)
+    
+    if code_len == 0:
+        return feet
+    
+    # Iterate through code character by character
+    j = 0
+    while j < code_len:
+        index_found = -1
+        
+        # Try to match each pattern in order
+        for k in range(len(afail_patterns)):
+            pattern = afail_patterns[k]
+            pattern_len = len(pattern)
+            
+            # Check if pattern fits at current position
+            if j + pattern_len > code_len:
+                continue
+            
+            # Check if pattern matches at position j
+            flag = True
+            for z in range(pattern_len):
+                if code[j + z] != pattern[z]:
+                    flag = False
+                    break
+            
+            if flag:
+                index_found = k
+                break  # First match wins
+        
+        if index_found >= 0:
+            # Add the matched foot name
+            feet += afail_names[index_found] + " "
+            num_feet += 1
+            # Move j forward by pattern length - 1 (the loop will increment it by 1)
+            j += len(afail_patterns[index_found]) - 1
+        else:
+            # No pattern matched, break
+            break
+        
+        j += 1  # Move to next character
+    
+    # Validate foot count
+    if num_feet == expected_feet[index]:
+        return feet.strip()
+    else:
+        return ""

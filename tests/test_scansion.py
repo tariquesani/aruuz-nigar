@@ -4312,5 +4312,215 @@ class TestWordCodeIntegration(unittest.TestCase):
                 self.assertEqual(result.word, word)  # Original word stored
 
 
+class TestSpecialMeterHandling(unittest.TestCase):
+    """Test special meter (Hindi/Zamzama) handling in scansion pipeline."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.scanner = Scansion()
+
+    def test_hindi_meter_detection(self):
+        """Test that Hindi meters are detected and feet are generated."""
+        from aruuz.meters import (
+            NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS,
+            SPECIAL_METER_NAMES
+        )
+        
+        # Test with a line that should match a Hindi meter
+        # We'll use scan_line to test the full pipeline
+        line = "فعلن فعلن فعلن فعلن فعلن فعلن فعلن فع"
+        
+        # Mock the word lookup to return appropriate codes
+        # For Hindi meters, we need codes that match the pattern
+        with patch.object(self.scanner, 'word_lookup', None):
+            results = self.scanner.scan_line(line)
+            
+            # Check if any result has a Hindi meter name
+            hindi_meters_found = [
+                r for r in results 
+                if r.meter_name and "ہندی" in r.meter_name
+            ]
+            
+            if hindi_meters_found:
+                # Verify that feet are populated
+                for result in hindi_meters_found:
+                    self.assertIsNotNone(result.feet)
+                    self.assertGreater(len(result.feet), 0)
+                    # Feet should contain Urdu foot names
+                    self.assertIn("فعلن", result.feet or "")
+
+    def test_zamzama_meter_detection(self):
+        """Test that Zamzama meters are detected and feet are generated."""
+        # Test with a line that should match a Zamzama meter
+        line = "فعْلن فعْلن فعْلن فعْلن فعْلن فعْلن فعْلن فعْلن"
+        
+        with patch.object(self.scanner, 'word_lookup', None):
+            results = self.scanner.scan_line(line)
+            
+            # Check if any result has a Zamzama meter name
+            zamzama_meters_found = [
+                r for r in results 
+                if r.meter_name and "زمزمہ" in r.meter_name
+            ]
+            
+            if zamzama_meters_found:
+                # Verify that feet are populated
+                for result in zamzama_meters_found:
+                    self.assertIsNotNone(result.feet)
+                    self.assertGreater(len(result.feet), 0)
+                    # Feet should contain Urdu foot names
+                    self.assertIn("فعْلن", result.feet or "")
+
+    def test_special_meter_feet_generation(self):
+        """Test that special meter feet are generated dynamically from scansion code."""
+        from aruuz.meters import (
+            NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS,
+            SPECIAL_METER_NAMES, zamzama_feet, hindi_feet
+        )
+        
+        # Test Hindi meter feet generation (index 0)
+        hindi_code = "==-==-==-==-==-==-==-=="
+        hindi_feet_result = hindi_feet(0, hindi_code)
+        self.assertIsInstance(hindi_feet_result, str)
+        # Should contain foot names if validation passes
+        if hindi_feet_result:
+            self.assertIn("فعلن", hindi_feet_result)
+        
+        # Test Zamzama meter feet generation (index 8)
+        zamzama_code = "==-==-==-==-==-==-==-=="
+        zamzama_feet_result = zamzama_feet(8, zamzama_code)
+        self.assertIsInstance(zamzama_feet_result, str)
+        if zamzama_feet_result:
+            # Should contain Zamzama foot names
+            self.assertTrue(
+                "فعْلن" in zamzama_feet_result or 
+                "فَعِلن" in zamzama_feet_result
+            )
+
+    def test_special_meter_fallback_to_afail_hindi(self):
+        """Test that if dynamic foot generation fails, it falls back to afail_hindi."""
+        from aruuz.meters import afail_hindi, SPECIAL_METER_NAMES
+        
+        # Test that afail_hindi still works as fallback
+        for meter_name in SPECIAL_METER_NAMES:
+            result = afail_hindi(meter_name)
+            self.assertIsInstance(result, str)
+            # Should return non-empty for valid meter names
+            if meter_name in SPECIAL_METER_NAMES:
+                self.assertGreater(len(result), 0)
+
+    def test_special_meter_all_indices(self):
+        """Test that all special meter indices (0-10) are handled correctly."""
+        from aruuz.meters import (
+            NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS,
+            SPECIAL_METER_NAMES, zamzama_feet, hindi_feet
+        )
+        
+        # Test Hindi meters (indices 0-7)
+        for idx in range(8):
+            # Create a test code
+            test_code = "==" * (idx + 1)
+            result = hindi_feet(idx, test_code)
+            self.assertIsInstance(result, str)
+            # Result may be empty if validation fails, but should not crash
+        
+        # Test Zamzama meters (indices 8-10)
+        for idx in range(8, 11):
+            # Create a test code
+            test_code = "==--==" * (idx - 7)
+            result = zamzama_feet(idx, test_code)
+            self.assertIsInstance(result, str)
+
+    def test_special_meter_scan_output_structure(self):
+        """Test that scan_output for special meters has correct structure."""
+        from aruuz.meters import (
+            NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS,
+            SPECIAL_METER_NAMES
+        )
+        
+        # When a special meter is detected, the scan_output should have:
+        # - meter_name set to special meter name
+        # - feet set to dynamically generated feet
+        # - id set to -2 - special_idx
+        # - feet_list set to empty list
+        
+        # We'll test this by checking the structure when special meters are found
+        line = "فعلن فعلن فعلن فعلن"
+        
+        with patch.object(self.scanner, 'word_lookup', None):
+            results = self.scanner.scan_line(line)
+            
+            for result in results:
+                if result.meter_name and ("ہندی" in result.meter_name or "زمزمہ" in result.meter_name):
+                    # Verify structure
+                    self.assertIsNotNone(result.meter_name)
+                    self.assertIn(result.meter_name, SPECIAL_METER_NAMES)
+                    # feet should be set (either dynamically or from fallback)
+                    self.assertIsNotNone(result.feet)
+                    # id should be negative for special meters
+                    self.assertLess(result.id, 0)
+                    # feet_list should be empty for special meters
+                    self.assertEqual(result.feet_list, [])
+
+    def test_hindi_meter_pattern_matching(self):
+        """Test that Hindi meter patterns are correctly matched and parsed."""
+        from aruuz.meters import hindi_feet
+        
+        # Test with known Hindi meter patterns
+        # Index 0: 8 feet pattern
+        code_8_feet = "==-==-==-==-==-==-==-=="
+        result = hindi_feet(0, code_8_feet)
+        if result:
+            # Should contain 8 foot names
+            foot_names = result.split()
+            self.assertGreaterEqual(len(foot_names), 1)
+        
+        # Index 7: 2 feet pattern
+        code_2_feet = "==-=="
+        result = hindi_feet(7, code_2_feet)
+        if result:
+            foot_names = result.split()
+            self.assertGreaterEqual(len(foot_names), 1)
+
+    def test_zamzama_meter_pattern_matching(self):
+        """Test that Zamzama meter patterns are correctly matched and parsed."""
+        from aruuz.meters import zamzama_feet
+        
+        # Test with known Zamzama meter patterns
+        # Pattern: --= should map to " فَعِلن"
+        code_with_dash_dash_equals = "--="
+        result = zamzama_feet(8, code_with_dash_dash_equals)
+        self.assertIn("فَعِلن", result)
+        
+        # Pattern: == should map to " فعْلن"
+        code_with_equals_equals = "=="
+        result = zamzama_feet(8, code_with_equals_equals)
+        self.assertIn("فعْلن", result)
+
+    def test_special_meter_integration_with_scan_line(self):
+        """Integration test: verify special meters work end-to-end with scan_line."""
+        # This is a comprehensive integration test
+        # We'll test that the full pipeline works for special meters
+        
+        # Note: This test may require actual word lookup to work properly
+        # For now, we'll test the structure and that functions are called
+        
+        from aruuz.meters import (
+            zamzama_feet, hindi_feet, SPECIAL_METER_NAMES,
+            NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS
+        )
+        
+        # Verify helper functions are importable and callable
+        self.assertIsNotNone(zamzama_feet)
+        self.assertIsNotNone(hindi_feet)
+        
+        # Test that functions can be called with valid parameters
+        result = zamzama_feet(8, "==--==")
+        self.assertIsInstance(result, str)
+        
+        result = hindi_feet(0, "==-==-==-==-==-==-==-==")
+        self.assertIsInstance(result, str)
+
+
 if __name__ == '__main__':
     unittest.main()

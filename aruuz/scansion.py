@@ -14,7 +14,7 @@ from aruuz.meters import (
     METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS,
     METER_NAMES, METERS_VARIED_NAMES, RUBAI_METER_NAMES, SPECIAL_METER_NAMES,
     NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, NUM_SPECIAL_METERS,
-    afail, afail_list, meter_index, afail_hindi
+    afail, afail_list, meter_index, afail_hindi, zamzama_feet, hindi_feet
 )
 from aruuz.database.word_lookup import WordLookup
 from aruuz.tree.code_tree import CodeTree
@@ -1893,7 +1893,16 @@ class Scansion:
                     special_idx = meter_idx - NUM_METERS - NUM_VARIED_METERS - NUM_RUBAI_METERS
                     if special_idx < len(SPECIAL_METER_NAMES):
                         so.meter_name = SPECIAL_METER_NAMES[special_idx]
-                        so.feet = afail_hindi(so.meter_name)
+                        # Get scansion code from scanPath and generate feet dynamically
+                        if special_idx > 7:
+                            # Zamzama meters (indices 8-10)
+                            so.feet = zamzama_feet(special_idx, full_code)
+                        else:
+                            # Hindi meters (indices 0-7)
+                            so.feet = hindi_feet(special_idx, full_code)
+                        # Fall back to static afail_hindi if dynamic generation failed
+                        if not so.feet:
+                            so.feet = afail_hindi(so.meter_name)
                         so.feet_list = []  # Special meters don't have standard feet_list
                         so.id = -2 - special_idx
                     else:
@@ -2047,7 +2056,16 @@ class Scansion:
                     special_idx = meter_idx - NUM_METERS - NUM_VARIED_METERS - NUM_RUBAI_METERS
                     if special_idx < len(SPECIAL_METER_NAMES):
                         so.meter_name = SPECIAL_METER_NAMES[special_idx]
-                        so.feet = afail_hindi(so.meter_name)
+                        # Get scansion code from scanPath and generate feet dynamically
+                        if special_idx > 7:
+                            # Zamzama meters (indices 8-10)
+                            so.feet = zamzama_feet(special_idx, full_code)
+                        else:
+                            # Hindi meters (indices 0-7)
+                            so.feet = hindi_feet(special_idx, full_code)
+                        # Fall back to static afail_hindi if dynamic generation failed
+                        if not so.feet:
+                            so.feet = afail_hindi(so.meter_name)
                         so.id = -2 - special_idx
                         # For special meters, we don't have a standard pattern, so skip score calculation
                         so.score = 10  # Default score
