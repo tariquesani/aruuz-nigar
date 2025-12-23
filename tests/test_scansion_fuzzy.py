@@ -563,6 +563,47 @@ class TestFuzzyWithImperfectPoetry(unittest.TestCase):
         # Should handle varied lengths gracefully
 
 
+class TestFuzzyScoringInternals(unittest.TestCase):
+    """Direct tests for _calculate_fuzzy_score and its Levenshtein usage."""
+
+    def setUp(self):
+        """Set up shared Scansion instance."""
+        self.scansion = Scansion()
+        self.scansion.error_param = 6
+
+    def test_calculate_fuzzy_score_uses_levenshtein_distance(self):
+        """
+        _calculate_fuzzy_score should return 0 for an exact pattern/code match.
+
+        This exercises the same Levenshtein logic that CodeTree uses, but through
+        the Scansion helper that fuzzy scoring relies on.
+        """
+        code = "-==="
+        meter_pattern = "-==="  # No '+' or '/' so first variation is an exact match
+
+        distance, best_meter = self.scansion._calculate_fuzzy_score(code, meter_pattern)
+
+        self.assertEqual(distance, 0)
+        self.assertEqual(best_meter, meter_pattern)
+
+    def test_calculate_fuzzy_score_respects_mismatch_penalties(self):
+        """
+        _calculate_fuzzy_score should give strictly larger distance for a worse code.
+
+        This ensures scores are monotonic with respect to edit distance, which is
+        what crunch_fuzzy expects when treating lower scores as better.
+        """
+        perfect_code = "-==="
+        off_by_one_code = "===-"  # Same length but clearly mismatched ordering
+        meter_pattern = "-==="
+
+        perfect_distance, _ = self.scansion._calculate_fuzzy_score(perfect_code, meter_pattern)
+        off_by_one_distance, _ = self.scansion._calculate_fuzzy_score(off_by_one_code, meter_pattern)
+
+        self.assertEqual(perfect_distance, 0)
+        self.assertGreater(off_by_one_distance, perfect_distance)
+
+
 if __name__ == '__main__':
     unittest.main()
 
