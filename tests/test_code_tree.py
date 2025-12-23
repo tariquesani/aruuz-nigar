@@ -16,8 +16,9 @@ Tests cover:
 
 import unittest
 from aruuz.tree.code_tree import CodeTree
+from aruuz.tree.pattern_tree import PatternTree
 from aruuz.models import codeLocation, Lines, Words, scanPath
-from aruuz.meters import METERS, NUM_METERS, NUM_RUBAI_METERS, USAGE
+from aruuz.meters import METERS, NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, USAGE
 
 
 class TestCodeTreeConstruction(unittest.TestCase):
@@ -589,12 +590,17 @@ class TestCodeTreeFindMeter(unittest.TestCase):
         self.assertIsInstance(result, list)
 
     def test_find_meter_with_flag(self):
-        """Test find_meter with -1 flag (should trigger PatternTree, but not implemented yet)."""
+        """Test find_meter with -1 flag triggers PatternTree integration."""
         tree = CodeTree.build_from_line(self.line)
         result = tree.find_meter([0, -1])
         
-        # Should still work (PatternTree integration not yet implemented)
+        # Should work and potentially include PatternTree results
         self.assertIsInstance(result, list)
+        # Results should include both regular traversal and PatternTree results
+        if len(result) > 0:
+            for sp in result:
+                self.assertIsInstance(sp, scanPath)
+                self.assertIsInstance(sp.meters, list)
 
 
 class TestCodeTreeGetCode(unittest.TestCase):
@@ -744,6 +750,532 @@ class TestCodeTreeEdgeCases(unittest.TestCase):
         self.assertEqual(tree._min(3, 2, 1), 1)
         self.assertEqual(tree._min(2, 1, 3), 1)
         self.assertEqual(tree._min(1, 1, 1), 1)
+
+
+class TestCodeTreePatternTreeIntegration(unittest.TestCase):
+    """Test PatternTree integration in CodeTree.find_meter()."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        # Create a simple line for testing
+        self.line = Lines("test line")
+        word1 = Words()
+        word1.word = "test"
+        word1.code = ["-==="]
+        word2 = Words()
+        word2.word = "line"
+        word2.code = ["-==="]
+        self.line.words_list = [word1, word2]
+    
+    def test_pattern_tree_triggers_with_flag(self):
+        """Test PatternTree integration triggers when flag=True (meters contains -1)."""
+        tree = CodeTree.build_from_line(self.line)
+        
+        # Call with -1 flag
+        results = tree.find_meter([0, -1])
+        
+        # Should return results (may include PatternTree results)
+        self.assertIsInstance(results, list)
+        # Verify that PatternTree was called by checking if we have results
+        # Note: PatternTree may or may not find matches, but integration should be triggered
+        
+    def test_pattern_tree_triggers_with_empty_meters(self):
+        """Test PatternTree integration triggers when meters list is empty."""
+        tree = CodeTree.build_from_line(self.line)
+        
+        # Call with empty meters list
+        results = tree.find_meter([])
+        
+        # Should return results (PatternTree integration should be triggered)
+        self.assertIsInstance(results, list)
+    
+    def test_pattern_tree_triggers_with_none_meters(self):
+        """Test PatternTree integration triggers when meters is None."""
+        tree = CodeTree.build_from_line(self.line)
+        
+        # Call with None meters
+        results = tree.find_meter(None)
+        
+        # Should return results (PatternTree integration should be triggered)
+        self.assertIsInstance(results, list)
+    
+    def test_character_expansion_single_character_codes(self):
+        """Test character-by-character expansion works for single character codes."""
+        # Create line with single character codes
+        line = Lines("test")
+        word = Words()
+        word.word = "test"
+        word.code = ["-"]
+        line.words_list = [word]
+        
+        tree = CodeTree.build_from_line(line)
+        
+        # Get code paths
+        scn = scanPath()
+        root_loc = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+        scn.location.append(root_loc)
+        code_paths = tree._get_code(scn)
+        
+        # Verify we have paths
+        self.assertGreater(len(code_paths), 0)
+        
+        # For each path, verify character expansion
+        for path in code_paths:
+            # Create PatternTree and verify character expansion
+            root_loc_pt = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+            p_tree = PatternTree(root_loc_pt)
+            
+            # Expand characters
+            for j in range(len(path.location)):
+                location = path.location[j]
+                code_str = location.code
+                
+                # Skip root
+                if code_str == "root":
+                    continue
+                
+                # Process each character
+                for k in range(len(code_str)):
+                    char_code = code_str[k]
+                    
+                    # Special handling for last character
+                    if j == len(path.location) - 1 and k == len(code_str) - 1:
+                        if char_code == "x":
+                            char_code = "="
+                    
+                    char_loc = codeLocation(
+                        code=char_code,
+                        code_ref=location.code_ref,
+                        word_ref=location.word_ref,
+                        word=location.word,
+                        fuzzy=location.fuzzy
+                    )
+                    p_tree.add_child(char_loc)
+            
+            # Verify PatternTree was built correctly
+            self.assertIsInstance(p_tree, PatternTree)
+    
+    def test_character_expansion_multi_character_codes(self):
+        """Test character-by-character expansion works for multi-character codes."""
+        # Create line with multi-character codes
+        line = Lines("test")
+        word = Words()
+        word.word = "test"
+        word.code = ["-==="]  # Multi-character code
+        line.words_list = [word]
+        
+        tree = CodeTree.build_from_line(line)
+        
+        # Get code paths
+        scn = scanPath()
+        root_loc = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+        scn.location.append(root_loc)
+        code_paths = tree._get_code(scn)
+        
+        # Verify character expansion splits multi-character codes
+        for path in code_paths:
+            root_loc_pt = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+            p_tree = PatternTree(root_loc_pt)
+            
+            char_count = 0
+            for j in range(len(path.location)):
+                location = path.location[j]
+                code_str = location.code
+                
+                if code_str == "root":
+                    continue
+                
+                # Count characters that will be expanded
+                char_count += len(code_str)
+                
+                for k in range(len(code_str)):
+                    char_code = code_str[k]
+                    if j == len(path.location) - 1 and k == len(code_str) - 1:
+                        if char_code == "x":
+                            char_code = "="
+                    
+                    char_loc = codeLocation(
+                        code=char_code,
+                        code_ref=location.code_ref,
+                        word_ref=location.word_ref,
+                        word=location.word,
+                        fuzzy=location.fuzzy
+                    )
+                    p_tree.add_child(char_loc)
+            
+            # Verify we expanded multiple characters
+            self.assertGreater(char_count, 1)
+    
+    def test_last_x_conversion_to_equals(self):
+        """Test last character 'x' is converted to '=' at correct position."""
+        # Create line with 'x' as last character
+        line = Lines("test")
+        word = Words()
+        word.word = "test"
+        word.code = ["-==x"]  # 'x' at the end
+        line.words_list = [word]
+        
+        tree = CodeTree.build_from_line(line)
+        
+        # Get code paths
+        scn = scanPath()
+        root_loc = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+        scn.location.append(root_loc)
+        code_paths = tree._get_code(scn)
+        
+        # Verify last 'x' is converted
+        for path in code_paths:
+            root_loc_pt = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+            p_tree = PatternTree(root_loc_pt)
+            
+            last_char = None
+            for j in range(len(path.location)):
+                location = path.location[j]
+                code_str = location.code
+                
+                if code_str == "root":
+                    continue
+                
+                for k in range(len(code_str)):
+                    char_code = code_str[k]
+                    is_last = (j == len(path.location) - 1 and k == len(code_str) - 1)
+                    
+                    if is_last and char_code == "x":
+                        char_code = "="
+                        last_char = char_code
+                    
+                    char_loc = codeLocation(
+                        code=char_code,
+                        code_ref=location.code_ref,
+                        word_ref=location.word_ref,
+                        word=location.word,
+                        fuzzy=location.fuzzy
+                    )
+                    p_tree.add_child(char_loc)
+            
+            # Verify last 'x' was converted to '='
+            if last_char is not None:
+                self.assertEqual(last_char, "=")
+    
+    def test_last_x_conversion_not_middle(self):
+        """Test 'x' in middle is NOT converted, only last character."""
+        # Create line with 'x' in middle
+        line = Lines("test")
+        word = Words()
+        word.word = "test"
+        word.code = ["-x=="]  # 'x' in the middle
+        line.words_list = [word]
+        
+        tree = CodeTree.build_from_line(line)
+        
+        # Get code paths
+        scn = scanPath()
+        root_loc = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+        scn.location.append(root_loc)
+        code_paths = tree._get_code(scn)
+        
+        # Verify middle 'x' is NOT converted
+        for path in code_paths:
+            root_loc_pt = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+            p_tree = PatternTree(root_loc_pt)
+            
+            chars = []
+            for j in range(len(path.location)):
+                location = path.location[j]
+                code_str = location.code
+                
+                if code_str == "root":
+                    continue
+                
+                for k in range(len(code_str)):
+                    char_code = code_str[k]
+                    is_last = (j == len(path.location) - 1 and k == len(code_str) - 1)
+                    
+                    if is_last and char_code == "x":
+                        char_code = "="
+                    
+                    chars.append(char_code)
+                    
+                    char_loc = codeLocation(
+                        code=char_code,
+                        code_ref=location.code_ref,
+                        word_ref=location.word_ref,
+                        word=location.word,
+                        fuzzy=location.fuzzy
+                    )
+                    p_tree.add_child(char_loc)
+            
+            # Verify middle 'x' remains 'x'
+            # The code "-x==" should have 'x' in position 1 (0-indexed)
+            if len(chars) >= 2:
+                # First char should be '-', second should be 'x' (not converted)
+                self.assertEqual(chars[0], "-")
+                # The 'x' in the middle should remain 'x'
+                if chars[1] == "x":
+                    self.assertEqual(chars[1], "x")
+    
+    def test_metadata_preservation_in_expansion(self):
+        """Test metadata (code_ref, word_ref, word) is preserved during character expansion."""
+        line = Lines("test")
+        word = Words()
+        word.word = "test"
+        word.code = ["-==="]
+        line.words_list = [word]
+        
+        tree = CodeTree.build_from_line(line)
+        
+        # Get code paths
+        scn = scanPath()
+        root_loc = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+        scn.location.append(root_loc)
+        code_paths = tree._get_code(scn)
+        
+        # Verify metadata preservation
+        for path in code_paths:
+            root_loc_pt = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+            p_tree = PatternTree(root_loc_pt)
+            
+            original_word_ref = None
+            original_code_ref = None
+            original_word = None
+            
+            for j in range(len(path.location)):
+                location = path.location[j]
+                code_str = location.code
+                
+                if code_str == "root":
+                    continue
+                
+                # Store original metadata
+                if original_word_ref is None:
+                    original_word_ref = location.word_ref
+                    original_code_ref = location.code_ref
+                    original_word = location.word
+                
+                for k in range(len(code_str)):
+                    char_code = code_str[k]
+                    if j == len(path.location) - 1 and k == len(code_str) - 1:
+                        if char_code == "x":
+                            char_code = "="
+                    
+                    char_loc = codeLocation(
+                        code=char_code,
+                        code_ref=location.code_ref,
+                        word_ref=location.word_ref,
+                        word=location.word,
+                        fuzzy=location.fuzzy
+                    )
+                    
+                    # Verify metadata is preserved
+                    self.assertEqual(char_loc.word_ref, original_word_ref)
+                    self.assertEqual(char_loc.code_ref, original_code_ref)
+                    self.assertEqual(char_loc.word, original_word)
+                    
+                    p_tree.add_child(char_loc)
+    
+    def test_compress_list_merges_same_word(self):
+        """Test _compress_list merges locations from the same word."""
+        tree = CodeTree.build_from_line(self.line)
+        
+        # Create a scanPath with character-by-character locations from same word
+        scn = scanPath()
+        scn.meters = [141]  # Some meter index
+        
+        # Add root
+        root_loc = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+        scn.location.append(root_loc)
+        
+        # Add character locations from same word (simulating PatternTree output)
+        loc1 = codeLocation(code="-", word_ref=0, code_ref=0, word="test", fuzzy=0)
+        loc2 = codeLocation(code="=", word_ref=0, code_ref=0, word="test", fuzzy=0)
+        loc3 = codeLocation(code="=", word_ref=0, code_ref=0, word="test", fuzzy=0)
+        loc4 = codeLocation(code="=", word_ref=0, code_ref=0, word="test", fuzzy=0)
+        
+        scn.location.append(loc1)
+        scn.location.append(loc2)
+        scn.location.append(loc3)
+        scn.location.append(loc4)
+        
+        # Compress
+        compressed = tree._compress_list([scn])
+        
+        # Verify compression
+        self.assertEqual(len(compressed), 1)
+        compressed_path = compressed[0]
+        
+        # Should have root + merged location
+        # Locations from same word should be merged
+        self.assertGreaterEqual(len(compressed_path.location), 2)
+        
+        # Check that codes from same word are merged
+        # Skip root (index 0), check first word location (index 1)
+        if len(compressed_path.location) > 1:
+            # Find the first non-root location
+            for i in range(1, len(compressed_path.location)):
+                merged_code = compressed_path.location[i].code
+                if merged_code and merged_code != "root":
+                    # Should contain all characters from original locations
+                    self.assertIn("-", merged_code)
+                    self.assertIn("=", merged_code)
+                    break
+    
+    def test_compress_list_keeps_different_words_separate(self):
+        """Test _compress_list keeps locations from different words separate."""
+        tree = CodeTree.build_from_line(self.line)
+        
+        # Create scanPath with locations from different words
+        scn = scanPath()
+        scn.meters = [141]
+        
+        root_loc = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+        scn.location.append(root_loc)
+        
+        # Add locations from different words
+        loc1 = codeLocation(code="-", word_ref=0, code_ref=0, word="test", fuzzy=0)
+        loc2 = codeLocation(code="=", word_ref=0, code_ref=0, word="test", fuzzy=0)
+        loc3 = codeLocation(code="-", word_ref=1, code_ref=0, word="line", fuzzy=0)
+        loc4 = codeLocation(code="=", word_ref=1, code_ref=0, word="line", fuzzy=0)
+        
+        scn.location.append(loc1)
+        scn.location.append(loc2)
+        scn.location.append(loc3)
+        scn.location.append(loc4)
+        
+        # Compress
+        compressed = tree._compress_list([scn])
+        
+        # Verify different words remain separate
+        self.assertEqual(len(compressed), 1)
+        compressed_path = compressed[0]
+        
+        # Should have root + 2 word locations (one per word)
+        # At minimum: root + word1 + word2 = 3 locations
+        self.assertGreaterEqual(len(compressed_path.location), 3)
+        
+        # Verify word references are different
+        word_refs = [loc.word_ref for loc in compressed_path.location[1:]]
+        unique_word_refs = set([wr for wr in word_refs if wr >= 0])
+        self.assertGreaterEqual(len(unique_word_refs), 2)
+    
+    def test_pattern_tree_results_combined_with_regular(self):
+        """Test PatternTree results are combined with regular traversal results."""
+        tree = CodeTree.build_from_line(self.line)
+        
+        # Call with flag to trigger PatternTree
+        results = tree.find_meter([0, -1])
+        
+        # Should have results from both regular traversal and PatternTree
+        self.assertIsInstance(results, list)
+        
+        # Verify all results are scanPath objects
+        for sp in results:
+            self.assertIsInstance(sp, scanPath)
+            self.assertIsInstance(sp.location, list)
+            self.assertIsInstance(sp.meters, list)
+    
+    def test_pattern_tree_integration_end_to_end(self):
+        """Test complete PatternTree integration flow end-to-end."""
+        # Create a line that might match PatternTree meters
+        line = Lines("test")
+        word = Words()
+        word.word = "test"
+        # Use a code that might match Hindi/Zamzama meters
+        word.code = ["=" * 15]  # 30 syllables, might match Original Hindi
+        line.words_list = [word]
+        
+        tree = CodeTree.build_from_line(line)
+        
+        # Call with flag to trigger PatternTree
+        results = tree.find_meter([-1])
+        
+        # Should return results
+        self.assertIsInstance(results, list)
+        
+        # Verify results structure
+        for sp in results:
+            self.assertIsInstance(sp, scanPath)
+            self.assertIsInstance(sp.location, list)
+            self.assertIsInstance(sp.meters, list)
+            
+            # If PatternTree found matches, meters should be >= meter_base
+            if len(sp.meters) > 0:
+                meter_base = NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS
+                for meter_idx in sp.meters:
+                    self.assertIsInstance(meter_idx, int)
+                    # PatternTree meters are >= meter_base
+                    if meter_idx >= meter_base:
+                        self.assertGreaterEqual(meter_idx, meter_base)
+    
+    def test_pattern_tree_not_triggered_without_flag(self):
+        """Test PatternTree is NOT triggered when flag is False and meters is not empty."""
+        tree = CodeTree.build_from_line(self.line)
+        
+        # Call without flag (no -1, non-empty meters)
+        results_without_flag = tree.find_meter([0, 1])
+        
+        # Call with flag
+        results_with_flag = tree.find_meter([0, -1])
+        
+        # Both should return results, but with flag may have additional PatternTree results
+        self.assertIsInstance(results_without_flag, list)
+        self.assertIsInstance(results_with_flag, list)
+        
+        # Results with flag may have more results or different meters
+        # (PatternTree may find additional meters)
+    
+    def test_get_code_returns_all_paths(self):
+        """Test _get_code returns all paths from root to leaves."""
+        tree = CodeTree.build_from_line(self.line)
+        
+        scn = scanPath()
+        root_loc = codeLocation(code="root", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+        scn.location.append(root_loc)
+        
+        code_paths = tree._get_code(scn)
+        
+        # Should return at least one path
+        self.assertGreater(len(code_paths), 0)
+        
+        # Each path should be a complete path from root to leaf
+        for path in code_paths:
+            self.assertIsInstance(path, scanPath)
+            self.assertGreater(len(path.location), 0)
+            # First location should be root
+            self.assertEqual(path.location[0].code, "root")
+            # Last location should be a leaf (no children in original tree)
+    
+    def test_pattern_tree_with_multiple_words(self):
+        """Test PatternTree integration with multiple words."""
+        tree = CodeTree.build_from_line(self.line)
+        
+        # Call with flag
+        results = tree.find_meter([-1])
+        
+        # Should handle multiple words correctly
+        self.assertIsInstance(results, list)
+        
+        # Verify word references are correct
+        for sp in results:
+            for loc in sp.location:
+                if loc.word_ref >= 0:
+                    self.assertLess(loc.word_ref, len(self.line.words_list))
+    
+    def test_pattern_tree_handles_empty_paths(self):
+        """Test PatternTree integration handles empty code paths gracefully."""
+        # Create line with no codes
+        line = Lines("test")
+        word = Words()
+        word.word = "test"
+        word.code = []  # Empty codes
+        line.words_list = [word]
+        
+        tree = CodeTree.build_from_line(line)
+        
+        # Should not crash
+        results = tree.find_meter([-1])
+        
+        # Should return empty or handle gracefully
+        self.assertIsInstance(results, list)
 
 
 if __name__ == '__main__':

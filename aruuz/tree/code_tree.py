@@ -10,6 +10,7 @@ from aruuz.meters import (
     METERS, METERS_VARIED, RUBAI_METERS,
     NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, USAGE
 )
+from aruuz.tree.pattern_tree import PatternTree
 
 
 class CodeTree:
@@ -960,13 +961,60 @@ class CodeTree:
             main_list = self._traverse(scn)
             
             # If flag is set or meters was empty, also use PatternTree for additional matches
-            # TODO: Implement PatternTree integration when PatternTree class is available
-            # This will call _get_code() to extract all code paths, build PatternTree,
-            # call is_match(), compress results, and add to main_list
             if flag or (meters is None or len(meters) == 0):
-                # PatternTree integration will be added here in a future phase
-                # For now, we only use regular traversal results
-                pass
+                # Get all code paths from the tree
+                code_paths = self._get_code(scn)
+                
+                # Create root codeLocation for PatternTree
+                root_loc = codeLocation(
+                    code="root",
+                    word_ref=-1,
+                    code_ref=-1,
+                    word="",
+                    fuzzy=0
+                )
+                
+                # Process each path
+                for path in code_paths:
+                    # Create PatternTree with root location
+                    p_tree = PatternTree(root_loc)
+                    
+                    # Character-by-character expansion
+                    for j in range(len(path.location)):
+                        location = path.location[j]
+                        code_str = location.code
+                        
+                        # Process each character in the code string
+                        for k in range(len(code_str)):
+                            # Create new codeLocation with single character
+                            char_code = code_str[k]
+                            
+                            # Special handling: if this is the last character of the last location
+                            # and the code is "x", convert it to "="
+                            if j == len(path.location) - 1 and k == len(code_str) - 1:
+                                if char_code == "x":
+                                    char_code = "="
+                            
+                            # Create character location preserving metadata
+                            char_loc = codeLocation(
+                                code=char_code,
+                                code_ref=location.code_ref,
+                                word_ref=location.word_ref,
+                                word=location.word,
+                                fuzzy=location.fuzzy
+                            )
+                            
+                            # Add character location as child to PatternTree
+                            p_tree.add_child(char_loc)
+                    
+                    # Call is_match() to get PatternTree results
+                    pattern_results = p_tree.is_match()
+                    
+                    # If results exist, compress them and add to main_list
+                    if len(pattern_results) > 0:
+                        compressed_results = self._compress_list(pattern_results)
+                        for result in compressed_results:
+                            main_list.append(result)
         
         return main_list
     
