@@ -5,9 +5,10 @@ This module contains the main Scansion class that processes
 Urdu poetry lines and identifies meters.
 """
 
+import math
 import warnings
-from typing import List, Optional
-from aruuz.models import Words, Lines, scanOutput, scanPath
+from typing import List, Optional, Tuple
+from aruuz.models import Words, Lines, scanOutput, scanOutputFuzzy, scanPath, codeLocation
 from aruuz.utils.araab import remove_araab, ARABIC_DIACRITICS
 from aruuz.meters import (
     METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS,
@@ -1904,6 +1905,199 @@ class Scansion:
         
         return results
     
+    def _calculate_fuzzy_score(self, code: str, meter_pattern: str) -> Tuple[int, str]:
+        """
+        Calculate fuzzy score using Levenshtein distance.
+        
+        Creates 4 meter variations and calculates Levenshtein distance for each,
+        returning the minimum distance and the best matching meter variation.
+        
+        The 4 variations are:
+        1. Original meter with '+' removed
+        2. Meter with '+' removed + "~" appended
+        3. Meter with '+' replaced by "~" + "~" appended
+        4. Meter with '+' replaced by "~"
+        
+        Args:
+            code: Scansion code string (e.g., "=-=")
+            meter_pattern: Meter pattern string (e.g., "-===/-===/-===/-===")
+            
+        Returns:
+            Tuple of (minimum_distance, best_matching_meter_variation) where:
+            - minimum_distance: Minimum Levenshtein distance across all 4 meter variations
+            - best_matching_meter_variation: The meter variation with the minimum distance
+        """
+        # Remove '/' from meter
+        meter = meter_pattern.replace("/", "")
+        
+        # Create 4 variations (must create before removing '+' from meter)
+        meter1 = meter.replace("+", "")
+        meter2 = meter.replace("+", "") + "~"
+        meter3 = meter.replace("+", "~") + "~"
+        meter4 = meter.replace("+", "~")
+        
+        # Create a temporary CodeTree instance to access _levenshtein_distance
+        # We can use any codeLocation for initialization
+        temp_loc = codeLocation(code="", word_ref=-1, code_ref=-1, word="", fuzzy=0)
+        temp_tree = CodeTree(temp_loc)
+        temp_tree.error_param = self.error_param
+        
+        # Calculate Levenshtein distance for each variation
+        score1 = temp_tree._levenshtein_distance(meter1, code)
+        score2 = temp_tree._levenshtein_distance(meter2, code)
+        score3 = temp_tree._levenshtein_distance(meter3, code)
+        score4 = temp_tree._levenshtein_distance(meter4, code)
+        
+        # Find minimum distance and corresponding meter variation
+        scores = [(score1, meter1), (score2, meter2), (score3, meter3), (score4, meter4)]
+        min_score, best_meter = min(scores, key=lambda x: x[0])
+        
+        return (min_score, best_meter)
+    
+    def scan_line_fuzzy(self, line: Lines, line_index: int) -> List[scanOutputFuzzy]:
+        """
+        Process a single line with fuzzy matching and return fuzzy scan outputs.
+        
+        This method:
+        1. Assigns codes to all words in the line
+        2. Temporarily enables fuzzy mode and uses tree-based find_meter() to find matching meters
+        3. Converts scanPath results to scanOutputFuzzy objects
+        4. Calculates fuzzy scores using Levenshtein distance
+        
+        Args:
+            line: Lines object to scan
+            line_index: Index of the line (for reference)
+            
+        Returns:
+            List of scanOutputFuzzy objects representing possible meter matches with scores
+        """
+        results: List[scanOutputFuzzy] = []
+        
+        # Step 1: Assign codes to all words (needed for tree building)
+        for word in line.words_list:
+            self.word_code(word)
+        
+        # Step 2: Temporarily enable fuzzy mode and use tree-based find_meter()
+        # Save original fuzzy state
+        original_fuzzy = self.fuzzy
+        self.fuzzy = True
+        
+        try:
+            # find_meter() handles tree building with fuzzy mode enabled
+            scan_paths = self.find_meter(line)
+        finally:
+            # Restore original fuzzy state
+            self.fuzzy = original_fuzzy
+        
+        if not scan_paths:
+            return results  # No matches found
+        
+        # Step 3: Convert scanPath results to scanOutputFuzzy objects
+        for sp in scan_paths:
+            if not sp.meters:
+                continue  # Skip paths with no matching meters
+            
+            # Extract words and codes from scanPath location (skip index 0 which is root)
+            words_list: List[Words] = []
+            word_taqti_list: List[str] = []
+            
+            for i in range(1, len(sp.location)):
+                loc = sp.location[i]
+                if loc.word_ref >= 0 and loc.word_ref < len(line.words_list):
+                    words_list.append(line.words_list[loc.word_ref])
+                    word_taqti_list.append(loc.code)
+            
+            # Build full code string from word codes
+            full_code = "".join(word_taqti_list)
+            
+            if not full_code:
+                continue  # Skip if no code
+            
+            # Step 4: Create scanOutputFuzzy for each matching meter
+            for meter_idx in sp.meters:
+                so = scanOutputFuzzy()
+                so.original_line = line.original_line
+                so.words = words_list.copy()
+                so.word_taqti = word_taqti_list.copy()
+                so.original_taqti = word_taqti_list.copy()  # Same as word_taqti for now
+                so.error = [False] * len(words_list)  # Initialize error flags
+                
+                # Determine meter pattern, name, and feet based on meter index
+                meter_pattern = ""
+                if meter_idx < NUM_METERS:
+                    # Regular meter
+                    meter_pattern = METERS[meter_idx]
+                    so.meter_name = METER_NAMES[meter_idx]
+                    so.feet = afail(meter_pattern)
+                    so.id = meter_idx
+                elif meter_idx < NUM_METERS + NUM_VARIED_METERS:
+                    # Varied meter
+                    meter_pattern = METERS_VARIED[meter_idx - NUM_METERS]
+                    so.meter_name = METERS_VARIED_NAMES[meter_idx - NUM_METERS]
+                    so.feet = afail(meter_pattern)
+                    so.id = meter_idx
+                elif meter_idx < NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS:
+                    # Rubai meter
+                    meter_pattern = RUBAI_METERS[meter_idx - NUM_METERS - NUM_VARIED_METERS]
+                    so.meter_name = RUBAI_METER_NAMES[meter_idx - NUM_METERS - NUM_VARIED_METERS] + " (رباعی)"
+                    so.feet = afail(meter_pattern)
+                    so.id = -2
+                elif meter_idx < NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS + NUM_SPECIAL_METERS:
+                    # Special meter (Hindi/Zamzama)
+                    special_idx = meter_idx - NUM_METERS - NUM_VARIED_METERS - NUM_RUBAI_METERS
+                    if special_idx < len(SPECIAL_METER_NAMES):
+                        so.meter_name = SPECIAL_METER_NAMES[special_idx]
+                        so.feet = afail_hindi(so.meter_name)
+                        so.id = -2 - special_idx
+                        # For special meters, we don't have a standard pattern, so skip score calculation
+                        so.score = 10  # Default score
+                    else:
+                        continue  # Skip invalid special meter index
+                else:
+                    continue  # Skip invalid meter index
+                
+                # Calculate fuzzy score using Levenshtein distance
+                # Only calculate if we have a meter pattern
+                if meter_pattern:
+                    min_distance, best_meter = self._calculate_fuzzy_score(full_code, meter_pattern)
+                    so.score = min_distance
+                
+                # Initialize meter_syllables and code_syllables (can be populated later if needed)
+                so.meter_syllables = []
+                so.code_syllables = []
+                
+                results.append(so)
+        
+        return results
+    
+    def scan_lines_fuzzy(self) -> List[scanOutputFuzzy]:
+        """
+        Process all lines with fuzzy matching and return consolidated fuzzy scan outputs.
+        
+        This method:
+        1. Iterates through all lines in self.lst_lines
+        2. Calls scan_line_fuzzy() for each line
+        3. Collects all scanOutputFuzzy results
+        4. Calls crunch_fuzzy() to consolidate results
+        5. Returns List[scanOutputFuzzy]
+        
+        Returns:
+            List of scanOutputFuzzy objects for all lines, consolidated by best meter
+        """
+        all_results: List[scanOutputFuzzy] = []
+        
+        # Process each line
+        for k in range(self.num_lines):
+            line = self.lst_lines[k]
+            line_results = self.scan_line_fuzzy(line, k)
+            all_results.extend(line_results)
+        
+        # Consolidate results: crunch_fuzzy() returns only results matching best meter
+        if all_results:
+            all_results = self.crunch_fuzzy(all_results)
+        
+        return all_results
+    
     def is_ordered(self, line_arkaan: List[str], feet: List[str]) -> bool:
         """
         Check if line feet are in the same order as meter feet.
@@ -2038,6 +2232,113 @@ class Scansion:
         
         return filtered_results
     
+    def crunch_fuzzy(self, results: List[scanOutputFuzzy]) -> List[scanOutputFuzzy]:
+        """
+        Consolidate fuzzy matching results and return only those matching the best meter.
+        
+        Algorithm (matching C# crunchFuzzy):
+        1. Collect all unique meter names from results
+        2. For each meter, calculate aggregate score using logarithmic averaging:
+           score = exp(sum(log(scores)) / count) - subtract
+           where subtract is the count of zero scores
+        3. Handle score == 0 case (add 1 before log, increment subtract)
+        4. Sort meters by score (lowest is best for Levenshtein distance)
+        5. Select meter with best (lowest) score
+        6. Filter results to return only those matching the selected meter
+        7. Handle special IDs (-2 for rubai, < 0 for special meters)
+        
+        Args:
+            results: List of scanOutputFuzzy objects (multiple matches per line)
+            
+        Returns:
+            List of scanOutputFuzzy objects for the best meter only
+        """
+        if not results:
+            return []
+        
+        # Collect unique meter names (matching C# logic)
+        meter_names = []
+        for item in results:
+            if item.meter_name:
+                # Check if already in list
+                found = False
+                for existing in meter_names:
+                    if existing == item.meter_name:
+                        found = True
+                        break
+                if not found:
+                    meter_names.append(item.meter_name)
+        
+        if not meter_names:
+            return []
+        
+        # Calculate aggregate score for each meter using logarithmic averaging
+        scores = [0.0] * len(meter_names)
+        for i, meter_name in enumerate(meter_names):
+            score_sum = 0.0
+            subtract = 0.0
+            count = 0.0
+            
+            for item in results:
+                if item.meter_name == meter_name:
+                    if item.score == 0:
+                        # Handle score == 0 case: add 1 before log, increment subtract
+                        score_sum += math.log(item.score + 1)
+                        count += 1.0
+                        subtract += 1.0
+                    else:
+                        score_sum += math.log(item.score)
+                        count += 1.0
+            
+            if count > 0:
+                # Calculate aggregate: exp(sum(log(scores)) / count) - subtract
+                scores[i] = math.exp(score_sum / count) - subtract
+            else:
+                scores[i] = float('inf')  # No scores, set to infinity
+        
+        # Sort scores and meter names together (maintain pairing)
+        # Lower score is better for Levenshtein distance
+        # Create parallel arrays like C# Array.Sort(scores, metes)
+        paired = list(zip(scores, meter_names))
+        paired.sort(key=lambda x: x[0])  # Sort by score (ascending)
+        
+        # Get the meter with best (lowest) score (first after sort, matching C# metes.First())
+        final_meter = paired[0][1] if paired else ""
+        
+        if not final_meter:
+            return []
+        
+        # Filter results: return only scanOutputFuzzy objects matching final_meter
+        # Matching C# logic:
+        # - If id == -2: match by meter name
+        # - Else if meterIndex(finalMeter).Count > 0: match by id == Meters.id[meterIndex(finalMeter).First()]
+        # - Special meters (id < -2) should also match by meter name
+        filtered_results = []
+        # Get meter indices for the final meter name (for regular meters)
+        meter_indices = meter_index(final_meter)
+        
+        for item in results:
+            if item.id == -2:
+                # Rubai meter: match by meter name
+                if item.meter_name == final_meter:
+                    filtered_results.append(item)
+            elif item.id < 0:
+                # Special meter (id < -2): match by meter name
+                if item.meter_name == final_meter:
+                    filtered_results.append(item)
+            elif meter_indices and len(meter_indices) > 0:
+                # Regular or varied meter: match by meter ID using first index
+                # In Python, id is the meter index itself, so check if it matches first index
+                if item.id == meter_indices[0]:
+                    filtered_results.append(item)
+            else:
+                # Fallback: if meter_index didn't find anything (e.g., varied meter),
+                # match by meter name
+                if item.meter_name == final_meter:
+                    filtered_results.append(item)
+        
+        return filtered_results
+    
     def scan_lines(self) -> List[scanOutput]:
         """
         Main method to process all lines and return scan outputs.
@@ -2051,8 +2352,26 @@ class Scansion:
         """
         all_results: List[scanOutput] = []
         
-        if self.free_verse or self.fuzzy:
-            # For Phase 1, we don't handle free verse or fuzzy matching
+        if self.free_verse:
+            # For Phase 1, we don't handle free verse
+            return all_results
+        
+        if self.fuzzy:
+            # Use fuzzy matching path
+            fuzzy_results = self.scan_lines_fuzzy()
+            # Convert scanOutputFuzzy to scanOutput for compatibility
+            # Note: This loses fuzzy score information but maintains API compatibility
+            all_results = []
+            for fr in fuzzy_results:
+                so = scanOutput()
+                so.original_line = fr.original_line
+                so.words = fr.words
+                so.word_taqti = fr.word_taqti
+                so.meter_name = fr.meter_name
+                so.feet = fr.feet
+                so.id = fr.id
+                so.is_dominant = True  # Fuzzy results are already filtered by crunch_fuzzy
+                all_results.append(so)
             return all_results
         
         # Process each line
