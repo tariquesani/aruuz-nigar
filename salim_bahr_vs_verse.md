@@ -2,7 +2,7 @@
 
 ## Summary
 
-“سالم” (sālim) is a property of the Bahr’s base form (اَصلِ بحر), not necessarily of an individual verse.
+It must be noted that “سالم” (sālim) is a property of the Bahr’s base form (اَصلِ بحر), not necessarily of an individual verse.
 A verse may not appear in sālim form due to zihāf or ʿillat, yet the Bahr to which it belongs can still be theoretically sālim.
 
 This distinction is well established in classical ʿarūż theory, but is often blurred in pedagogical or purely descriptive treatments.
