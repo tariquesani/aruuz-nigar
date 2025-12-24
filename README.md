@@ -2,9 +2,11 @@
 
 A Python tool and library for scanning Urdu poetry into metres and feet (prosody/taqti analysis).
 
-## Phase 1: Core Engine (Heuristics Only)
 
-This is the initial implementation using heuristics-based word code assignment without database lookup.
+## Git Branches
+
+- **`csharp-port`** - A faithful port of the original available C# code.
+- **`heuristics`** - Contains code with heuristics only aruz logic.
 
 ## Project Structure
 
@@ -24,10 +26,6 @@ This is the initial implementation using heuristics-based word code assignment w
 
 **Windows:**
 ```bash
-# Run the setup script
-setup_venv.bat
-
-# Or manually:
 python -m venv venv
 venv\bin\activate
 pip install --upgrade pip
@@ -36,11 +34,6 @@ pip install -e .
 
 **Linux/Mac:**
 ```bash
-# Run the setup script
-chmod +x setup_venv.sh
-./setup_venv.sh
-
-# Or manually:
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
@@ -163,9 +156,9 @@ Ported by Dr. Tarique Sani, 2025
 
 ## Status
 
-🚧 **In Development** - Phase 1 (Heuristics Only)
+🚧 **In Development** - Phase 2 (Fixing C# port to be complete)
 
 ## License
 
-See LICENSE file in parent directory.
+See [LICENSE](./LICENSE) file in parent directory.
 
