@@ -860,10 +860,15 @@ def assign_code(word: Words) -> str:
                 code += length_one_scan(sub_string)
             elif stripped_len == 2:
                 stripped = remove_araab(sub_string)
+                # Case 1: alif madd (special long, splittable)
                 if stripped and stripped[0] == 'آ':
                     code += "=-"
-                else:
+                # Case 2: inherent long vowel
+                elif any(ch in stripped for ch in ['ے', 'و', 'ی']):
                     code += "="
+                # Case 3: closed short-vowel syllable
+                else:
+                    code += "x"
             elif stripped_len == 3:
                 code += length_three_scan(sub_string)
             elif stripped_len == 4:
