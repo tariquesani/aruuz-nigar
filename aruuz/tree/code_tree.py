@@ -490,10 +490,11 @@ class CodeTree:
             return main_list
         
         if len(self.children) > 0:
-            # Build tentative code from current path
+            # Build tentative code from current path (exclude "root")
             code = ""
             for i in range(len(scn.location)):
-                code += scn.location[i].code
+                if scn.location[i].code != "root":
+                    code += scn.location[i].code
             
             # Check each child against meters
             for k in range(len(self.children)):
@@ -547,10 +548,11 @@ class CodeTree:
             
             return main_list
         else:
-            # Tree leaf - check final code length
+            # Tree leaf - check final code length (exclude "root")
             code = ""
             for i in range(len(scn.location)):
-                code += scn.location[i].code
+                if scn.location[i].code != "root":
+                    code += scn.location[i].code
             
             # Filter meters by code length
             met = self._check_code_length(code, scn.meters)
@@ -743,10 +745,11 @@ class CodeTree:
             
             return main_list
         else:
-            # Tree leaf - check final code length using fuzzy matching
+            # Tree leaf - check final code length using fuzzy matching (exclude "root")
             code = ""
             for i in range(len(scn.location)):
-                code += scn.location[i].code
+                if scn.location[i].code != "root":
+                    code += scn.location[i].code
             
             # Filter meters by code length using fuzzy matching
             met = self._check_code_length_fuzzy(code, scn.meters)
@@ -881,10 +884,11 @@ class CodeTree:
             
             return main_list
         else:
-            # Tree leaf - check final code length using free verse matching
+            # Tree leaf - check final code length using free verse matching (exclude "root")
             code = ""
             for i in range(len(scn.location)):
-                code += scn.location[i].code
+                if scn.location[i].code != "root":
+                    code += scn.location[i].code
             
             # Filter meters by code length using free verse matching
             met = self._check_meter_free_verse(code, scn.meters)
