@@ -2426,13 +2426,21 @@ class Scansion:
                 if item.meter_name == meter_name:
                     scores[i] += self.calculate_score(meter_name, item.feet)
         
-        # Sort scores and meter names together (maintain pairing)
-        # Create list of tuples, sort by score, then extract
-        paired = list(zip(scores, meter_names))
-        paired.sort(key=lambda x: x[0])  # Sort by score (ascending)
+        # # Sort scores and meter names together (maintain pairing)
+        # # Create list of tuples, sort by score, then extract
+        # paired = list(zip(scores, meter_names))
+        # paired.sort(key=lambda x: x[0])  # Sort by score (ascending)
         
-        # Get the meter with highest score (last after sort)
-        final_meter = paired[-1][1] if paired else ""
+        # # Get the meter with highest score (last after sort)
+        # final_meter = paired[-1][1] if paired else ""
+        max_score = max(scores)
+        candidates = [
+            meter_name
+            for score, meter_name in zip(scores, meter_names)
+            if score == max_score
+        ]
+
+        final_meter = candidates[0]  # earliest = first misra
         
         if not final_meter:
             return []
