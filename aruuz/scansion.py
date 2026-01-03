@@ -1306,8 +1306,10 @@ class Scansion:
         """
         Assign scansion code to a word using database lookup (if available) or heuristics.
         
-        This method first tries database lookup if available, then falls back to
-        heuristics using the assign_code function.
+        This method:
+        1. Tries database lookup first (if available)
+        2. Falls back to heuristics using the assign_code function
+        3. If heuristics fail (empty code) and word length > 4, tries compound word splitting
         
         Args:
             word: Words object to assign code to
@@ -1335,6 +1337,17 @@ class Scansion:
         
         # Strategy 2: Fallback to heuristics
         code = assign_code(word)
+        
+        # Strategy 3: Try compound word splitting if heuristics failed
+        # C#: if (stripped.Length > 4 && code.Equals(""))
+        stripped = remove_araab(word.word)
+        if len(stripped) > 4 and code == "":
+            # Try compound word splitting
+            word_result = self.compound_word(word)
+            # If compound_word found a valid split (has codes), use it
+            if len(word_result.code) > 0:
+                return word_result
+            # Otherwise, continue with empty code (will be stored below)
         
         # Store code in word
         word.code = [code]
