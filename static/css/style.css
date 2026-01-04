@@ -7,6 +7,7 @@ body {
     background-color: #f8f9fa;
     min-height: 100vh;
     color: #212529;
+    padding-top: 56px; /* Account for fixed navbar */
 }
 
 /* Urdu Font Family */
@@ -172,4 +173,37 @@ footer {
 .table-responsive {
     overflow-x: visible !important;
     overflow-y: hidden !important;
+}
+
+/* Navbar Dark Styling - Ensure navbar-dark works with RTL */
+.navbar-dark .navbar-brand,
+.navbar-dark .navbar-nav .nav-link {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.navbar-dark .navbar-brand:hover,
+.navbar-dark .navbar-nav .nav-link:hover {
+    color: rgba(255, 255, 255, 1) !important;
+}
+
+.navbar-dark .navbar-toggler {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.navbar-dark .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.85%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+.navbar-dark .dropdown-menu {
+    background-color: #fff;
+    border-color: rgba(0, 0, 0, 0.15);
+}
+
+.navbar-dark .dropdown-item {
+    color: #212529;
+}
+
+.navbar-dark .dropdown-item:hover {
+    background-color: #f8f9fa;
+    color: #212529;
 }
