@@ -2347,54 +2347,70 @@ class Scansion:
     def calculate_score(self, meter: str, line_feet: str) -> int:
         """
         Calculate score for how well a line matches a meter.
-        
-        Score is 1 if:
-        - Line feet count matches meter feet count
-        - Line feet are in the same order as meter feet
-        
-        Score is 0 otherwise.
-        
-        Args:
-            meter: Meter name in Urdu (e.g., "ہزج مثمن سالم")
-            line_feet: Feet string from scanOutput (e.g., "مفعولن مفعولن مفعولن مفعول")
-            
-        Returns:
-            1 if perfect match, 0 otherwise
+
+        Score is the number of feet that match in correct order
+        against the BEST meter variant.
         """
-        # Get all meter indices for this meter name
         meter_indices = meter_index(meter)
-        
+
         if not meter_indices:
             return 0
-        
-        # Collect all unique feet from all meter variations
-        feet = []
-        residue = ""
-        for m_idx in meter_indices:
-            if m_idx < len(METERS):
-                residue += afail(METERS[m_idx]) + " "
-        
-        # Parse and deduplicate feet
-        for s in residue.split(' '):
-            s = s.strip()
-            if s and s not in feet:
-                feet.append(s)
-        
-        # Parse line feet
+
+        # Parse line feet (DO NOT deduplicate)
         line_arkaan = []
         for s in line_feet.split(' '):
             s = s.strip()
-            if s and s not in line_arkaan:
+            if s:
                 line_arkaan.append(s)
-        
-        # Check if counts match and order matches
-        if len(line_arkaan) == len(feet):
-            if self.is_ordered(line_arkaan, feet):
-                return 1
-            else:
-                return 0
-        else:
-            return 0
+
+        best_score = 0
+
+        # IMPORTANT CHANGE: evaluate EACH meter variant separately
+        for m_idx in meter_indices:
+            if m_idx >= len(METERS):
+                continue
+
+            # Get feet for THIS meter variant only
+            meter_feet = []
+            for s in afail(METERS[m_idx]).split(' '):
+                s = s.strip()
+                if s:
+                    meter_feet.append(s)
+
+            # Hard structural constraint
+            if len(line_arkaan) != len(meter_feet):
+                continue
+
+            score = self.ordered_match_count(line_arkaan, meter_feet)
+            best_score = max(best_score, score)
+
+        return best_score
+
+
+    def ordered_match_count(self, line_feet, meter_feet):
+        """
+        Counts how many feet in line_feet appear in meter_feet
+        in the correct relative order.
+        """        
+        count = 0
+        j = 0
+        matches = []
+
+        for f in line_feet:
+            found_match = False
+            while j < len(meter_feet):
+                if f == meter_feet[j]:
+                    count += 1
+                    matches.append(f"'{f}' at position {j}")
+                    j += 1
+                    found_match = True
+                    break
+                j += 1
+            if not found_match:
+                # No match found for this foot, stop counting
+                break
+        return count
+
     
     def crunch(self, results: List[scanOutput]) -> List[scanOutput]:
         """
@@ -2439,21 +2455,22 @@ class Scansion:
                 if item.meter_name == meter_name:
                     scores[i] += self.calculate_score(meter_name, item.feet)
         
-        # # Sort scores and meter names together (maintain pairing)
-        # # Create list of tuples, sort by score, then extract
-        # paired = list(zip(scores, meter_names))
-        # paired.sort(key=lambda x: x[0])  # Sort by score (ascending)
+        # Sort scores and meter names together (maintain pairing)
+        # Create list of tuples, sort by score, then extract
+        paired = list(zip(scores, meter_names))
+        paired.sort(key=lambda x: x[0])  # Sort by score (ascending)
         
-        # # Get the meter with highest score (last after sort)
-        # final_meter = paired[-1][1] if paired else ""
-        max_score = max(scores)
-        candidates = [
-            meter_name
-            for score, meter_name in zip(scores, meter_names)
-            if score == max_score
-        ]
+        # Get the meter with highest score (last after sort)
+        final_meter = paired[-1][1] if paired else ""
 
-        final_meter = candidates[0]  # earliest = first misra
+        # max_score = max(scores)
+        # candidates = [
+        #     meter_name
+        #     for score, meter_name in zip(scores, meter_names)
+        #     if score == max_score
+        # ]
+
+        # final_meter = candidates[0]  # earliest = first misra
         
         if not final_meter:
             return []
