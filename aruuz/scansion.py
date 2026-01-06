@@ -546,7 +546,11 @@ def length_five_scan(substr: str) -> str:
             if len(stripped) > 1 and (stripped[1] == 'ا' or stripped[2] == 'ا' or stripped[3] == 'ا'):  # check alif at position 2,3,4
                 # Position 3 Alif
                 if len(stripped) > 2 and stripped[2] == 'ا':
-                    code = "-=="
+                    # If alif is followed by hamza/ye ending, final syllable is ambiguous
+                    if 'ئ' in stripped[3:] or stripped.endswith('ے'):
+                        code = "-=x"
+                    else:
+                        code = "-=="
                 # Position 2 Alif
                 elif len(stripped) > 1 and stripped[1] == 'ا':
                     if len(loc) > 0 and is_muarrab(loc[0]):
