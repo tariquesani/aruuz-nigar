@@ -52,10 +52,12 @@
                     <!-- Table with words, notation, and feet -->
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm text-center align-middle mb-0" dir="rtl">
-                            <!-- Word row -->
+                            <!-- Word row (skip standalone و when it has empty notation) -->
                             <tr>
                                 {% for word_data in dominant_result.word_codes %}
-                                <td colspan="{{ word_data.code | length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem;">{{ word_data.word }}</td>
+                                    {% if not (word_data.word == "و" and not word_data.code) %}
+                                        <td colspan="{{ word_data.code | length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem;">{{ word_data.word }}</td>
+                                    {% endif %}
                                 {% endfor %}
                             </tr>
                             <!-- Notation row: show derived code (with x) if no match, or dominant bahr notation (only - and =) if match -->
