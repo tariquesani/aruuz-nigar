@@ -34,40 +34,28 @@
             <h5 class="text-center urdu-text mb-4" dir="rtl" lang="ur">{{ line_data.original_line }}</h5>
             
             {% if line_data.results %}
-                {% set dominant_result = line_data.results
-                    |selectattr("is_dominant", "equalto", true)
-                    |first %}
-                {% if not dominant_result %}
-                    {% set dominant_result = line_data.results[0] %}
-                {% endif %}
+                {% set dominant_result = (line_data.results | selectattr("is_dominant", "equalto", true) | first) or line_data.results[0] %}
                 
-                {% if dominant_result.syllables and dominant_result.full_code %}
+                {% if dominant_result.word_codes and dominant_result.full_code %}
                     {% set has_match = dominant_result.meter_name != 'No meter match found' %}
                     {% if has_match and dominant_result.meter_pattern %}
-                        {# When there's a match, use the meter pattern (resolved, no x) #}
                         {% set notation_code = dominant_result.meter_pattern %}
                     {% elif has_match and dominant_result.feet_list %}
-                        {# Fallback: reconstruct from feet codes #}
-                        {% set notation_code = "" %}
-                        {% for foot in dominant_result.feet_list %}
-                            {% set notation_code = notation_code + foot.code %}
-                        {% endfor %}
-                        {# If still doesn't match length, use full_code #}
+                        {% set notation_code = (dominant_result.feet_list | map(attribute="code") | join("")) %}
                         {% if notation_code | length != dominant_result.full_code | length %}
                             {% set notation_code = dominant_result.full_code %}
                         {% endif %}
                     {% else %}
-                        {# No match: use full_code which may contain x #}
                         {% set notation_code = dominant_result.full_code %}
                     {% endif %}
                     
-                    <!-- Table with syllables, notation, and feet -->
+                    <!-- Table with words, notation, and feet -->
                     <div class="table-responsive">
-                        <table class="table table-bordered table-sm text-center align-middle mb-0">
-                            <!-- Syllable row -->
+                        <table class="table table-bordered table-sm text-center align-middle mb-0" dir="rtl">
+                            <!-- Word row -->
                             <tr>
-                                {% for syllable in dominant_result.syllables %}
-                                <td class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem;">{{ syllable }}</td>
+                                {% for word_data in dominant_result.word_codes %}
+                                <td colspan="{{ word_data.code | length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem;">{{ word_data.word }}</td>
                                 {% endfor %}
                             </tr>
                             <!-- Notation row: show derived code (with x) if no match, or dominant bahr notation (only - and =) if match -->
@@ -78,23 +66,26 @@
                             </tr>
                             <!-- Feet row with merged cells (only show if there's a match) -->
                             {% if has_match and dominant_result.feet_list %}
+                            {% set total_bahr_length = notation_code | length %}
                             <tr>
                                 {% for foot in dominant_result.feet_list %}
                                     {% set foot_length = foot.code | length %}
-                                    {% if loop.index0 % 2 == 0 %}
-                                    <td colspan="{{ foot_length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem; background-color: #e9ecef;">{{ foot.foot }}</td>
-                                    {% else %}
-                                    <td colspan="{{ foot_length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem; background-color: white;">{{ foot.foot }}</td>
-                                    {% endif %}
+                                    {% set foot_percentage = (foot_length / total_bahr_length * 100) | round(2) %}
+                                    {% set bg_color = "#e9ecef" if loop.index0 % 2 == 0 else "white" %}
+                                    <td colspan="{{ foot_length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem; background-color: {{ bg_color }}; width: {{ foot_percentage }}%;">{{ foot.foot }}</td>
                                 {% endfor %}
                             </tr>
                             {% endif %}
                         </table>
                     </div>
                     
-                    <!-- Centered bahr name for this line -->
+                    <!-- Centered bahr name for this line (per-line dominant) -->
                     {% if has_match %}
-                    <h6 class="text-center mt-3 urdu-text" dir="rtl" lang="ur">{{ dominant_result.meter_name }}</h6>
+                    <div class="text-center mt-3">
+                        <h6 class="urdu-text" dir="rtl" lang="ur">
+                            {{ dominant_result.meter_name }}
+                        </h6>
+                    </div>
                     {% endif %}
                 {% else %}
                     <div class="alert alert-warning">
@@ -110,15 +101,12 @@
     </div>
     {% endfor %}
     
-    <!-- Show dominant bahr for all lines -->
-    {% if dominant_bahrs and dominant_bahrs|length > 0 %}
+    <!-- Show overall dominant bahr for the entire poem -->
+    {% if poem_dominant_bahrs %}
     <div class="card mt-4">
         <div class="card-body">
-            <h5 class="text-center urdu-text mb-0" dir="rtl" lang="ur">
-                {% for bahr in dominant_bahrs %}
-                    {{ bahr }}{% if not loop.last %}, {% endif %}
-                {% endfor %}
-                <strong>Bahr </strong> 
+            <h5 class="text-center urdu-text mb-0" >
+                Poem Bahr: <span dir="rtl" lang="ur">{{ poem_dominant_bahrs | join(", ") }}</span>
             </h5>
         </div>
     </div>
@@ -141,7 +129,7 @@
                     required
                     autofocus
                     rows="5"
-                >{% if text_input %}{{ text_input }}{% endif %}</textarea>
+                >{{ text_input or "" }}</textarea>
 
                 <div class="invalid-feedback">
                     Please enter Urdu poetry lines.

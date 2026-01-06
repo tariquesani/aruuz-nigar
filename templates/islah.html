@@ -10,7 +10,7 @@
     <!-- Input Card -->
     <div class="card mb-3">
         <div class="card-body py-3">
-            <form method="POST" action="/" class="needs-validation" novalidate>
+            <form method="POST" action="/islah" class="needs-validation" novalidate>
                 <label for="text" class="form-label">Enter Urdu Poetry Lines (one per line)</label>
 
                 <textarea
@@ -59,10 +59,10 @@
     <div class="card mb-3">
         <div class="card-header bg-primary bg-opacity-10">
             <strong class="urdu-text">Line {{ line_data.line_index + 1 }}</strong>
-            <span class="urdu-text word-value ms-2">{{ line_data.original_line }}</span>
+            <span class="urdu-text word-value ms-2" dir="rtl" lang="ur">{{ line_data.original_line }}</span>
         </div>
 
-        <div class="card-body py-2" dir="rtl" lang="ur">
+        <div class="card-body py-2">
 
             {% if line_data.results %}
 
@@ -85,7 +85,7 @@
                     <!-- Meter -->
                     <div class="mb-2">
                         <strong>Meter (Bahr)</strong>
-                        <span class="{% if result.is_dominant %}fw-bold text-success{% endif %}">
+                        <span class="{% if result.is_dominant %}fw-bold text-success{% endif %} urdu-text" dir="rtl" lang="ur">
                             {{ result.meter_name }}
                         </span>
 
@@ -105,11 +105,11 @@
                         <div class="badge bg-info mb-1 small">Word-by-Word Codes</div>
 
                         <div class="table-responsive mb-2">
-                            <table class="table table-bordered table-sm mb-0 text-center align-middle">
+                            <table class="table table-bordered table-sm mb-0 text-center align-middle" dir="rtl">
                                 <tr>
                                     {% for wc in result.word_codes %}
                                     <td class="bg-light">
-                                        <span class="urdu-text" style="font-size:1.1rem;">
+                                        <span class="urdu-text" style="font-size:1.1rem;" dir="rtl" lang="ur">
                                             {{ wc.word }}
                                         </span>
                                     </td>
@@ -132,11 +132,11 @@
                         <div class="badge bg-info mb-1 small">Feet (Arkaan)</div>
 
                         <div class="table-responsive mb-2">
-                            <table class="table table-bordered table-sm mb-0 text-center align-middle">
+                            <table class="table table-bordered table-sm mb-0 text-center align-middle" dir="rtl">
                                 <tr>
                                     {% for foot in result.feet_list %}
                                     <td class="bg-light">
-                                        <span class="urdu-text" style="font-size:1.1rem;">
+                                        <span class="urdu-text" style="font-size:1.1rem;" dir="rtl" lang="ur">
                                             {{ foot.foot }}
                                         </span>
                                     </td>

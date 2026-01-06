@@ -3,7 +3,7 @@
 /* Body and Background */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    direction: rtl;
+    direction: ltr;
     background-color: #f8f9fa;
     min-height: 100vh;
     color: #212529;
