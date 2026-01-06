@@ -802,6 +802,11 @@ def length_five_scan(substr: str) -> str:
     # Apply noon ghunna adjustments if needed
     if contains_noon(stripped):
         code = noon_ghunna(substr, code)
+
+    # Apply yaa adjustment if needed
+    if code.endswith("==") and stripped.endswith("ے"):
+        code = code[:-1] + "x"
+
     
     return code
 
