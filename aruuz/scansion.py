@@ -2347,9 +2347,35 @@ class Scansion:
     def calculate_score(self, meter: str, line_feet: str) -> int:
         """
         Calculate score for how well a line matches a meter.
-
-        Score is the number of feet that match in correct order
-        against the BEST meter variant.
+        
+        This method evaluates how well a poetry line's feet match against all
+        variants of a given meter pattern. It parses the line's feet, retrieves
+        all meter variants for the given meter name, and evaluates each variant
+        separately to find the best match.
+        
+        The score represents the number of feet that match in the correct order
+        against the best matching meter variant. Each meter variant is evaluated
+        independently, and the maximum score across all variants is returned.
+        
+        Args:
+            meter: Meter name string (e.g., "مفعولن مفعولن مفعولن مفعولن")
+            line_feet: Space-separated string of feet from the scanned line
+                      (e.g., "مفعولن مفعولن مفعولن مفعولن")
+        
+        Returns:
+            Integer score representing the number of matching feet in correct order.
+            Returns 0 if:
+            - No meter variants found for the given meter name
+            - No meter variant has matching length with the line
+            - No feet match in order
+            Otherwise returns the maximum score (1 to number of feet) across all variants.
+        
+        Note:
+            This method evaluates each meter variant separately. A meter name may
+            have multiple variants (e.g., with different '+' positions), and the
+            score is calculated for each variant independently. The method requires
+            that the line feet and meter feet have the same length (hard structural
+            constraint) before evaluating the match.
         """
         meter_indices = meter_index(meter)
 
@@ -2387,11 +2413,43 @@ class Scansion:
         return best_score
 
 
-    def ordered_match_count(self, line_feet, meter_feet):
+    def ordered_match_count(self, line_feet: List[str], meter_feet: List[str]) -> int:
         """
-        Counts how many feet in line_feet appear in meter_feet
-        in the correct relative order.
-        """        
+        Count how many feet from line_feet appear in meter_feet in correct relative order.
+        
+        This method implements a greedy matching algorithm that counts consecutive
+        matching feet starting from the beginning. It iterates through line_feet
+        and tries to find each foot in meter_feet, maintaining the relative order.
+        The matching stops at the first foot that cannot be found in the correct
+        position, and returns the count of successfully matched feet up to that point.
+        
+        The algorithm ensures that:
+        1. Feet must match exactly (string equality)
+        2. Feet must appear in the same relative order in both lists
+        3. Matching is greedy (each line foot is matched to the first available
+           meter foot that hasn't been matched yet)
+        4. Matching stops at the first failure (no backtracking)
+        
+        Args:
+            line_feet: List of foot strings from the scanned poetry line
+                      (e.g., ["مفعولن", "مفعولن", "فاعلن"])
+            meter_feet: List of foot strings from the meter pattern
+                       (e.g., ["مفعولن", "مفعولن", "مفعولن", "مفعولن"])
+        
+        Returns:
+            Integer count of feet that matched in order (0 to len(line_feet)).
+            Returns 0 if the first foot doesn't match, or the number of consecutive
+            matching feet from the start of the list.
+        
+        Example:
+            If line_feet = ["مفعولن", "مفعولن", "فاعلن"]
+            and meter_feet = ["مفعولن", "مفعولن", "مفعولن", "مفعولن"]
+            Returns 2 (first two feet match)
+            
+            If line_feet = ["مفعولن", "فاعلن", "مفعولن"]
+            and meter_feet = ["مفعولن", "مفعولن", "فاعلن"]
+            Returns 1 (only first foot matches, second doesn't match at position 1)
+        """
         count = 0
         j = 0
         matches = []
