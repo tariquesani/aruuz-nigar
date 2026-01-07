@@ -69,9 +69,14 @@
                             <!-- Feet row with merged cells (only show if there's a match) -->
                             {% if has_match and dominant_result.feet_list %}
                             {% set total_bahr_length = notation_code | length %}
+                            {% set has_plus = '+' in notation_code %}
                             <tr>
                                 {% for foot in dominant_result.feet_list %}
                                     {% set foot_length = foot.code | length %}
+                                    {# Increase second foot colspan by 1 if + is present in meter pattern #}
+                                    {% if has_plus and loop.index0 == 1 %}
+                                        {% set foot_length = foot_length + 1 %}
+                                    {% endif %}
                                     {% set foot_percentage = (foot_length / total_bahr_length * 100) | round(2) %}
                                     {% set bg_color = "#e9ecef" if loop.index0 % 2 == 0 else "white" %}
                                     <td colspan="{{ foot_length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem; background-color: {{ bg_color }}; width: {{ foot_percentage }}%;">{{ foot.foot }}</td>
@@ -81,11 +86,19 @@
                         </table>
                     </div>
                     
+                    <!-- Check if any و was dropped due to ataf processing -->
+                    {% set waw_dropped = dominant_result.word_codes | selectattr("word", "equalto", "و") | rejectattr("code") | list | length > 0 %}
+                    
+                    
                     <!-- Centered bahr name for this line (per-line dominant) -->
                     {% if has_match %}
                     <div class="text-center mt-3">
-                        <h6 class="urdu-text" dir="rtl" lang="ur">
-                            {{ dominant_result.meter_name }}
+                        <h6>
+                            <!-- Message for dropped و -->
+                            {% if waw_dropped %}
+                                    A  'و'  has been dropped by ataf processing.
+                            {% endif %}
+                            Bahr: <span dir="rtl" lang="ur" class="urdu-text">{{ dominant_result.meter_name }}</span>
                         </h6>
                     </div>
                     {% endif %}
