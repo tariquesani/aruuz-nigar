@@ -2113,14 +2113,14 @@ class Scansion:
                         # Get scansion code from scanPath and generate feet dynamically
                         if special_idx > 7:
                             # Zamzama meters (indices 8-10)
-                            so.feet = zamzama_feet(special_idx, full_code)
+                            so.feet, so.feet_list = zamzama_feet(special_idx, full_code)
                         else:
                             # Hindi meters (indices 0-7)
-                            so.feet = hindi_feet(special_idx, full_code)
+                            so.feet, so.feet_list = hindi_feet(special_idx, full_code)
                         # Fall back to static afail_hindi if dynamic generation failed
                         if not so.feet:
                             so.feet = afail_hindi(so.meter_name)
-                        so.feet_list = []  # Special meters don't have standard feet_list
+                            so.feet_list = []
                         so.id = -2 - special_idx
                     else:
                         continue  # Skip invalid special meter index
@@ -2276,13 +2276,14 @@ class Scansion:
                         # Get scansion code from scanPath and generate feet dynamically
                         if special_idx > 7:
                             # Zamzama meters (indices 8-10)
-                            so.feet = zamzama_feet(special_idx, full_code)
+                            so.feet, so.feet_list = zamzama_feet(special_idx, full_code)
                         else:
                             # Hindi meters (indices 0-7)
-                            so.feet = hindi_feet(special_idx, full_code)
+                            so.feet, so.feet_list = hindi_feet(special_idx, full_code)
                         # Fall back to static afail_hindi if dynamic generation failed
                         if not so.feet:
                             so.feet = afail_hindi(so.meter_name)
+                            so.feet_list = []
                         so.id = -2 - special_idx
                         # For special meters, we don't have a standard pattern, so skip score calculation
                         so.score = 10  # Default score

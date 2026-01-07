@@ -966,8 +966,22 @@ class CodeTree:
             
             # If flag is set or meters was empty, also use PatternTree for additional matches
             if flag or (meters is None or len(meters) == 0):
-                # Get all code paths from the tree
-                code_paths = self._get_code(scn)
+                # For PatternTree integration we want code paths that mirror the
+                # C# implementation, where the initial scanPath location is a
+                # dummy/root node with an empty code (it does not contribute
+                # any characters to the pattern tree).
+                code_root = scanPath()
+                code_root_root_loc = codeLocation(
+                    code="",
+                    word_ref=-1,
+                    code_ref=-1,
+                    word="",
+                    fuzzy=0
+                )
+                code_root.location.append(code_root_root_loc)
+
+                # Get all code paths from the tree starting from this dummy root
+                code_paths = self._get_code(code_root)
                 
                 # Create root codeLocation for PatternTree
                 root_loc = codeLocation(
