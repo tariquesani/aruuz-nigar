@@ -1,5 +1,4 @@
 # Aruuz Python Dependencies
-# Phase 1: No external dependencies required (using standard library only)
 
 # Development/Testing dependencies
 pytest>=7.0.0

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ur" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <title>Word Debug</title>
+</head>
+<body>
+
+<h2>Single Word Debug</h2>
+
+<form method="post">
+    <input type="text" name="word" value="{{ word_input }}" autofocus>
+    <button type="submit">Test</button>
+</form>
+
+{% if error %}
+    <p style="color:red">{{ error }}</p>
+{% endif %}
+
+{% if result %}
+    <hr>
+    <p><strong>Word:</strong> {{ result.word }}</p>
+
+    <p><strong>Codes:</strong></p>
+    <ul>
+        {% for c in result.codes %}
+            <li>{{ c }}</li>
+        {% endfor %}
+    </ul>
+
+    <p><strong>Database used:</strong> {{ result.used_database }}</p>
+
+    {% if result.taqti %}
+        <p><strong>Taqti:</strong> {{ result.taqti }}</p>
+    {% endif %}
+
+    {% if result.muarrab %}
+        <p><strong>Muarrab:</strong> {{ result.muarrab }}</p>
+    {% endif %}
+{% endif %}
+
+</body>
+</html>

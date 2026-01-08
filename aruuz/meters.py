@@ -4,7 +4,7 @@ Meter definitions for Urdu poetry.
 This module contains all meter patterns, names, and foot definitions.
 """
 
-from typing import List
+from typing import List, Tuple
 from aruuz.models import Feet
 
 
@@ -573,7 +573,7 @@ def rukn_code(name: str) -> str:
     return ""
 
 
-def zamzama_feet(index: int, code: str) -> str:
+def zamzama_feet(index: int, code: str) -> Tuple[str, List[Feet]]:
     """
     Generate foot names for Zamzama meters from scansion code.
     
@@ -589,7 +589,8 @@ def zamzama_feet(index: int, code: str) -> str:
         - Pattern "--=" maps to " فَعِلن"
         - Pattern "==" maps to " فعْلن"
     """
-    feet = ""
+    feet_names: List[str] = []
+    feet_list: List[Feet] = []
     
     # Remove trailing '-' if present
     if code and code[-1] == '-':
@@ -611,7 +612,8 @@ def zamzama_feet(index: int, code: str) -> str:
                     if i + 1 < len_code:
                         i += 1  # Pre-increment again: ++i
                         if code[i] == '=':
-                            feet += " فَعِلن"
+                            feet_names.append("فَعِلن")
+                            feet_list.append(Feet(foot="فَعِلن", code="--="))
                             # At this point i points to the '=' character
                             # The loop will increment i, so we'll skip past this pattern
                         else:
@@ -629,19 +631,18 @@ def zamzama_feet(index: int, code: str) -> str:
             if i + 1 < len_code:
                 i += 1  # Pre-increment equivalent: ++i
                 if code[i] == '=':
-                    feet += " فعْلن"
-                    # At this point i points to the second '=' character
-                    # The loop will increment i, so we'll skip past this pattern
+                    feet_names.append("فعْلن")
+                    feet_list.append(Feet(foot="فعْلن", code="=="))
                 else:
                     break
             else:
                 break
         i += 1  # Loop increment (equivalent to for loop i++)
     
-    return feet
+    return " ".join(feet_names), feet_list
 
 
-def hindi_feet(index: int, code: str) -> str:
+def hindi_feet(index: int, code: str) -> Tuple[str, List[Feet]]:
     """
     Generate foot names for Hindi meters from scansion code.
     
@@ -665,7 +666,8 @@ def hindi_feet(index: int, code: str) -> str:
           - index 6: 6 feet
           - index 7: 2 feet
     """
-    feet = ""
+    feet_names: List[str] = []
+    feet_list: List[Feet] = []
     num_feet = 0
     
     # Foot patterns and their corresponding names
@@ -687,7 +689,7 @@ def hindi_feet(index: int, code: str) -> str:
     
     # Validate index
     if index not in expected_feet:
-        return ""
+        return "", []
     
     # Remove trailing '-' if present
     if code and code[-1] == '-':
@@ -696,7 +698,7 @@ def hindi_feet(index: int, code: str) -> str:
     code_len = len(code)
     
     if code_len == 0:
-        return feet
+        return "", []
     
     # Iterate through code character by character
     j = 0
@@ -724,8 +726,11 @@ def hindi_feet(index: int, code: str) -> str:
                 break  # First match wins
         
         if index_found >= 0:
-            # Add the matched foot name
-            feet += afail_names[index_found] + " "
+            # Add the matched foot name and corresponding code pattern
+            name = afail_names[index_found]
+            pattern = afail_patterns[index_found]
+            feet_names.append(name)
+            feet_list.append(Feet(foot=name, code=pattern))
             num_feet += 1
             # Move j forward by pattern length - 1 (the loop will increment it by 1)
             j += len(afail_patterns[index_found]) - 1
@@ -737,6 +742,6 @@ def hindi_feet(index: int, code: str) -> str:
     
     # Validate foot count
     if num_feet == expected_feet[index]:
-        return feet.strip()
+        return " ".join(feet_names), feet_list
     else:
-        return ""
+        return "", []

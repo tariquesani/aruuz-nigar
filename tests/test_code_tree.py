@@ -15,6 +15,7 @@ Tests cover:
 """
 
 import unittest
+from unittest.mock import patch
 from aruuz.tree.code_tree import CodeTree
 from aruuz.tree.pattern_tree import PatternTree
 from aruuz.models import codeLocation, Lines, Words, scanPath
@@ -1276,6 +1277,174 @@ class TestCodeTreePatternTreeIntegration(unittest.TestCase):
         
         # Should return empty or handle gracefully
         self.assertIsInstance(results, list)
+
+    def test_pattern_tree_root_location_processed_character_by_character(self):
+        """
+        Test that PatternTree integration processes root location code='root'
+        character-by-character as 'r', 'o', 'o', 't'.
+        """
+        tree = CodeTree.build_from_line(self.line)
+
+        class RecordingPatternTree:
+            instances = []
+
+            def __init__(self, loc):
+                self.location = loc
+                self.added_codes = []
+                RecordingPatternTree.instances.append(self)
+
+            def add_child(self, loc):
+                self.added_codes.append(loc.code)
+
+            def is_match(self):
+                # No actual pattern matching needed for this test
+                return []
+
+        with patch("aruuz.tree.code_tree.PatternTree", RecordingPatternTree):
+            tree.find_meter([-1])
+
+        # At least one PatternTree instance should see the root expanded
+        self.assertGreater(len(RecordingPatternTree.instances), 0)
+        saw_root_expansion = False
+        for inst in RecordingPatternTree.instances:
+            codes = inst.added_codes
+            # Look for 'r','o','o','t' sequence
+            for i in range(len(codes) - 3):
+                if codes[i:i + 4] == ["r", "o", "o", "t"]:
+                    saw_root_expansion = True
+                    break
+            if saw_root_expansion:
+                break
+
+        self.assertTrue(saw_root_expansion)
+
+    def test_pattern_tree_skipped_when_get_code_returns_empty(self):
+        """
+        Test that when _get_code() returns an empty list, PatternTree is not constructed
+        and regular traversal results are returned unchanged.
+        """
+        tree = CodeTree.build_from_line(self.line)
+
+        # Baseline without PatternTree flag (regular traversal only)
+        baseline_results = tree.find_meter([0])
+
+        class RecordingPatternTree:
+            instantiated = False
+
+            def __init__(self, loc):
+                RecordingPatternTree.instantiated = True
+
+            def add_child(self, loc):
+                pass
+
+            def is_match(self):
+                return []
+
+        with patch("aruuz.tree.code_tree.CodeTree._get_code", return_value=[]), \
+             patch("aruuz.tree.code_tree.PatternTree", RecordingPatternTree):
+            flagged_results = tree.find_meter([0, -1])
+
+        # PatternTree should never have been instantiated
+        self.assertFalse(RecordingPatternTree.instantiated)
+        # Results with flag (but no paths) should match baseline regular traversal
+        self.assertEqual(len(flagged_results), len(baseline_results))
+        for base_sp, flag_sp in zip(baseline_results, flagged_results):
+            self.assertEqual(base_sp.meters, flag_sp.meters)
+            self.assertEqual(
+                [(loc.code, loc.word_ref, loc.code_ref) for loc in base_sp.location],
+                [(loc.code, loc.word_ref, loc.code_ref) for loc in flag_sp.location],
+            )
+
+    def test_pattern_tree_no_matches_does_not_modify_results(self):
+        """
+        Test that when PatternTree.is_match() returns no paths,
+        CodeTree.find_meter() results are the same as regular traversal.
+        """
+        tree = CodeTree.build_from_line(self.line)
+
+        # Baseline without PatternTree
+        baseline_results = tree.find_meter([0])
+
+        class NoMatchPatternTree:
+            def __init__(self, loc):
+                self.location = loc
+
+            def add_child(self, loc):
+                pass
+
+            def is_match(self):
+                # Explicitly yield no matches
+                return []
+
+        with patch("aruuz.tree.code_tree.PatternTree", NoMatchPatternTree):
+            flagged_results = tree.find_meter([0, -1])
+
+        # When PatternTree adds no results, outputs should match baseline
+        self.assertEqual(len(flagged_results), len(baseline_results))
+        for base_sp, flag_sp in zip(baseline_results, flagged_results):
+            self.assertEqual(base_sp.meters, flag_sp.meters)
+            self.assertEqual(
+                [(loc.code, loc.word_ref, loc.code_ref) for loc in base_sp.location],
+                [(loc.code, loc.word_ref, loc.code_ref) for loc in flag_sp.location],
+            )
+
+    def test_pattern_tree_multiple_x_characters_in_codes(self):
+        """
+        Test that multiple 'x' characters in codes are handled correctly:
+        only the very last character of the very last location is converted
+        from 'x' to '=', earlier 'x' characters remain 'x'.
+        """
+        # Helper to exercise integration for a given code string and capture char codes
+        def capture_codes_for_pattern(code_str):
+            line = Lines("test")
+            word = Words()
+            word.word = "test"
+            word.code = [code_str]
+            line.words_list = [word]
+
+            tree_local = CodeTree.build_from_line(line)
+
+            class RecordingPatternTree:
+                instances = []
+
+                def __init__(self, loc):
+                    self.location = loc
+                    self.added_codes = []
+                    RecordingPatternTree.instances.append(self)
+
+                def add_child(self, loc):
+                    self.added_codes.append(loc.code)
+
+                def is_match(self):
+                    return []
+
+            with patch("aruuz.tree.code_tree.PatternTree", RecordingPatternTree):
+                tree_local.find_meter([-1])
+
+            # Collect all codes from all PatternTree instances
+            all_codes = []
+            for inst in RecordingPatternTree.instances:
+                all_codes.extend(inst.added_codes)
+            return all_codes
+
+        # Case 1: pattern "x=x" -> first 'x' remains 'x', last 'x' becomes '='
+        codes_x_eq_x = capture_codes_for_pattern("x=x")
+        non_root_codes = [c for c in codes_x_eq_x if c not in ["r", "o", "t"]]
+        self.assertGreaterEqual(len(non_root_codes), 3)
+        tail = non_root_codes[-3:]
+        # Original pattern characters: 'x', '=', 'x'
+        # After integration: first 'x' unchanged, last 'x' converted to '='
+        self.assertEqual(tail[0], "x")
+        self.assertEqual(tail[1], "=")
+        self.assertEqual(tail[2], "=")
+
+        # Case 2: pattern "xx=" -> both 'x' remain 'x' (last char is '=')
+        codes_xx_eq = capture_codes_for_pattern("xx=")
+        non_root_codes2 = [c for c in codes_xx_eq if c not in ["r", "o", "t"]]
+        self.assertGreaterEqual(len(non_root_codes2), 3)
+        head = non_root_codes2[:3]
+        self.assertEqual(head[0], "x")
+        self.assertEqual(head[1], "x")
 
 
 if __name__ == '__main__':

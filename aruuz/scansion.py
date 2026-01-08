@@ -546,7 +546,11 @@ def length_five_scan(substr: str) -> str:
             if len(stripped) > 1 and (stripped[1] == 'ا' or stripped[2] == 'ا' or stripped[3] == 'ا'):  # check alif at position 2,3,4
                 # Position 3 Alif
                 if len(stripped) > 2 and stripped[2] == 'ا':
-                    code = "-=="
+                    # If alif is followed by hamza/ye ending, final syllable is ambiguous
+                    if 'ئ' in stripped[3:] or stripped.endswith('ے'):
+                        code = "-=x"
+                    else:
+                        code = "-=="
                 # Position 2 Alif
                 elif len(stripped) > 1 and stripped[1] == 'ا':
                     if len(loc) > 0 and is_muarrab(loc[0]):
@@ -798,6 +802,11 @@ def length_five_scan(substr: str) -> str:
     # Apply noon ghunna adjustments if needed
     if contains_noon(stripped):
         code = noon_ghunna(substr, code)
+
+    # Apply yaa adjustment if needed
+    if code.endswith("==") and stripped.endswith("ے"):
+        code = code[:-1] + "x"
+
     
     return code
 
@@ -860,10 +869,15 @@ def assign_code(word: Words) -> str:
                 code += length_one_scan(sub_string)
             elif stripped_len == 2:
                 stripped = remove_araab(sub_string)
+                # Case 1: alif madd (special long, splittable)
                 if stripped and stripped[0] == 'آ':
                     code += "=-"
-                else:
+                # Case 2: inherent long vowel
+                elif any(ch in stripped for ch in ['ے', 'و', 'ی']):
                     code += "="
+                # Case 3: closed short-vowel syllable
+                else:
+                    code += "x"
             elif stripped_len == 3:
                 code += length_three_scan(sub_string)
             elif stripped_len == 4:
@@ -1301,8 +1315,10 @@ class Scansion:
         """
         Assign scansion code to a word using database lookup (if available) or heuristics.
         
-        This method first tries database lookup if available, then falls back to
-        heuristics using the assign_code function.
+        This method:
+        1. Tries database lookup first (if available)
+        2. Falls back to heuristics using the assign_code function
+        3. If heuristics fail (empty code) and word length > 4, tries compound word splitting
         
         Args:
             word: Words object to assign code to
@@ -1330,6 +1346,17 @@ class Scansion:
         
         # Strategy 2: Fallback to heuristics
         code = assign_code(word)
+        
+        # Strategy 3: Try compound word splitting if heuristics failed
+        # C#: if (stripped.Length > 4 && code.Equals(""))
+        stripped = remove_araab(word.word)
+        if len(stripped) > 4 and code == "":
+            # Try compound word splitting
+            word_result = self.compound_word(word)
+            # If compound_word found a valid split (has codes), use it
+            if len(word_result.code) > 0:
+                return word_result
+            # Otherwise, continue with empty code (will be stored below)
         
         # Store code in word
         word.code = [code]
@@ -2086,14 +2113,14 @@ class Scansion:
                         # Get scansion code from scanPath and generate feet dynamically
                         if special_idx > 7:
                             # Zamzama meters (indices 8-10)
-                            so.feet = zamzama_feet(special_idx, full_code)
+                            so.feet, so.feet_list = zamzama_feet(special_idx, full_code)
                         else:
                             # Hindi meters (indices 0-7)
-                            so.feet = hindi_feet(special_idx, full_code)
+                            so.feet, so.feet_list = hindi_feet(special_idx, full_code)
                         # Fall back to static afail_hindi if dynamic generation failed
                         if not so.feet:
                             so.feet = afail_hindi(so.meter_name)
-                        so.feet_list = []  # Special meters don't have standard feet_list
+                            so.feet_list = []
                         so.id = -2 - special_idx
                     else:
                         continue  # Skip invalid special meter index
@@ -2249,13 +2276,14 @@ class Scansion:
                         # Get scansion code from scanPath and generate feet dynamically
                         if special_idx > 7:
                             # Zamzama meters (indices 8-10)
-                            so.feet = zamzama_feet(special_idx, full_code)
+                            so.feet, so.feet_list = zamzama_feet(special_idx, full_code)
                         else:
                             # Hindi meters (indices 0-7)
-                            so.feet = hindi_feet(special_idx, full_code)
+                            so.feet, so.feet_list = hindi_feet(special_idx, full_code)
                         # Fall back to static afail_hindi if dynamic generation failed
                         if not so.feet:
                             so.feet = afail_hindi(so.meter_name)
+                            so.feet_list = []
                         so.id = -2 - special_idx
                         # For special meters, we don't have a standard pattern, so skip score calculation
                         so.score = 10  # Default score
@@ -2330,53 +2358,127 @@ class Scansion:
         """
         Calculate score for how well a line matches a meter.
         
-        Score is 1 if:
-        - Line feet count matches meter feet count
-        - Line feet are in the same order as meter feet
+        This method evaluates how well a poetry line's feet match against all
+        variants of a given meter pattern. It parses the line's feet, retrieves
+        all meter variants for the given meter name, and evaluates each variant
+        separately to find the best match.
         
-        Score is 0 otherwise.
+        The score represents the number of feet that match in the correct order
+        against the best matching meter variant. Each meter variant is evaluated
+        independently, and the maximum score across all variants is returned.
         
         Args:
-            meter: Meter name in Urdu (e.g., "ہزج مثمن سالم")
-            line_feet: Feet string from scanOutput (e.g., "مفعولن مفعولن مفعولن مفعول")
-            
-        Returns:
-            1 if perfect match, 0 otherwise
-        """
-        # Get all meter indices for this meter name
-        meter_indices = meter_index(meter)
+            meter: Meter name string (e.g., "مفعولن مفعولن مفعولن مفعولن")
+            line_feet: Space-separated string of feet from the scanned line
+                      (e.g., "مفعولن مفعولن مفعولن مفعولن")
         
+        Returns:
+            Integer score representing the number of matching feet in correct order.
+            Returns 0 if:
+            - No meter variants found for the given meter name
+            - No meter variant has matching length with the line
+            - No feet match in order
+            Otherwise returns the maximum score (1 to number of feet) across all variants.
+        
+        Note:
+            This method evaluates each meter variant separately. A meter name may
+            have multiple variants (e.g., with different '+' positions), and the
+            score is calculated for each variant independently. The method requires
+            that the line feet and meter feet have the same length (hard structural
+            constraint) before evaluating the match.
+        """
+        meter_indices = meter_index(meter)
+
         if not meter_indices:
             return 0
-        
-        # Collect all unique feet from all meter variations
-        feet = []
-        residue = ""
-        for m_idx in meter_indices:
-            if m_idx < len(METERS):
-                residue += afail(METERS[m_idx]) + " "
-        
-        # Parse and deduplicate feet
-        for s in residue.split(' '):
-            s = s.strip()
-            if s and s not in feet:
-                feet.append(s)
-        
-        # Parse line feet
+
+        # Parse line feet (DO NOT deduplicate)
         line_arkaan = []
         for s in line_feet.split(' '):
             s = s.strip()
-            if s and s not in line_arkaan:
+            if s:
                 line_arkaan.append(s)
+
+        best_score = 0
+
+        # IMPORTANT CHANGE: evaluate EACH meter variant separately
+        for m_idx in meter_indices:
+            if m_idx >= len(METERS):
+                continue
+
+            # Get feet for THIS meter variant only
+            meter_feet = []
+            for s in afail(METERS[m_idx]).split(' '):
+                s = s.strip()
+                if s:
+                    meter_feet.append(s)
+
+            # Hard structural constraint
+            if len(line_arkaan) != len(meter_feet):
+                continue
+
+            score = self.ordered_match_count(line_arkaan, meter_feet)
+            best_score = max(best_score, score)
+
+        return best_score
+
+
+    def ordered_match_count(self, line_feet: List[str], meter_feet: List[str]) -> int:
+        """
+        Count how many feet from line_feet appear in meter_feet in correct relative order.
         
-        # Check if counts match and order matches
-        if len(line_arkaan) == len(feet):
-            if self.is_ordered(line_arkaan, feet):
-                return 1
-            else:
-                return 0
-        else:
-            return 0
+        This method implements a greedy matching algorithm that counts consecutive
+        matching feet starting from the beginning. It iterates through line_feet
+        and tries to find each foot in meter_feet, maintaining the relative order.
+        The matching stops at the first foot that cannot be found in the correct
+        position, and returns the count of successfully matched feet up to that point.
+        
+        The algorithm ensures that:
+        1. Feet must match exactly (string equality)
+        2. Feet must appear in the same relative order in both lists
+        3. Matching is greedy (each line foot is matched to the first available
+           meter foot that hasn't been matched yet)
+        4. Matching stops at the first failure (no backtracking)
+        
+        Args:
+            line_feet: List of foot strings from the scanned poetry line
+                      (e.g., ["مفعولن", "مفعولن", "فاعلن"])
+            meter_feet: List of foot strings from the meter pattern
+                       (e.g., ["مفعولن", "مفعولن", "مفعولن", "مفعولن"])
+        
+        Returns:
+            Integer count of feet that matched in order (0 to len(line_feet)).
+            Returns 0 if the first foot doesn't match, or the number of consecutive
+            matching feet from the start of the list.
+        
+        Example:
+            If line_feet = ["مفعولن", "مفعولن", "فاعلن"]
+            and meter_feet = ["مفعولن", "مفعولن", "مفعولن", "مفعولن"]
+            Returns 2 (first two feet match)
+            
+            If line_feet = ["مفعولن", "فاعلن", "مفعولن"]
+            and meter_feet = ["مفعولن", "مفعولن", "فاعلن"]
+            Returns 1 (only first foot matches, second doesn't match at position 1)
+        """
+        count = 0
+        j = 0
+        matches = []
+
+        for f in line_feet:
+            found_match = False
+            while j < len(meter_feet):
+                if f == meter_feet[j]:
+                    count += 1
+                    matches.append(f"'{f}' at position {j}")
+                    j += 1
+                    found_match = True
+                    break
+                j += 1
+            if not found_match:
+                # No match found for this foot, stop counting
+                break
+        return count
+
     
     def crunch(self, results: List[scanOutput]) -> List[scanOutput]:
         """
@@ -2428,6 +2530,15 @@ class Scansion:
         
         # Get the meter with highest score (last after sort)
         final_meter = paired[-1][1] if paired else ""
+
+        # max_score = max(scores)
+        # candidates = [
+        #     meter_name
+        #     for score, meter_name in zip(scores, meter_names)
+        #     if score == max_score
+        # ]
+
+        # final_meter = candidates[0]  # earliest = first misra
         
         if not final_meter:
             return []

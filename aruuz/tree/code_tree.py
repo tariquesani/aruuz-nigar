@@ -490,10 +490,11 @@ class CodeTree:
             return main_list
         
         if len(self.children) > 0:
-            # Build tentative code from current path
+            # Build tentative code from current path (exclude "root")
             code = ""
             for i in range(len(scn.location)):
-                code += scn.location[i].code
+                if scn.location[i].code != "root":
+                    code += scn.location[i].code
             
             # Check each child against meters
             for k in range(len(self.children)):
@@ -547,10 +548,11 @@ class CodeTree:
             
             return main_list
         else:
-            # Tree leaf - check final code length
+            # Tree leaf - check final code length (exclude "root")
             code = ""
             for i in range(len(scn.location)):
-                code += scn.location[i].code
+                if scn.location[i].code != "root":
+                    code += scn.location[i].code
             
             # Filter meters by code length
             met = self._check_code_length(code, scn.meters)
@@ -743,10 +745,11 @@ class CodeTree:
             
             return main_list
         else:
-            # Tree leaf - check final code length using fuzzy matching
+            # Tree leaf - check final code length using fuzzy matching (exclude "root")
             code = ""
             for i in range(len(scn.location)):
-                code += scn.location[i].code
+                if scn.location[i].code != "root":
+                    code += scn.location[i].code
             
             # Filter meters by code length using fuzzy matching
             met = self._check_code_length_fuzzy(code, scn.meters)
@@ -881,10 +884,11 @@ class CodeTree:
             
             return main_list
         else:
-            # Tree leaf - check final code length using free verse matching
+            # Tree leaf - check final code length using free verse matching (exclude "root")
             code = ""
             for i in range(len(scn.location)):
-                code += scn.location[i].code
+                if scn.location[i].code != "root":
+                    code += scn.location[i].code
             
             # Filter meters by code length using free verse matching
             met = self._check_meter_free_verse(code, scn.meters)
@@ -962,8 +966,22 @@ class CodeTree:
             
             # If flag is set or meters was empty, also use PatternTree for additional matches
             if flag or (meters is None or len(meters) == 0):
-                # Get all code paths from the tree
-                code_paths = self._get_code(scn)
+                # For PatternTree integration we want code paths that mirror the
+                # C# implementation, where the initial scanPath location is a
+                # dummy/root node with an empty code (it does not contribute
+                # any characters to the pattern tree).
+                code_root = scanPath()
+                code_root_root_loc = codeLocation(
+                    code="",
+                    word_ref=-1,
+                    code_ref=-1,
+                    word="",
+                    fuzzy=0
+                )
+                code_root.location.append(code_root_root_loc)
+
+                # Get all code paths from the tree starting from this dummy root
+                code_paths = self._get_code(code_root)
                 
                 # Create root codeLocation for PatternTree
                 root_loc = codeLocation(
@@ -1139,3 +1157,143 @@ class CodeTree:
             result.append(sc)
         
         return result
+    
+    def visualize(self, indent: str = "", is_last: bool = True, prefix: str = "") -> str:
+        """
+        Generate a text-based tree visualization showing all codes and their locations.
+        
+        This method creates a hierarchical tree representation showing:
+        - Node codes
+        - Word references and words
+        - Code references
+        - Tree structure with branches
+        
+        Args:
+            indent: Current indentation string
+            is_last: Whether this is the last child at this level
+            prefix: Prefix string for the current line
+            
+        Returns:
+            String representation of the tree
+        """
+        # Build the current node representation
+        if self.location.code == "root":
+            node_str = "root"
+        else:
+            node_str = f"code='{self.location.code}' | word_ref={self.location.word_ref}"
+            if self.location.word:
+                node_str += f" | word='{self.location.word}'"
+            node_str += f" | code_ref={self.location.code_ref}"
+        
+        # Create the line for this node
+        if indent == "":
+            # Root node
+            result = f"{node_str}\n"
+        else:
+            # Child node
+            connector = "└── " if is_last else "├── "
+            result = f"{prefix}{connector}{node_str}\n"
+        
+        # Process children
+        if len(self.children) > 0:
+            # Determine new prefix and indent
+            if indent != "":
+                new_prefix = prefix + ("    " if is_last else "│   ")
+            else:
+                new_prefix = ""
+            
+            # Recursively visualize children
+            for i, child in enumerate(self.children):
+                is_last_child = (i == len(self.children) - 1)
+                result += child.visualize(
+                    indent=indent + "    ",
+                    is_last=is_last_child,
+                    prefix=new_prefix
+                )
+        
+        return result
+    
+    def get_all_paths(self) -> List[List[codeLocation]]:
+        """
+        Get all paths from root to leaf as lists of codeLocation objects.
+        
+        Returns:
+            List of paths, where each path is a list of codeLocation objects
+            from root to leaf
+        """
+        paths = []
+        
+        if len(self.children) == 0:
+            # Leaf node - return path with just this node
+            return [[self.location]]
+        
+        # For each child, get its paths and prepend this node
+        for child in self.children:
+            child_paths = child.get_all_paths()
+            for path in child_paths:
+                # Skip root in paths (it's redundant)
+                if self.location.code != "root":
+                    paths.append([self.location] + path)
+                else:
+                    paths.append(path)
+        
+        return paths
+    
+    def get_summary(self) -> dict:
+        """
+        Get a summary of the tree structure.
+        
+        Returns:
+            Dictionary containing:
+            - total_nodes: Total number of nodes in the tree
+            - total_paths: Total number of paths from root to leaf
+            - max_depth: Maximum depth of the tree
+            - word_codes: Dictionary mapping word_ref to list of codes
+        """
+        def count_nodes(node: 'CodeTree') -> int:
+            count = 1
+            for child in node.children:
+                count += count_nodes(child)
+            return count
+        
+        def get_max_depth(node: 'CodeTree', depth: int = 0) -> int:
+            if len(node.children) == 0:
+                return depth
+            return max([get_max_depth(child, depth + 1) for child in node.children])
+        
+        def collect_word_codes(node: 'CodeTree', word_codes: dict) -> None:
+            if node.location.code != "root":
+                word_ref = node.location.word_ref
+                if word_ref not in word_codes:
+                    word_codes[word_ref] = []
+                code_info = {
+                    'code': node.location.code,
+                    'code_ref': node.location.code_ref,
+                    'word': node.location.word
+                }
+                if code_info not in word_codes[word_ref]:
+                    word_codes[word_ref].append(code_info)
+            
+            for child in node.children:
+                collect_word_codes(child, word_codes)
+        
+        word_codes = {}
+        collect_word_codes(self, word_codes)
+        
+        return {
+            'total_nodes': count_nodes(self),
+            'total_paths': len(self.get_all_paths()),
+            'max_depth': get_max_depth(self),
+            'word_codes': word_codes
+        }
+    
+    def __str__(self) -> str:
+        """String representation of the tree."""
+        return self.visualize()
+    
+    def __repr__(self) -> str:
+        """Detailed representation of the tree."""
+        summary = self.get_summary()
+        return (f"CodeTree(nodes={summary['total_nodes']}, "
+                f"paths={summary['total_paths']}, "
+                f"depth={summary['max_depth']})")

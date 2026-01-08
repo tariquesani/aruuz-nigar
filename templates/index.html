@@ -1,23 +1,132 @@
-<!DOCTYPE html>
-<html lang="ur" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aruuz Nigar: a Urdu Scansion Tool</title>
+{% extends "base.html" %}
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+{% block title %}Aruuz Nigar: a Urdu Scansion Tool{% endblock %}
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-
-<body>
+{% block content %}
 <div class="container my-5">
 
     <h1 class="text-center mb-4">Aruuz Nigar: a Urdu Scansion Tool</h1>
+
+    <!-- Error -->
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show">
+        <strong>Error</strong> {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <!-- Results Section (if available) -->
+    {% if line_results %}
+    <!-- Legend -->
+    <div class="alert alert-light border mb-2 py-1" role="alert">
+        <small class="text-muted">
+            <strong>Legend:</strong>
+            <span class="ms-2"><code class="text-dark">–</code> short syllable</span>
+            <span class="ms-3"><code class="text-dark">=</code> long syllable</span>
+            <span class="ms-3"><code class="text-dark">X</code> flexible (short or long)</span>
+        </small>
+    </div>
+
+    {% for line_data in line_results %}
+    <div class="card mb-5">
+        <div class="card-body py-3">
+            <!-- Centered line text -->
+            <h5 class="text-center urdu-text mb-4" dir="rtl" lang="ur">{{ line_data.original_line }}</h5>
+            
+            {% if line_data.results %}
+                {% set dominant_result = (line_data.results | selectattr("is_dominant", "equalto", true) | first) or line_data.results[0] %}
+                
+                {% if dominant_result.word_codes and dominant_result.full_code %}
+                    {% set has_match = dominant_result.meter_name != 'No meter match found' %}
+                    {% if has_match and dominant_result.meter_pattern %}
+                        {% set notation_code = dominant_result.meter_pattern %}
+                    {% elif has_match and dominant_result.feet_list %}
+                        {% set notation_code = (dominant_result.feet_list | map(attribute="code") | join("")) %}
+                        {% if notation_code | length != dominant_result.full_code | length %}
+                            {% set notation_code = dominant_result.full_code %}
+                        {% endif %}
+                    {% else %}
+                        {% set notation_code = dominant_result.full_code %}
+                    {% endif %}
+                    
+                    <!-- Table with words, notation, and feet -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm text-center align-middle mb-0" dir="rtl">
+                            <!-- Word row (skip standalone و when it has empty notation) -->
+                            <tr>
+                                {% for word_data in dominant_result.word_codes %}
+                                    {% if not (word_data.word == "و" and not word_data.code) %}
+                                        <td colspan="{{ word_data.code | length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem;">{{ word_data.word }}</td>
+                                    {% endif %}
+                                {% endfor %}
+                            </tr>
+                            <!-- Notation row: show derived code (with x) if no match, or dominant bahr notation (only - and =) if match -->
+                            <tr>
+                                {% for char in notation_code %}
+                                <td><code class="text-dark" style="font-size: 1.5rem; font-weight: bold;">{{ char }}</code></td>
+                                {% endfor %}
+                            </tr>
+                            <!-- Feet row with merged cells (only show if there's a match) -->
+                            {% if has_match and dominant_result.feet_list %}
+                            {% set total_bahr_length = notation_code | length %}
+                            {% set has_plus = '+' in notation_code %}
+                            <tr>
+                                {% for foot in dominant_result.feet_list %}
+                                    {% set foot_length = foot.code | length %}
+                                    {# Increase second foot colspan by 1 if + is present in meter pattern #}
+                                    {% if has_plus and loop.index0 == 1 %}
+                                        {% set foot_length = foot_length + 1 %}
+                                    {% endif %}
+                                    {% set foot_percentage = (foot_length / total_bahr_length * 100) | round(2) %}
+                                    {% set bg_color = "#e9ecef" if loop.index0 % 2 == 0 else "white" %}
+                                    <td colspan="{{ foot_length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem; background-color: {{ bg_color }}; width: {{ foot_percentage }}%;">{{ foot.foot }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                    
+                    <!-- Check if any و was dropped due to ataf processing -->
+                    {% set waw_dropped = dominant_result.word_codes | selectattr("word", "equalto", "و") | rejectattr("code") | list | length > 0 %}
+                    
+                    
+                    <!-- Centered bahr name for this line (per-line dominant) -->
+                    {% if has_match %}
+                    <div class="text-center mt-3">
+                        <h6>
+                            <!-- Message for dropped و -->
+                            {% if waw_dropped %}
+                                    A  'و'  has been dropped by ataf processing.
+                            {% endif %}
+                            Bahr: <span dir="rtl" lang="ur" class="urdu-text">{{ dominant_result.meter_name }}</span>
+                        </h6>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="alert alert-warning">
+                        No scansion data available for this line.
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-warning">
+                    No meter matches found for this line.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    
+    <!-- Show overall dominant bahr for the entire poem -->
+    {% if poem_dominant_bahrs %}
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="text-center urdu-text mb-0" >
+                Poem Bahr: <span dir="rtl" lang="ur">{{ poem_dominant_bahrs | join(", ") }}</span>
+            </h5>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
 
     <!-- Input Card -->
     <div class="card mb-3">
@@ -35,7 +144,7 @@
                     required
                     autofocus
                     rows="5"
-                >{% if text_input %}{{ text_input }}{% endif %}</textarea>
+                >{{ text_input or "" }}</textarea>
 
                 <div class="invalid-feedback">
                     Please enter Urdu poetry lines.
@@ -48,152 +157,14 @@
         </div>
     </div>
 
-    <!-- Error -->
-    {% if error %}
-    <div class="alert alert-danger alert-dismissible fade show">
-        <strong>Error</strong> {{ error }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    {% endif %}
-
-    <!-- Legend -->
-    {% if line_results %}
-    <div class="alert alert-light border mb-2 py-1" role="alert">
-        <small class="text-muted">
-            <strong>Legend:</strong>
-            <span class="ms-2"><code class="text-dark">–</code> short syllable</span>
-            <span class="ms-3"><code class="text-dark">=</code> long syllable</span>
-            <span class="ms-3"><code class="text-dark">X</code> flexible (short or long)</span>
-        </small>
-    </div>
-
-    {% for line_data in line_results %}
-    <div class="card mb-3">
-        <div class="card-header bg-primary bg-opacity-10">
-            <strong class="urdu-text">Line {{ line_data.line_index + 1 }}</strong>
-            <span class="urdu-text word-value ms-2">{{ line_data.original_line }}</span>
-        </div>
-
-        <div class="card-body py-2" dir="rtl" lang="ur">
-
-            {% if line_data.results %}
-
-                {% set dominant_result = line_data.results
-                    |selectattr("is_dominant", "equalto", true)
-                    |first %}
-                {% if not dominant_result %}
-                    {% set dominant_result = line_data.results[0] %}
-                {% endif %}
-
-                {% for result in line_data.results %}
-                <div class="mb-2
-                    {% if result.is_dominant %}
-                        border border-success border-3 rounded p-2 bg-success bg-opacity-10
-                    {% else %}
-                        border rounded p-2
-                    {% endif %}
-                ">
-
-                    <!-- Meter -->
-                    <div class="mb-2">
-                        <strong>Meter (Bahr)</strong>
-                        <span class="{% if result.is_dominant %}fw-bold text-success{% endif %}">
-                            {{ result.meter_name }}
-                        </span>
-
-                        {% if result.is_dominant %}
-                        <span class="badge bg-success ms-2">Dominant</span>
-                        {% endif %}
-                    </div>
-
-                    <!-- Full Code -->
-                    <div class="mb-2">
-                        <span class="badge bg-primary me-2 small">Full Code</span>
-                        <span class="code-value" dir="rtl">{{ result.full_code }}</span>
-                    </div>
-
-                    <!-- Word-by-Word -->
-                    <div class="border-top pt-2">
-                        <div class="badge bg-info mb-1 small">Word-by-Word Codes</div>
-
-                        <div class="table-responsive mb-2">
-                            <table class="table table-bordered table-sm mb-0 text-center align-middle">
-                                <tr>
-                                    {% for wc in result.word_codes %}
-                                    <td class="bg-light">
-                                        <span class="urdu-text" style="font-size:1.1rem;">
-                                            {{ wc.word }}
-                                        </span>
-                                    </td>
-                                    {% endfor %}
-                                </tr>
-                                <tr>
-                                    {% for wc in result.word_codes %}
-                                    <td>
-                                        <span dir="rtl">{{ wc.code }}</span>
-                                    </td>
-                                    {% endfor %}
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Feet -->
-                    {% if result.feet_list and result.feet_list|length > 0 %}
-                    <div class="border-top pt-2">
-                        <div class="badge bg-info mb-1 small">Feet (Arkaan)</div>
-
-                        <div class="table-responsive mb-2">
-                            <table class="table table-bordered table-sm mb-0 text-center align-middle">
-                                <tr>
-                                    {% for foot in result.feet_list %}
-                                    <td class="bg-light">
-                                        <span class="urdu-text" style="font-size:1.1rem;">
-                                            {{ foot.foot }}
-                                        </span>
-                                    </td>
-                                    {% endfor %}
-                                </tr>
-                                <tr>
-                                    {% for foot in result.feet_list %}
-                                    <td>
-                                        <span dir="rtl">{{ foot.code }}</span>
-                                    </td>
-                                    {% endfor %}
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-
-                    {% elif result.feet %}
-                    <div class="border-top pt-2">
-                        <span class="badge bg-info me-2 small">Feet</span>
-                        <span class="code-value" dir="rtl">{{ result.feet }}</span>
-                    </div>
-                    {% endif %}
-
-                </div>
-                {% endfor %}
-
-            {% else %}
-            <div class="alert alert-warning">
-                No meter matches found for this line.
-            </div>
-            {% endif %}
-
-        </div>
-    </div>
-    {% endfor %}
-    {% endif %}
-
     <footer class="text-center mt-4 text-muted small">
         <p>Aruuz Nigar: a Urdu Scansion Tool – Phase 1</p>
     </footer>
 
 </div>
+{% endblock %}
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-
+{% block extra_scripts %}
 <script>
 (function () {
     'use strict';
@@ -209,6 +180,4 @@
     });
 })();
 </script>
-
-</body>
-</html>
+{% endblock %}
