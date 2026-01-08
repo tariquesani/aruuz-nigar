@@ -90,7 +90,7 @@ def scan_word(word_text: str) -> str:
     # Store original state to detect if database was used
     original_code_count = len(word.code)
     
-    word = scansion.word_code(word)
+    word = scansion.assign_scansion_to_word(word)
     
     # Determine which strategy was used
     if len(word.id) > 0:

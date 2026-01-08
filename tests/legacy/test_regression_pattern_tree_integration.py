@@ -48,7 +48,7 @@ class TestRegularMetersRegression(unittest.TestCase):
         
         # Assign codes
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Test with specific meter indices (should not trigger PatternTree)
         tree = CodeTree.build_from_line(line)
@@ -67,7 +67,7 @@ class TestRegularMetersRegression(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         tree = CodeTree.build_from_line(line, fuzzy=False, free_verse=False)
         results = tree.find_meter([0, 1, 2, 3, 4])
@@ -90,7 +90,7 @@ class TestRegularMetersRegression(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Use meters without -1 flag (should not trigger PatternTree)
         tree = CodeTree.build_from_line(line)
@@ -120,7 +120,7 @@ class TestRegularMetersRegression(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         tree = CodeTree.build_from_line(line)
         results = tree.find_meter([0, 1, 2])
@@ -164,7 +164,7 @@ class TestFuzzyModeRegression(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         tree = CodeTree.build_from_line(line, fuzzy=True, free_verse=False)
         results = tree.find_meter([0, 1, 2])
@@ -274,7 +274,7 @@ class TestFreeVerseModeRegression(unittest.TestCase):
         
         # Free verse mode uses different API
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         tree = CodeTree.build_from_line(line, fuzzy=False, free_verse=True)
         results = tree.find_meter([0, 1, 2])
@@ -290,7 +290,7 @@ class TestFreeVerseModeRegression(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         tree = CodeTree.build_from_line(line, fuzzy=False, free_verse=True)
         results = tree.find_meter([0, 1, 2])
@@ -304,7 +304,7 @@ class TestFreeVerseModeRegression(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         tree = CodeTree.build_from_line(line, fuzzy=False, free_verse=True)
         results = tree.find_meter([0, 1, 2, 3, 4])
@@ -321,7 +321,7 @@ class TestFreeVerseModeRegression(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Free verse mode should exclude rubai meters
         # (This is handled in the traversal logic)
@@ -337,7 +337,7 @@ class TestFreeVerseModeRegression(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         tree = CodeTree.build_from_line(line, fuzzy=False, free_verse=True)
         results = tree.find_meter([0, 1, 2])
@@ -355,7 +355,7 @@ class TestFreeVerseModeRegression(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Test with different meter sets
         for meter_set in [[0], [0, 1, 2], [5, 6, 7]]:
@@ -402,7 +402,7 @@ class TestModeIndependence(unittest.TestCase):
         scansion.add_line(self.line)
         
         for word in self.line.words_list:
-            scansion.word_code(word)
+            scansion.assign_scansion_to_word(word)
         
         tree = CodeTree.build_from_line(self.line, fuzzy=False, free_verse=True)
         results = tree.find_meter([0, 1, 2])
@@ -429,7 +429,7 @@ class TestModeIndependence(unittest.TestCase):
         scansion.fuzzy = False
         scansion.free_verse = True
         for word in self.line.words_list:
-            scansion.word_code(word)
+            scansion.assign_scansion_to_word(word)
         tree = CodeTree.build_from_line(self.line, fuzzy=False, free_verse=True)
         results3 = tree.find_meter([0, 1, 2])
         self.assertIsInstance(results3, list)
@@ -450,7 +450,7 @@ class TestPatternTreeIntegrationDoesNotBreakModes(unittest.TestCase):
         self.scansion.free_verse = False
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Use -1 flag which triggers PatternTree
         tree = CodeTree.build_from_line(line)
@@ -467,7 +467,7 @@ class TestPatternTreeIntegrationDoesNotBreakModes(unittest.TestCase):
         self.scansion.free_verse = False
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Empty meters list triggers PatternTree
         tree = CodeTree.build_from_line(line)
@@ -497,7 +497,7 @@ class TestPatternTreeIntegrationDoesNotBreakModes(unittest.TestCase):
         self.scansion.free_verse = True
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Free verse mode should not use PatternTree (only regular traversal does)
         tree = CodeTree.build_from_line(line, fuzzy=False, free_verse=True)

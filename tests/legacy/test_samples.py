@@ -29,7 +29,7 @@ class TestScansionIntegration(unittest.TestCase):
         self.scansion.add_line(line)
         
         word = line.words_list[0]
-        word = self.scansion.word_code(word)
+        word = self.scansion.assign_scansion_to_word(word)
         
         # Word should have a code assigned
         self.assertGreater(len(word.code), 0)
@@ -110,7 +110,7 @@ class TestScansionIntegration(unittest.TestCase):
         word.code = ["=-="]
         
         # Call word_code
-        word = self.scansion.word_code(word)
+        word = self.scansion.assign_scansion_to_word(word)
         
         # Code should be preserved
         self.assertEqual(word.code, ["=-="])

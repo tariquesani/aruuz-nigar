@@ -73,7 +73,7 @@ def visualize_tree(text: str):
     # Process words: assign codes
     for word in line_obj.words_list:
         if not word.code:  # Only process if codes not already assigned
-            scanner.word_code(word)
+            scanner.assign_scansion_to_word(word)
     
     # Show what codes were assigned (for debugging)
     print("WORD CODES ASSIGNED:")

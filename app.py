@@ -136,7 +136,7 @@ def index():
                         else:
                             # No match: get word codes
                             word_codes = [
-                                {'word': (w := scanner.word_code(word)).word, 'code': w.code[0] if w.code else "-"}
+                                {'word': (w := scanner.assign_scansion_to_word(word)).word, 'code': w.code[0] if w.code else "-"}
                                 for word in line_obj.words_list
                             ]
                             line_result['results'].append({
@@ -242,7 +242,7 @@ def islah():
                             # Get word codes even if no meter match
                             word_codes = []
                             for word in line_obj.words_list:
-                                word = scanner.word_code(word)
+                                word = scanner.assign_scansion_to_word(word)
                                 code = word.code[0] if word.code else "-"
                                 word_codes.append({
                                     'word': word.word,
@@ -292,7 +292,7 @@ def debug_word():
                 else:
                     word = line_obj.words_list[0]
 
-                    scanner.word_code(word)
+                    scanner.assign_scansion_to_word(word)
 
                     result = {
                         'word': word.word,

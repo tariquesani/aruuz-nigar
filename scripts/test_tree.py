@@ -39,7 +39,7 @@ scanner.add_line(line_obj)
 # Process words
 for word in line_obj.words_list:
     if not word.code:
-        scanner.word_code(word)
+        scanner.assign_scansion_to_word(word)
 
 print("WORD CODES ASSIGNED:")
 print("-" * 80)

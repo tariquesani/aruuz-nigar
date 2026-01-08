@@ -46,7 +46,7 @@ scanner.add_line(line_obj)
 # Process words to assign codes
 for word in line_obj.words_list:
     if not word.code:
-        scanner.word_code(word)
+        scanner.assign_scansion_to_word(word)
 
 print("STEP 1: WORD CODES ASSIGNED")
 print("-" * 80)

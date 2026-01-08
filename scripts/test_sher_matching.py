@@ -147,7 +147,7 @@ for line_idx, line_text in enumerate(lines_text, 1):
     # Process words to assign codes (same as test_meter_matching.py)
     for word in line_obj.words_list:
         if not word.code:
-            scanner.word_code(word)
+            scanner.assign_scansion_to_word(word)
     
     print("Word codes assigned:")
     for i, word in enumerate(line_obj.words_list):

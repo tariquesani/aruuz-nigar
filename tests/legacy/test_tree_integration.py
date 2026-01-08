@@ -31,7 +31,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         
         # Assign codes to words
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Call find_meter
         results = self.scansion.match_meters_via_tree(line)
@@ -56,7 +56,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         
         # Assign codes
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Test with specific meters (first few meters)
         results = self.scansion.match_meters_via_tree(line, meters=[0, 1, 2])
@@ -73,7 +73,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         results = self.scansion.match_meters_via_tree(line, meters=[])
         
@@ -88,7 +88,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         results = self.scansion.match_meters_via_tree(line, meters=None)
         
@@ -107,7 +107,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         results = self.scansion.match_meters_via_tree(line)
         
@@ -128,7 +128,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         self.scansion.error_param = 2
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         results = self.scansion.match_meters_via_tree(line, meters=[0, 1])
         
@@ -143,7 +143,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         self.scansion.free_verse = True
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         results = self.scansion.match_meters_via_tree(line, meters=[0, 1])
         
@@ -166,7 +166,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         results = self.scansion.match_meters_via_tree(line)
         
@@ -207,7 +207,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         results = self.scansion.match_meters_via_tree(line)
         
@@ -228,7 +228,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Get all results first
         all_results = self.scansion.match_meters_via_tree(line, meters=None)
@@ -284,7 +284,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         
         # Manually verify tree is built
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Call find_meter directly
         scan_paths = self.scansion.match_meters_via_tree(line)
@@ -450,7 +450,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         
         # Get scan paths
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         scan_paths = self.scansion.match_meters_via_tree(line)
         
         # Get scan outputs
@@ -481,7 +481,7 @@ class TestTreeIntegrationComparison(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         tree = CodeTree.build_from_line(line)
         
@@ -497,7 +497,7 @@ class TestTreeIntegrationComparison(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         tree = CodeTree.build_from_line(line)
         results = tree.find_meter([0, 1, 2])
@@ -549,7 +549,7 @@ class TestTreeIntegrationComparison(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         tree = CodeTree.build_from_line(line)
         results = tree.find_meter([0, 1])
@@ -570,7 +570,7 @@ class TestTreeIntegrationComparison(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Rubai meters start at NUM_METERS + NUM_VARIED_METERS
         rubai_start = NUM_METERS + NUM_VARIED_METERS
@@ -593,7 +593,7 @@ class TestTreeIntegrationComparison(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Run find_meter multiple times
         results1 = self.scansion.match_meters_via_tree(line, meters=[0, 1, 2])
@@ -616,7 +616,7 @@ class TestTreeIntegrationComparison(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # -1 flag should trigger PatternTree matching
         tree = CodeTree.build_from_line(line)
@@ -639,7 +639,7 @@ class TestTreeIntegrationEdgeCases(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # Use invalid meter indices
         results = self.scansion.match_meters_via_tree(line, meters=[99999, -999])
@@ -704,7 +704,7 @@ class TestTreeIntegrationEdgeCases(unittest.TestCase):
         self.scansion.add_line(line)
         
         for word in line.words_list:
-            self.scansion.word_code(word)
+            self.scansion.assign_scansion_to_word(word)
         
         # None should use self.meter or all meters
         results = self.scansion.match_meters_via_tree(line, meters=None)

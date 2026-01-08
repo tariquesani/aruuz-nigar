@@ -1311,9 +1311,9 @@ class Scansion:
         self.lst_lines.append(line)
         self.num_lines += 1
     
-    def word_code(self, word: Words) -> Words:
+    def assign_scansion_to_word(self, word: Words) -> Words:
         """
-        Assign scansion code to a word using database lookup (if available) or heuristics.
+        Assign scansion code to a word in-place using database lookup (if available) or heuristics.
         
         This method:
         1. Tries database lookup first (if available)
@@ -1704,7 +1704,7 @@ class Scansion:
         
         This method tries to split a word at various positions and:
         1. Uses find_word() on the first part (database lookup)
-        2. Uses word_code() on the second part (heuristics)
+        2. Uses assign_scanscion_to_word() on the second part (heuristics)
         3. If both parts are valid, combines codes and muarrab via cartesian product
         
         Args:
@@ -1740,8 +1740,8 @@ class Scansion:
             # Second part: from i to end
             # C#: second.word = stripped.Substring(i, stripped.Length - i)
             second.word = stripped[i:]
-            # Use word_code() on second part (heuristics)
-            second = self.word_code(second)
+            # Use assign_scanscion_to_word() on second part (heuristics)
+            second = self.assign_scansion_to_word(second)
             
             # Check validity (matching C# logic)
             # C#: if (first.id.Count > 0)
@@ -1854,7 +1854,7 @@ class Scansion:
         
         # Step 1: Assign codes to all words (needed for tree building)
         for word in line.words_list:
-            self.word_code(word)
+            self.assign_scansion_to_word(word)
         
         # Step 1.5: Al (ال) Processing
         # Modify codes when next word starts with "ال" and current word ends with zabar or paish
@@ -2201,7 +2201,7 @@ class Scansion:
         
         # Step 1: Assign codes to all words (needed for tree building)
         for word in line.words_list:
-            self.word_code(word)
+            self.assign_scansion_to_word(word)
         
         # Step 2: Temporarily enable fuzzy mode and use tree-based find_meter()
         # Save original fuzzy state
