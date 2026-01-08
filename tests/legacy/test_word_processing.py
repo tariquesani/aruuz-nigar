@@ -32,7 +32,7 @@ class TestAlProcessing(unittest.TestCase):
         # Mock word_code to avoid database calls
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Last char is vowel+h (ا), so "=" or "x" → "=", "-" → "="
         # Code "==" with [:-1] + "=" = "=" + "=" = "=="
@@ -54,7 +54,7 @@ class TestAlProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Last char is vowel+h, so "x" → "="
         # Code "=x" with [:-1] + "=" = "=" + "=" = "=="
@@ -71,7 +71,7 @@ class TestAlProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Last char is consonant (ب), so "=" or "x" → "-=", "-" → "="
         # Code "==" with [:-1] + "-=" = "=" + "-=" = "=-="
@@ -88,7 +88,7 @@ class TestAlProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # 2-char consonant+consonant: code with [:-1] + "==" = "=" + "==" = "==="
         # Actually wait, let me check the code again - it says "modify to '=='"
@@ -113,7 +113,7 @@ class TestAlProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Last char is consonant, so "-" → "="
         # Code "=-" with [:-1] + "=" = "=" + "=" = "=="
@@ -131,7 +131,7 @@ class TestAlProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Codes should not be modified (no zabar/paish)
         self.assertEqual(word1.code[0], original_code1)
@@ -149,7 +149,7 @@ class TestAlProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Codes should not be modified (next word doesn't start with 'ال')
         self.assertEqual(word1.code[0], original_code1)
@@ -165,7 +165,7 @@ class TestAlProcessing(unittest.TestCase):
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
                 # Should not raise error
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Codes should remain empty
         self.assertEqual(len(word1.code), 0)
@@ -190,7 +190,7 @@ class TestIzafatProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # 2-char words: set code to "xx"
         self.assertEqual(word.code[0], "xx")
@@ -203,7 +203,7 @@ class TestIzafatProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Words ending in "ا": "=" or "x" → "=x"
         # Code "==" with [:-1] + "=x" = "=" + "=x" = "==x"
@@ -217,7 +217,7 @@ class TestIzafatProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Words ending in "و": "=" or "x" → "=x"
         # Code "=x" with [:-1] + "=x" = "=" + "=x" = "==x"
@@ -231,7 +231,7 @@ class TestIzafatProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Words ending in "ی": add alternative code (original + "x") and modify ("=" → "-x")
         # Code "==" with [:-1] + "-x" = "=" + "-x" = "=-x"
@@ -246,7 +246,7 @@ class TestIzafatProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Other cases: "=" or "x" → "-x"
         # Code "==" with [:-1] + "-x" = "=" + "-x" = "=-x"
@@ -260,7 +260,7 @@ class TestIzafatProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Code ending with "-": "-" → "x"
         self.assertEqual(word.code[0], "=x")
@@ -273,7 +273,7 @@ class TestIzafatProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Without database ID: "=" or "x" → "-x"
         # Code "==" with [:-1] + "-x" = "=" + "-x" = "=-x"
@@ -287,7 +287,7 @@ class TestIzafatProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Code ending with "-": "-" → "x"
         self.assertEqual(word.code[0], "=x")
@@ -300,7 +300,7 @@ class TestIzafatProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Should process as izafat
         # Code "==" with [:-1] + "-x" = "=" + "-x" = "=-x"
@@ -314,7 +314,7 @@ class TestIzafatProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Should process as izafat
         # Code "==" with [:-1] + "-x" = "=" + "-x" = "=-x"
@@ -330,7 +330,7 @@ class TestIzafatProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Code should not be modified (no izafat marker)
         self.assertEqual(word.code[0], original_code)
@@ -344,7 +344,7 @@ class TestIzafatProcessing(unittest.TestCase):
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
                 # Should not raise error
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Codes should remain empty
         self.assertEqual(len(word.code), 0)
@@ -366,7 +366,7 @@ class TestAtafProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # 'ا' or 'ی': do nothing
         self.assertEqual(word1.code[0], "==")
@@ -384,7 +384,7 @@ class TestAtafProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # 'ا' or 'ی': do nothing
         self.assertEqual(word1.code[0], "==")
@@ -399,7 +399,7 @@ class TestAtafProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # 'ے' or 'و': modify code and clear current word codes
         # Code "==" with [:-1] + "-x" = "=" + "-x" = "=-x"
@@ -415,7 +415,7 @@ class TestAtafProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # 'ے' or 'و': modify code and clear current word codes
         # Code "==" with [:-1] + "-x" = "=" + "-x" = "=-x"
@@ -431,7 +431,7 @@ class TestAtafProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Other vowels: modify code and clear current word codes
         # Code "==" with [:-1] + "-x" = "=" + "-x" = "=-x"
@@ -447,7 +447,7 @@ class TestAtafProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Last char is consonant: "=" or "x" → "-x"
         # Code "==" with [:-1] + "-x" = "=" + "-x" = "=-x"
@@ -464,7 +464,7 @@ class TestAtafProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # 2-char consonant+consonant: set code to "xx" and clear current word codes
         self.assertEqual(word1.code[0], "xx")
@@ -479,7 +479,7 @@ class TestAtafProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Code ending with "-": "-" → "x"
         self.assertEqual(word1.code[0], "=x")
@@ -497,7 +497,7 @@ class TestAtafProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Codes should not be modified (current word is not 'و')
         self.assertEqual(word1.code[0], original_code1)
@@ -513,7 +513,7 @@ class TestAtafProcessing(unittest.TestCase):
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
                 # Should not raise error
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Codes should remain empty
         self.assertEqual(len(word1.code), 0)
@@ -528,7 +528,7 @@ class TestAtafProcessing(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # All codes should be modified
         # Code "==" with [:-1] + "-x" = "=" + "-x" = "=-x"
@@ -558,7 +558,7 @@ class TestWordGrafting(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Previous word ends with consonant (ب), code ends with '='
         # Should create graft code: remove last char, append '-'
@@ -573,7 +573,7 @@ class TestWordGrafting(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Should create graft code
         self.assertIn("=-", word1.taqti_word_graft)
@@ -587,7 +587,7 @@ class TestWordGrafting(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Code ends with '-': create graft code (remove last char)
         self.assertIn("=", word1.taqti_word_graft)
@@ -601,7 +601,7 @@ class TestWordGrafting(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Previous word ends with vowel+h (ا), so no grafting
         self.assertEqual(len(word1.taqti_word_graft), 0)
@@ -615,7 +615,7 @@ class TestWordGrafting(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Current word doesn't start with 'ا' or 'آ', so no grafting
         self.assertEqual(len(word1.taqti_word_graft), 0)
@@ -630,7 +630,7 @@ class TestWordGrafting(unittest.TestCase):
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
                 # Should not raise error
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # No graft codes should be created (empty codes)
         self.assertEqual(len(word1.taqti_word_graft), 0)
@@ -644,7 +644,7 @@ class TestWordGrafting(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Should create graft codes for codes ending with '=' or '-'
         # Code "==" ends with '=' → "=-"
@@ -662,7 +662,7 @@ class TestWordGrafting(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Code ends with 'x', so no graft code should be created
         self.assertEqual(len(word1.taqti_word_graft), 0)
@@ -692,7 +692,7 @@ class TestWordProcessingIntegration(unittest.TestCase):
         
         with patch.object(self.scansion, 'word_code', return_value=None):
             with patch.object(self.scansion, 'find_meter', return_value=[]):
-                self.scansion.scan_line(line, 0)
+                self.scansion.match_line_to_meters(line, 0)
         
         # Al processing: word1 should be modified
         # Izafat processing: word2 should be modified
