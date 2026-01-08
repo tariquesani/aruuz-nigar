@@ -1,8 +1,8 @@
 """
-Unit tests for Sher Bahr detection.
+Unit tests for Canonical Sher to Bahr mapping.
 
 Tests that sher (couplets) return the correct bahr name using the crunch() method.
-Test data is loaded from sher_test_data.json, making it easy to add new test cases.
+Test data is loaded from canonical_sher_to_bahr_mapping_data.json, making it easy to add new test cases.
 """
 
 import unittest
@@ -20,7 +20,7 @@ from aruuz.scansion import Scansion
 from aruuz.models import Lines
 
 
-class TestSherBahr(unittest.TestCase):
+class TestCanonicalSherToBahrMapping(unittest.TestCase):
     """Test that sher return the correct bahr name using crunch() method."""
 
     @classmethod
@@ -30,10 +30,9 @@ class TestSherBahr(unittest.TestCase):
         print("LOADING TEST DATA")
         print("=" * 80)
         
-        # Get the path to the JSON file relative to this test file
+        # Get the path to the JSON file in the same folder as this test file
         test_dir = os.path.dirname(os.path.abspath(__file__))
-        scripts_dir = os.path.join(os.path.dirname(test_dir), 'scripts')
-        json_path = os.path.join(scripts_dir, 'sher_test_data.json')
+        json_path = os.path.join(test_dir, 'canonical_sher_to_bahr_mapping_data.json')
         
         print(f"Reading test data from: {json_path}")
         
@@ -44,7 +43,7 @@ class TestSherBahr(unittest.TestCase):
         except FileNotFoundError:
             raise FileNotFoundError(
                 f"Test data file not found: {json_path}\n"
-                "Please ensure sher_test_data.json exists in python/scripts/"
+                "Please ensure canonical_sher_to_bahr_mapping_data.json exists in python/tests/"
             )
         except json.JSONDecodeError as e:
             raise ValueError(

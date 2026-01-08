@@ -9,6 +9,7 @@ This test module verifies that:
 """
 
 import unittest
+from unittest import mock
 from aruuz.tree.state_machine import (
     hindi_meter,
     zamzama_meter,
@@ -135,6 +136,56 @@ class TestStateMachineIntegration(unittest.TestCase):
         # Should return results (may be empty if pattern doesn't match constraints)
         self.assertIsInstance(results, list)
     
+    def test_code_tree_builds_pattern_tree_per_character_and_expands_x(self):
+        """Test CodeTree calls PatternTree.add_child per character and handles 'x' correctly."""
+        # Create a simple line with a single word whose code includes 'x'
+        line = Lines("test")
+        word = Words()
+        word.word = "test"
+        # Single code with three characters, middle one ambiguous
+        word.code = ["-x="]
+        line.words_list = [word]
+
+        tree = CodeTree.build_from_line(line)
+
+        # Patch PatternTree.add_child and PatternTree.is_match to observe character-level calls
+        with mock.patch("aruuz.tree.code_tree.PatternTree.add_child") as mock_add_child, \
+             mock.patch("aruuz.tree.code_tree.PatternTree.is_match", return_value=[]):
+            # Use meters=None so that PatternTree integration is triggered
+            tree.find_meter(None)
+
+        # Collect the codes that were passed into add_child
+        added_codes = [call.args[0].code for call in mock_add_child.call_args_list]
+
+        # PatternTree should receive one call per character in the scansion code
+        # path. The word code "-x=" should contribute '-', 'x', '='.
+        self.assertIn("-", added_codes)
+        self.assertIn("x", added_codes)
+        self.assertIn("=", added_codes)
+
+        # Now verify the special handling for a trailing 'x':
+        # if we use a code consisting only of 'x', the last character should be
+        # converted to '=' *before* being passed to PatternTree.add_child.
+        line2 = Lines("test2")
+        word2 = Words()
+        word2.word = "test2"
+        word2.code = ["x"]
+        line2.words_list = [word2]
+
+        tree2 = CodeTree.build_from_line(line2)
+
+        with mock.patch("aruuz.tree.code_tree.PatternTree.add_child") as mock_add_child2, \
+             mock.patch("aruuz.tree.code_tree.PatternTree.is_match", return_value=[]):
+            tree2.find_meter(None)
+
+        added_codes2 = [call.args[0].code for call in mock_add_child2.call_args_list]
+
+        # The word-level location had code "x" but, because it is the last
+        # character of the last location, it must be converted to '=' before
+        # calling add_child, so 'x' should not appear and '=' should.
+        self.assertNotIn("x", added_codes2)
+        self.assertIn("=", added_codes2)
+    
     def test_meter_base_calculation(self):
         """Test that meter base calculation is correct."""
         meter_base = NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS
@@ -150,6 +201,64 @@ class TestStateMachineIntegration(unittest.TestCase):
         # Zamzama meters: indices 8-10 in special meters = meter_base + 8 to meter_base + 10
         
         self.assertEqual(meter_base + NUM_SPECIAL_METERS - 1, meter_base + 10)
+
+    def test_code_tree_detects_zamzama_meters_via_pattern_tree(self):
+        """
+        Test that CodeTree + PatternTree integration detects Zamzama meters
+        with the same syllable-count rules as the C# implementation.
+
+        C# mapping (patternTree.traverseZamzama):
+        - Counts 32 or 33  → meter_base + 8
+        - Counts 24 or 25  → meter_base + 9
+        - Counts 16 or 17  → meter_base + 10
+
+        Here we build a CodeTree from synthetic codes whose total syllable
+        counts match these values and assert that the expected Zamzama meter
+        indices are returned when PatternTree integration is enabled.
+        """
+        meter_base = NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS
+
+        # Helper to build a CodeTree from a single synthetic word code
+        def build_tree_from_code(code: str) -> CodeTree:
+            line = Lines("test")
+            # Ensure we have exactly one word
+            self.assertEqual(len(line.words_list), 1)
+            word = line.words_list[0]
+            word.word = "test"
+            word.code = [code]
+            word.taqti_word_graft = []
+            return CodeTree.build_from_line(line)
+
+        # Each "=" contributes 2 syllables, each "-" contributes 1 syllable.
+        # The patterns below are chosen to hit the Zamzama syllable counts.
+        test_cases = [
+            # (code_string, expected_meter_index)
+            ("=" * 16, meter_base + 8),          # 16 * 2 = 32
+            ("=" * 16 + "-", meter_base + 8),    # 32 + 1 = 33, ends with "-="
+            ("=" * 12, meter_base + 9),          # 12 * 2 = 24
+            ("=" * 12 + "-", meter_base + 9),    # 24 + 1 = 25, ends with "-="
+            ("=" * 8, meter_base + 10),          # 8 * 2 = 16
+            ("=" * 8 + "-", meter_base + 10),    # 16 + 1 = 17, ends with "-="
+        ]
+
+        for code, expected_meter in test_cases:
+            tree = build_tree_from_code(code)
+
+            # Use meters=[-1] to trigger PatternTree integration without
+            # constraining to any regular/rubai meter indices.
+            scan_paths = tree.find_meter(meters=[-1])
+
+            detected_meters = set()
+            for sp in scan_paths:
+                for m in sp.meters:
+                    detected_meters.add(m)
+
+            self.assertIn(
+                expected_meter,
+                detected_meters,
+                msg=f"Code '{code}' should detect Zamzama meter index {expected_meter}, "
+                    f"detected meters were {detected_meters}"
+            )
 
 
 if __name__ == '__main__':

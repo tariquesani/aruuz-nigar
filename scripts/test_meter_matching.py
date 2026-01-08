@@ -23,13 +23,15 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 from typing import List
-from aruuz.models import Lines, scanPath, codeLocation
-from aruuz.scansion import Scansion
+from aruuz.models import Lines, scanPath, codeLocation, scanOutput, Words
+from aruuz.scansion import Scansion, is_vowel_plus_h, is_consonant_plus_consonant
 from aruuz.tree.code_tree import CodeTree
-from aruuz.meters import METERS, METERS_VARIED, RUBAI_METERS, NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, USAGE
+from aruuz.meters import METERS, METERS_VARIED, RUBAI_METERS, NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, USAGE, METER_NAMES, METERS_VARIED_NAMES, RUBAI_METER_NAMES, afail, afail_list
+from aruuz.utils.araab import remove_araab
 
 # Test text (same as test_tree.py)
-text = "دم اندھیرے میں گھٹ رہا ہے خمارؔ"
+text = "دل ہی تو ہے نہ سنگ و خشت درد سے بھر نہ آئے کیوں"
+
 
 print("=" * 80)
 print(f"TRACING METER MATCHING FOR: {text}")
@@ -52,6 +54,98 @@ for i, word in enumerate(line_obj.words_list):
     print(f"Word {i} ('{word.word}'): {word.code}")
     if word.taqti_word_graft:
         print(f"  Graft codes: {word.taqti_word_graft}")
+print()
+
+# Step 1.7: Ataf (عطف) Processing - Handle conjunction "و" between words
+print("STEP 1.7: ATAF (عطف) PROCESSING")
+print("-" * 80)
+for i in range(1, len(line_obj.words_list)):
+    wrd = line_obj.words_list[i]
+    pwrd = line_obj.words_list[i - 1]
+    
+    if wrd.word == "و":
+        print(f"Found 'و' at word {i}, processing with previous word {i-1} ('{pwrd.word}')")
+        stripped = remove_araab(pwrd.word)
+        length = len(stripped)
+        
+        if length > 0:
+            for k in range(len(pwrd.code)):
+                if is_vowel_plus_h(stripped[length - 1]):
+                    # Last char is vowel+h
+                    if stripped[length - 1] == 'ا' or stripped[length - 1] == 'ی':
+                        # Do nothing as it already in correct form
+                        print(f"  Previous word ends with '{stripped[length - 1]}' (ا or ی) - no change needed")
+                        pass
+                    elif stripped[length - 1] == 'ے' or stripped[length - 1] == 'و':
+                        # Modify code and clear current word codes
+                        if len(pwrd.code[k]) > 0:
+                            last_char = pwrd.code[k][-1]
+                            if last_char == "=" or last_char == "x":
+                                pwrd.code[k] = pwrd.code[k][:-1] + "-x"
+                                print(f"  Modified previous word code: '{pwrd.code[k]}'")
+                                # Clear all codes in current word ("و")
+                                for j in range(len(wrd.code)):
+                                    wrd.code[j] = ""
+                                print(f"  Cleared all codes in 'و': {wrd.code}")
+                            elif last_char == "-":
+                                pwrd.code[k] = pwrd.code[k][:-1] + "x"
+                                print(f"  Modified previous word code: '{pwrd.code[k]}'")
+                                # Clear all codes in current word ("و")
+                                for j in range(len(wrd.code)):
+                                    wrd.code[j] = ""
+                                print(f"  Cleared all codes in 'و': {wrd.code}")
+                    else:
+                        # Other vowels: modify code and clear current word codes
+                        if len(pwrd.code[k]) > 0:
+                            last_char = pwrd.code[k][-1]
+                            if last_char == "=" or last_char == "x":
+                                pwrd.code[k] = pwrd.code[k][:-1] + "-x"
+                                print(f"  Modified previous word code: '{pwrd.code[k]}'")
+                                # Clear all codes in current word ("و")
+                                for j in range(len(wrd.code)):
+                                    wrd.code[j] = ""
+                                print(f"  Cleared all codes in 'و': {wrd.code}")
+                            elif last_char == "-":
+                                pwrd.code[k] = pwrd.code[k][:-1] + "x"
+                                print(f"  Modified previous word code: '{pwrd.code[k]}'")
+                                # Clear all codes in current word ("و")
+                                for j in range(len(wrd.code)):
+                                    wrd.code[j] = ""
+                                print(f"  Cleared all codes in 'و': {wrd.code}")
+                else:
+                    # Last char is consonant
+                    if length == 2 and is_consonant_plus_consonant(remove_araab(pwrd.word)):
+                        # 2-char consonant+consonant words: set code to "xx" and clear current word codes
+                        pwrd.code[k] = "xx"
+                        print(f"  Set previous word code to 'xx' (2-char consonant+consonant)")
+                        # Clear all codes in current word ("و")
+                        for j in range(len(wrd.code)):
+                            wrd.code[j] = ""
+                        print(f"  Cleared all codes in 'و': {wrd.code}")
+                    else:
+                        # Otherwise: modify code and clear current word codes
+                        if len(pwrd.code[k]) > 0:
+                            last_char = pwrd.code[k][-1]
+                            if last_char == "=" or last_char == "x":
+                                pwrd.code[k] = pwrd.code[k][:-1] + "-x"
+                                print(f"  Modified previous word code: '{pwrd.code[k]}'")
+                                # Clear all codes in current word ("و")
+                                for j in range(len(wrd.code)):
+                                    wrd.code[j] = ""
+                                print(f"  Cleared all codes in 'و': {wrd.code}")
+                            elif last_char == "-":
+                                pwrd.code[k] = pwrd.code[k][:-1] + "x"
+                                print(f"  Modified previous word code: '{pwrd.code[k]}'")
+                                # Clear all codes in current word ("و")
+                                for j in range(len(wrd.code)):
+                                    wrd.code[j] = ""
+                                print(f"  Cleared all codes in 'و': {wrd.code}")
+print()
+
+print("STEP 1.7: WORD CODES AFTER ATAF PROCESSING")
+print("-" * 80)
+for i, word in enumerate(line_obj.words_list):
+    print(f"Word {i} ('{word.word}'): {word.code}")
 print()
 
 # Build tree
@@ -325,6 +419,146 @@ if unmatched_codes:
 else:
     print("All code sequences matched at least one meter!")
 print()
+
+# Show crunch() results
+print("STEP 7: CRUNCH() METHOD - DOMINANT METER SELECTION")
+print("-" * 80)
+
+# Convert scan_paths to scanOutput objects (same logic as scan_line())
+print("Converting scan_paths to scanOutput objects...")
+scan_outputs: List[scanOutput] = []
+
+for sp in scan_paths:
+    if not sp.meters:
+        continue  # Skip paths with no matching meters
+    
+    # Extract words and codes from scanPath location (skip index 0 which is root)
+    words_list: List[Words] = []
+    word_taqti_list: List[str] = []
+    
+    for i in range(1, len(sp.location)):
+        loc = sp.location[i]
+        if loc.word_ref >= 0 and loc.word_ref < len(line_obj.words_list):
+            words_list.append(line_obj.words_list[loc.word_ref])
+            word_taqti_list.append(loc.code)
+    
+    # Build full code string from word codes
+    full_code = "".join(word_taqti_list)
+    
+    if not full_code:
+        continue  # Skip if no code
+    
+    # Create scanOutput for each matching meter
+    for meter_idx in sp.meters:
+        so = scanOutput()
+        so.original_line = line_obj.original_line
+        so.words = words_list.copy()
+        so.word_taqti = word_taqti_list.copy()
+        so.word_muarrab = [w.word for w in words_list]
+        so.num_lines = 1
+        
+        # Determine meter pattern, name, and feet based on meter index
+        if meter_idx < NUM_METERS:
+            # Regular meter
+            meter_pattern = METERS[meter_idx]
+            so.meter_name = METER_NAMES[meter_idx]
+            so.feet = afail(meter_pattern)
+            so.feet_list = afail_list(meter_pattern)
+            so.id = meter_idx
+        elif meter_idx < NUM_METERS + NUM_VARIED_METERS:
+            # Varied meter
+            meter_pattern = METERS_VARIED[meter_idx - NUM_METERS]
+            so.meter_name = METERS_VARIED_NAMES[meter_idx - NUM_METERS]
+            so.feet = afail(meter_pattern)
+            so.feet_list = afail_list(meter_pattern)
+            so.id = meter_idx
+        elif meter_idx < NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS:
+            # Rubai meter
+            meter_pattern = RUBAI_METERS[meter_idx - NUM_METERS - NUM_VARIED_METERS]
+            so.meter_name = RUBAI_METER_NAMES[meter_idx - NUM_METERS - NUM_VARIED_METERS] + " (رباعی)"
+            so.feet = afail(meter_pattern)
+            so.feet_list = afail_list(meter_pattern)
+            so.id = -2
+        else:
+            continue  # Skip special meters for now
+        
+        scan_outputs.append(so)
+
+if not scan_outputs:
+    print("❌ No scanOutput objects found (no meter matches)")
+else:
+    print(f"Found {len(scan_outputs)} scanOutput object(s) before crunch()")
+    print()
+    
+    # Show results before crunch
+    print("Results BEFORE crunch():")
+    print("-" * 80)
+    meter_counts = {}
+    for so in scan_outputs:
+        meter_name = so.meter_name
+        if meter_name not in meter_counts:
+            meter_counts[meter_name] = []
+        meter_counts[meter_name].append(so)
+    
+    for meter_name, outputs in meter_counts.items():
+        print(f"  Meter: {meter_name} - {len(outputs)} result(s)")
+        for i, so in enumerate(outputs, 1):
+            print(f"    Result {i}: feet='{so.feet}', id={so.id}")
+    print()
+    
+    # Show scoring calculation (same logic as crunch())
+    print("Scoring calculation (same as crunch()):")
+    print("-" * 80)
+    meter_names = []
+    for item in scan_outputs:
+        if item.meter_name:
+            found = False
+            for existing in meter_names:
+                if existing == item.meter_name:
+                    found = True
+                    break
+            if not found:
+                meter_names.append(item.meter_name)
+    
+    scores = [0.0] * len(meter_names)
+    for i, meter_name in enumerate(meter_names):
+        for item in scan_outputs:
+            if item.meter_name == meter_name:
+                score = scanner.calculate_score(meter_name, item.feet)
+                scores[i] += score
+                print(f"  {meter_name}: added score {score} from result with feet '{item.feet}' (total so far: {scores[i]})")
+    
+    print()
+    print("Final scores:")
+    for i, meter_name in enumerate(meter_names):
+        print(f"  {meter_name}: {scores[i]}")
+    print()
+    
+    # Sort and select dominant meter
+    paired = list(zip(scores, meter_names))
+    paired.sort(key=lambda x: x[0])  # Sort by score (ascending)
+    final_meter = paired[-1][1] if paired else ""
+    
+    print(f"🏆 Dominant meter selected: {final_meter} (score: {paired[-1][0] if paired else 0})")
+    print()
+    
+    # Apply crunch() and show results
+    print("Applying crunch() method...")
+    crunched_results = scanner.crunch(scan_outputs)
+    print(f"Results AFTER crunch(): {len(crunched_results)} result(s)")
+    print("-" * 80)
+    
+    if crunched_results:
+        for i, so in enumerate(crunched_results, 1):
+            print(f"Result {i}:")
+            print(f"  Meter: {so.meter_name}")
+            print(f"  Feet: {so.feet}")
+            print(f"  ID: {so.id}")
+            print(f"  is_dominant: {so.is_dominant}")
+            print(f"  Original line: {so.original_line}")
+    else:
+        print("❌ No results returned from crunch()")
+    print()
 
 # Summary
 print("=" * 80)
