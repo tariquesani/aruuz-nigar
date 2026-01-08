@@ -32,7 +32,7 @@ class TestRegularMetersRegression(unittest.TestCase):
         self.scansion.add_line(line)
         
         # Use specific meters to avoid triggering PatternTree
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # Should return results (may be empty, but should not error)
         self.assertIsInstance(results, list)
@@ -105,7 +105,7 @@ class TestRegularMetersRegression(unittest.TestCase):
         line = Lines("کتاب و قلم")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # Should return valid scanOutput objects
         self.assertIsInstance(results, list)
@@ -381,7 +381,7 @@ class TestModeIndependence(unittest.TestCase):
         scansion.free_verse = False
         scansion.add_line(self.line)
         
-        results = scansion.scan_line(self.line, 0)
+        results = scansion.match_line_to_meters(self.line, 0)
         self.assertIsInstance(results, list)
 
     def test_fuzzy_mode_independent(self):
@@ -416,7 +416,7 @@ class TestModeIndependence(unittest.TestCase):
         # Test regular mode
         scansion.fuzzy = False
         scansion.free_verse = False
-        results1 = scansion.scan_line(self.line, 0)
+        results1 = scansion.match_line_to_meters(self.line, 0)
         self.assertIsInstance(results1, list)
         
         # Switch to fuzzy mode

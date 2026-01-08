@@ -885,7 +885,7 @@ class TestCrunchMethods(unittest.TestCase):
     
     def test_crunch_empty_results(self):
         """Test crunch with empty results."""
-        result = self.scanner.crunch([])
+        result = self.scanner.resolve_dominant_meter([])
         self.assertEqual(result, "")
     
     def test_crunch_single_meter(self):
@@ -895,7 +895,7 @@ class TestCrunchMethods(unittest.TestCase):
         so.feet = "مفعولن مفعولن مفعولن مفعول"
         so.original_line = "test line"
         
-        result = self.scanner.crunch([so])
+        result = self.scanner.resolve_dominant_meter([so])
         self.assertEqual(result, "ہزج مثمن سالم")
     
     def test_crunch_multiple_meters(self):
@@ -917,7 +917,7 @@ class TestCrunchMethods(unittest.TestCase):
         so3.original_line = "line 2"
         
         # The dominant meter should be the one with highest score
-        result = self.scanner.crunch([so1, so2, so3])
+        result = self.scanner.resolve_dominant_meter([so1, so2, so3])
         # Should return one of the meter names
         self.assertIn(result, ["ہزج مثمن سالم", "ہزج مثمن محذوف"])
     
@@ -4333,7 +4333,7 @@ class TestSpecialMeterHandling(unittest.TestCase):
         # Mock the word lookup to return appropriate codes
         # For Hindi meters, we need codes that match the pattern
         with patch.object(self.scanner, 'word_lookup', None):
-            results = self.scanner.scan_line(line)
+            results = self.scanner.match_line_to_meters(line)
             
             # Check if any result has a Hindi meter name
             hindi_meters_found = [
@@ -4355,7 +4355,7 @@ class TestSpecialMeterHandling(unittest.TestCase):
         line = "فعْلن فعْلن فعْلن فعْلن فعْلن فعْلن فعْلن فعْلن"
         
         with patch.object(self.scanner, 'word_lookup', None):
-            results = self.scanner.scan_line(line)
+            results = self.scanner.match_line_to_meters(line)
             
             # Check if any result has a Zamzama meter name
             zamzama_meters_found = [
@@ -4448,7 +4448,7 @@ class TestSpecialMeterHandling(unittest.TestCase):
         line = "فعلن فعلن فعلن فعلن"
         
         with patch.object(self.scanner, 'word_lookup', None):
-            results = self.scanner.scan_line(line)
+            results = self.scanner.match_line_to_meters(line)
             
             for result in results:
                 if result.meter_name and ("ہندی" in result.meter_name or "زمزمہ" in result.meter_name):

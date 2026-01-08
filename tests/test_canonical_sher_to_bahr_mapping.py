@@ -109,12 +109,12 @@ class TestCanonicalSherToBahrMapping(unittest.TestCase):
                 
                 # Scan both lines
                 print(f"  Scanning line 1...")
-                results_line1 = scansion.scan_line(line1, 0)
+                results_line1 = scansion.match_line_to_meters(line1, 0)
                 meters_line1 = [r.meter_name for r in results_line1]
                 print(f"    Found {len(results_line1)} match(es): {meters_line1}")
                 
                 print(f"  Scanning line 2...")
-                results_line2 = scansion.scan_line(line2, 1)
+                results_line2 = scansion.match_line_to_meters(line2, 1)
                 meters_line2 = [r.meter_name for r in results_line2]
                 print(f"    Found {len(results_line2)} match(es): {meters_line2}")
                 
@@ -135,7 +135,7 @@ class TestCanonicalSherToBahrMapping(unittest.TestCase):
                 
                 # Use crunch() to find dominant meter
                 print(f"  Applying crunch() to find dominant meter...")
-                crunched_results = scansion.crunch(all_results)
+                crunched_results = scansion.resolve_dominant_meter(all_results)
                 
                 # Check that crunch() returned results
                 self.assertGreater(

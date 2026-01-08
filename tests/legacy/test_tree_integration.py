@@ -34,7 +34,7 @@ class TestFindMeterIntegration(unittest.TestCase):
             self.scansion.word_code(word)
         
         # Call find_meter
-        results = self.scansion.find_meter(line)
+        results = self.scansion.match_meters_via_tree(line)
         
         # Should return list of scanPath objects
         self.assertIsInstance(results, list)
@@ -59,7 +59,7 @@ class TestFindMeterIntegration(unittest.TestCase):
             self.scansion.word_code(word)
         
         # Test with specific meters (first few meters)
-        results = self.scansion.find_meter(line, meters=[0, 1, 2])
+        results = self.scansion.match_meters_via_tree(line, meters=[0, 1, 2])
         
         self.assertIsInstance(results, list)
         # Check that all returned meters are in the requested set
@@ -75,7 +75,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         for word in line.words_list:
             self.scansion.word_code(word)
         
-        results = self.scansion.find_meter(line, meters=[])
+        results = self.scansion.match_meters_via_tree(line, meters=[])
         
         # Should return empty list or paths with no meters
         self.assertIsInstance(results, list)
@@ -90,7 +90,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         for word in line.words_list:
             self.scansion.word_code(word)
         
-        results = self.scansion.find_meter(line, meters=None)
+        results = self.scansion.match_meters_via_tree(line, meters=None)
         
         self.assertIsInstance(results, list)
         # Should potentially match multiple meters
@@ -109,7 +109,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         for word in line.words_list:
             self.scansion.word_code(word)
         
-        results = self.scansion.find_meter(line)
+        results = self.scansion.match_meters_via_tree(line)
         
         # Check that word references in scanPath match actual words
         for sp in results:
@@ -130,7 +130,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         for word in line.words_list:
             self.scansion.word_code(word)
         
-        results = self.scansion.find_meter(line, meters=[0, 1])
+        results = self.scansion.match_meters_via_tree(line, meters=[0, 1])
         
         self.assertIsInstance(results, list)
         # Fuzzy mode should allow approximate matches
@@ -145,7 +145,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         for word in line.words_list:
             self.scansion.word_code(word)
         
-        results = self.scansion.find_meter(line, meters=[0, 1])
+        results = self.scansion.match_meters_via_tree(line, meters=[0, 1])
         
         self.assertIsInstance(results, list)
         # Free verse mode should be more lenient
@@ -155,7 +155,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         line = Lines("")
         self.scansion.add_line(line)
         
-        results = self.scansion.find_meter(line)
+        results = self.scansion.match_meters_via_tree(line)
         
         # Empty line should return empty results or paths with no meters
         self.assertIsInstance(results, list)
@@ -168,7 +168,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         for word in line.words_list:
             self.scansion.word_code(word)
         
-        results = self.scansion.find_meter(line)
+        results = self.scansion.match_meters_via_tree(line)
         
         self.assertIsInstance(results, list)
         # Single word may or may not match meters depending on code length
@@ -182,7 +182,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         # Manually set multiple codes
         word.code = ["-===", "===-", "-=-="]
         
-        results = self.scansion.find_meter(line)
+        results = self.scansion.match_meters_via_tree(line)
         
         self.assertIsInstance(results, list)
         # Should explore all code variations
@@ -196,7 +196,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         word.code = ["-==="]
         word.taqti_word_graft = ["-==="]
         
-        results = self.scansion.find_meter(line)
+        results = self.scansion.match_meters_via_tree(line)
         
         self.assertIsInstance(results, list)
         # Should include paths from both code and taqti_word_graft
@@ -209,7 +209,7 @@ class TestFindMeterIntegration(unittest.TestCase):
         for word in line.words_list:
             self.scansion.word_code(word)
         
-        results = self.scansion.find_meter(line)
+        results = self.scansion.match_meters_via_tree(line)
         
         # Check that codes are properly concatenated in scanPath
         for sp in results:
@@ -231,7 +231,7 @@ class TestFindMeterIntegration(unittest.TestCase):
             self.scansion.word_code(word)
         
         # Get all results first
-        all_results = self.scansion.find_meter(line, meters=None)
+        all_results = self.scansion.match_meters_via_tree(line, meters=None)
         
         if len(all_results) > 0:
             # Get meter indices from results
@@ -242,7 +242,7 @@ class TestFindMeterIntegration(unittest.TestCase):
             # Test with subset of meters
             if len(all_meter_indices) > 0:
                 subset = list(all_meter_indices)[:3]  # Take first 3
-                filtered_results = self.scansion.find_meter(line, meters=subset)
+                filtered_results = self.scansion.match_meters_via_tree(line, meters=subset)
                 
                 # All returned meters should be in subset
                 for sp in filtered_results:
@@ -262,7 +262,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         line = Lines("کتاب و قلم")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # Should return list of scanOutput objects
         self.assertIsInstance(results, list)
@@ -287,10 +287,10 @@ class TestScanLineTreeIntegration(unittest.TestCase):
             self.scansion.word_code(word)
         
         # Call find_meter directly
-        scan_paths = self.scansion.find_meter(line)
+        scan_paths = self.scansion.match_meters_via_tree(line)
         
         # Call scan_line
-        scan_outputs = self.scansion.scan_line(line, 0)
+        scan_outputs = self.scansion.match_line_to_meters(line, 0)
         
         # Number of scanOutputs should correspond to scanPaths with meters
         paths_with_meters = [sp for sp in scan_paths if sp.meters]
@@ -305,7 +305,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         line = Lines("کتاب و قلم")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         if len(results) > 0:
             result = results[0]
@@ -322,7 +322,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         line = Lines("کتاب و قلم و دوات")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         if len(results) > 0:
             result = results[0]
@@ -336,7 +336,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         self.scansion.add_line(line)
         self.scansion.meter = [0, 1, 2]
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # All results should have meter IDs in the specified set
         for result in results:
@@ -347,7 +347,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         line = Lines("")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # Should return empty list
         self.assertEqual(len(results), 0)
@@ -359,7 +359,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         # Use meter indices that likely won't match
         self.scansion.meter = [999]  # Invalid meter index
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # Should return empty list if no matches
         self.assertIsInstance(results, list)
@@ -369,7 +369,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         line = Lines("کتاب و قلم")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # May have multiple results if multiple meters match
         self.assertIsInstance(results, list)
@@ -386,7 +386,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         self.scansion.fuzzy = True
         self.scansion.error_param = 2
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         self.assertIsInstance(results, list)
         # Fuzzy mode may produce more results
@@ -397,7 +397,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         self.scansion.add_line(line)
         self.scansion.free_verse = True
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         self.assertIsInstance(results, list)
 
@@ -409,7 +409,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         # Before scan_line, codes may not be assigned
         initial_codes = [word.code for word in line.words_list]
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # After scan_line, codes should be assigned
         for word in line.words_list:
@@ -420,7 +420,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         line = Lines("کتاب و قلم")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         if len(results) > 0:
             result = results[0]
@@ -435,7 +435,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         line = Lines("کتاب و قلم")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         for result in results:
             if result.id >= 0 and result.id < NUM_METERS:
@@ -451,10 +451,10 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         # Get scan paths
         for word in line.words_list:
             self.scansion.word_code(word)
-        scan_paths = self.scansion.find_meter(line)
+        scan_paths = self.scansion.match_meters_via_tree(line)
         
         # Get scan outputs
-        scan_outputs = self.scansion.scan_line(line, 0)
+        scan_outputs = self.scansion.match_line_to_meters(line, 0)
         
         # Verify that codes match
         if len(scan_paths) > 0 and len(scan_outputs) > 0:
@@ -596,8 +596,8 @@ class TestTreeIntegrationComparison(unittest.TestCase):
             self.scansion.word_code(word)
         
         # Run find_meter multiple times
-        results1 = self.scansion.find_meter(line, meters=[0, 1, 2])
-        results2 = self.scansion.find_meter(line, meters=[0, 1, 2])
+        results1 = self.scansion.match_meters_via_tree(line, meters=[0, 1, 2])
+        results2 = self.scansion.match_meters_via_tree(line, meters=[0, 1, 2])
         
         # Results should be consistent (same structure)
         self.assertEqual(len(results1), len(results2))
@@ -642,7 +642,7 @@ class TestTreeIntegrationEdgeCases(unittest.TestCase):
             self.scansion.word_code(word)
         
         # Use invalid meter indices
-        results = self.scansion.find_meter(line, meters=[99999, -999])
+        results = self.scansion.match_meters_via_tree(line, meters=[99999, -999])
         
         # Should handle gracefully (may return empty or filter out invalid)
         self.assertIsInstance(results, list)
@@ -654,7 +654,7 @@ class TestTreeIntegrationEdgeCases(unittest.TestCase):
         line = Lines(" ".join(words))
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # Should handle long lines
         self.assertIsInstance(results, list)
@@ -666,7 +666,7 @@ class TestTreeIntegrationEdgeCases(unittest.TestCase):
         
         # Don't assign codes
         # find_meter should handle this
-        results = self.scansion.find_meter(line)
+        results = self.scansion.match_meters_via_tree(line)
         
         # Should return empty or handle gracefully
         self.assertIsInstance(results, list)
@@ -681,7 +681,7 @@ class TestTreeIntegrationEdgeCases(unittest.TestCase):
             word.code = []
         
         # scan_line should assign codes
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # Codes should be assigned
         for word in line.words_list:
@@ -707,7 +707,7 @@ class TestTreeIntegrationEdgeCases(unittest.TestCase):
             self.scansion.word_code(word)
         
         # None should use self.meter or all meters
-        results = self.scansion.find_meter(line, meters=None)
+        results = self.scansion.match_meters_via_tree(line, meters=None)
         
         self.assertIsInstance(results, list)
 

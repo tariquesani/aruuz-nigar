@@ -23,7 +23,7 @@ class TestBahrDetection(unittest.TestCase):
         line_text = "دم اندھیرے میں گھٹ رہا ہے خمار"
         line = Lines(line_text)
 
-        results = scansion.scan_line(line, 0)
+        results = scansion.match_line_to_meters(line, 0)
         self.assertGreater(len(results), 0,
                            f"No meter matches found for line: {line_text}")
 
@@ -46,7 +46,7 @@ class TestBahrDetection(unittest.TestCase):
         line_text = "اور چاروں طرف اجالا ہے"
         line = Lines(line_text)
 
-        results = scansion.scan_line(line, 0)
+        results = scansion.match_line_to_meters(line, 0)
         self.assertGreater(len(results), 0,
                            f"No meter matches found for line: {line_text}")
 
@@ -80,8 +80,8 @@ class TestSherBahrIntersection(unittest.TestCase):
         line1 = Lines("دم اندھیرے میں گھٹ رہا ہے خمار")
         line2 = Lines("اور چاروں طرف اجالا ہے")
 
-        bahrs1 = {r.meter_name for r in scansion.scan_line(line1, 0)}
-        bahrs2 = {r.meter_name for r in scansion.scan_line(line2, 0)}
+        bahrs1 = {r.meter_name for r in scansion.match_line_to_meters(line1, 0)}
+        bahrs2 = {r.meter_name for r in scansion.match_line_to_meters(line2, 0)}
 
         self.assertEqual(len(bahrs1), 1)
         self.assertGreater(len(bahrs2), 1)

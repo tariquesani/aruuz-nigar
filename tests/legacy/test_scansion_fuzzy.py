@@ -245,7 +245,7 @@ class TestCrunchFuzzy(unittest.TestCase):
         """Test crunch_fuzzy with empty list."""
         results = []
         
-        consolidated = self.scansion.crunch_fuzzy(results)
+        consolidated = self.scansion.resolve_dominant_meter_fuzzy(results)
         
         self.assertEqual(len(consolidated), 0)
 
@@ -265,7 +265,7 @@ class TestCrunchFuzzy(unittest.TestCase):
             all_results.extend(self.scansion.scan_line_fuzzy(line2, 1))
             
             if len(all_results) > 0:
-                consolidated = self.scansion.crunch_fuzzy(all_results)
+                consolidated = self.scansion.resolve_dominant_meter_fuzzy(all_results)
                 
                 # All consolidated results should have same meter name
                 if len(consolidated) > 0:
@@ -283,7 +283,7 @@ class TestCrunchFuzzy(unittest.TestCase):
         
         if len(all_results) >= 2:
             # Group results by meter and verify best meter is selected
-            consolidated = self.scansion.crunch_fuzzy(all_results)
+            consolidated = self.scansion.resolve_dominant_meter_fuzzy(all_results)
             
             if len(consolidated) > 0:
                 # All consolidated results should have same meter (the best one)
@@ -328,7 +328,7 @@ class TestCrunchFuzzy(unittest.TestCase):
                         expected_aggregate = math.exp(score_sum / count) - subtract
                         
                         # The consolidated result should use this meter if it's best
-                        consolidated = self.scansion.crunch_fuzzy(results)
+                        consolidated = self.scansion.resolve_dominant_meter_fuzzy(results)
                         # Just verify crunch_fuzzy runs without error
                         self.assertIsInstance(consolidated, list)
 
@@ -346,7 +346,7 @@ class TestCrunchFuzzy(unittest.TestCase):
             test_results = results.copy()
             test_results[0].score = 0
             
-            consolidated = self.scansion.crunch_fuzzy(test_results)
+            consolidated = self.scansion.resolve_dominant_meter_fuzzy(test_results)
             # Should handle zero scores without error
             self.assertIsInstance(consolidated, list)
 
@@ -363,7 +363,7 @@ class TestCrunchFuzzy(unittest.TestCase):
         all_results.extend(self.scansion.scan_line_fuzzy(line2, 1))
         
         if len(all_results) > 0:
-            consolidated = self.scansion.crunch_fuzzy(all_results)
+            consolidated = self.scansion.resolve_dominant_meter_fuzzy(all_results)
             
             if len(consolidated) > 0:
                 # Count original results for best meter
@@ -536,7 +536,7 @@ class TestFuzzyWithImperfectPoetry(unittest.TestCase):
         
         if len(results) > 0:
             # After crunch_fuzzy, should have best match
-            consolidated = self.scansion.crunch_fuzzy(results)
+            consolidated = self.scansion.resolve_dominant_meter_fuzzy(results)
             
             if len(consolidated) > 0:
                 # Should have selected a meter

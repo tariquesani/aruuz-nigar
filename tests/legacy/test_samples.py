@@ -40,7 +40,7 @@ class TestScansionIntegration(unittest.TestCase):
         line = Lines("کتاب")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # Should return a list (may be empty if no matches)
         self.assertIsInstance(results, list)
@@ -74,7 +74,7 @@ class TestScansionIntegration(unittest.TestCase):
         line = Lines("")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # Empty line should return empty results
         self.assertEqual(len(results), 0)
@@ -84,7 +84,7 @@ class TestScansionIntegration(unittest.TestCase):
         line = Lines("کتاب، قلم!")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # Should handle punctuation removal
         self.assertIsInstance(results, list)
@@ -120,7 +120,7 @@ class TestScansionIntegration(unittest.TestCase):
         line = Lines("کتاب و قلم")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # All results should be scanOutput objects
         for result in results:
@@ -137,7 +137,7 @@ class TestScansionIntegration(unittest.TestCase):
         line = Lines("کتاب و قلم و دوات")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # Should process all words
         self.assertIsInstance(results, list)

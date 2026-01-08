@@ -919,7 +919,7 @@ def is_match(meter: str, tentative_code: str, word_code: str) -> bool:
     
     .. deprecated:: 
         This function is deprecated. Use the tree-based matching via 
-        `CodeTree._is_match()` or `Scansion.find_meter()` instead.
+        `CodeTree._is_match()` or `Scansion.match_meters_via_tree()` instead.
         This function is kept for backward compatibility and will be removed
         in a future version.
     
@@ -942,7 +942,7 @@ def is_match(meter: str, tentative_code: str, word_code: str) -> bool:
     """
     warnings.warn(
         "is_match() is deprecated. Use tree-based matching via CodeTree._is_match() "
-        "or Scansion.find_meter() instead. This function will be removed in a future version.",
+        "or Scansion.match_meters_via_tree() instead. This function will be removed in a future version.",
         DeprecationWarning,
         stacklevel=2
     )
@@ -1110,7 +1110,7 @@ def check_code_length(code: str, meter_indices: List[int]) -> List[int]:
     
     .. deprecated:: 
         This function is deprecated. Use the tree-based matching via 
-        `CodeTree._check_code_length()` or `Scansion.find_meter()` instead.
+        `CodeTree._check_code_length()` or `Scansion.match_meters_via_tree()` instead.
         This function is kept for backward compatibility and will be removed
         in a future version.
     
@@ -1132,7 +1132,7 @@ def check_code_length(code: str, meter_indices: List[int]) -> List[int]:
     """
     warnings.warn(
         "check_code_length() is deprecated. Use tree-based matching via "
-        "CodeTree._check_code_length() or Scansion.find_meter() instead. "
+        "CodeTree._check_code_length() or Scansion.match_meters_via_tree() instead. "
         "This function will be removed in a future version.",
         DeprecationWarning,
         stacklevel=2
@@ -1802,7 +1802,7 @@ class Scansion:
         wd.modified = True
         return wd
     
-    def find_meter(self, line: Lines, meters: Optional[List[int]] = None) -> List[scanPath]:
+    def match_meters_via_tree(self, line: Lines, meters: Optional[List[int]] = None) -> List[scanPath]:
         """
         Build CodeTree from line and find matching meters using tree traversal.
         
@@ -1834,7 +1834,7 @@ class Scansion:
         # Call tree.find_meter() to get scanPath results
         return tree.find_meter(meters)
     
-    def scan_line(self, line: Lines, line_index: int) -> List[scanOutput]:
+    def match_line_to_meters(self, line: Lines, line_index: int) -> List[scanOutput]:
         """
         Process a single line and return possible scan outputs using tree-based matching.
         
@@ -2046,9 +2046,9 @@ class Scansion:
                                     graft_code = prev_word.code[k][:-1]
                                     prev_word.taqti_word_graft.append(graft_code)
         
-        # Step 2: Use tree-based find_meter() to get matching scanPaths
-        # find_meter() handles tree building, pattern matching, and meter filtering
-        scan_paths = self.find_meter(line)
+        # Step 2: Use tree-based match_meters_via_tree() to get matching scanPaths
+        # match_meters_via_tree() handles tree building, pattern matching, and meter filtering
+        scan_paths = self.match_meters_via_tree(line)
         
         if not scan_paths:
             return results  # No matches found
@@ -2209,8 +2209,8 @@ class Scansion:
         self.fuzzy = True
         
         try:
-            # find_meter() handles tree building with fuzzy mode enabled
-            scan_paths = self.find_meter(line)
+            # match_meters_via_tree() handles tree building with fuzzy mode enabled
+            scan_paths = self.match_meters_via_tree(line)
         finally:
             # Restore original fuzzy state
             self.fuzzy = original_fuzzy
@@ -2314,7 +2314,7 @@ class Scansion:
         1. Iterates through all lines in self.lst_lines
         2. Calls scan_line_fuzzy() for each line
         3. Collects all scanOutputFuzzy results
-        4. Calls crunch_fuzzy() to consolidate results
+        4. Calls resolve_dominant_meter_fuzzy() to consolidate results
         5. Returns List[scanOutputFuzzy]
         
         Returns:
@@ -2328,9 +2328,9 @@ class Scansion:
             line_results = self.scan_line_fuzzy(line, k)
             all_results.extend(line_results)
         
-        # Consolidate results: crunch_fuzzy() returns only results matching best meter
+        # Consolidate results: resolve_dominant_meter_fuzzy() returns only results matching best meter
         if all_results:
-            all_results = self.crunch_fuzzy(all_results)
+            all_results = self.resolve_dominant_meter_fuzzy(all_results)
         
         return all_results
     
@@ -2480,7 +2480,7 @@ class Scansion:
         return count
 
     
-    def crunch(self, results: List[scanOutput]) -> List[scanOutput]:
+    def resolve_dominant_meter(self, results: List[scanOutput]) -> List[scanOutput]:
         """
         Consolidate multiple meter matches and return only those matching dominant meter.
         
@@ -2551,7 +2551,7 @@ class Scansion:
         
         return filtered_results
     
-    def crunch_fuzzy(self, results: List[scanOutputFuzzy]) -> List[scanOutputFuzzy]:
+    def resolve_dominant_meter_fuzzy(self, results: List[scanOutputFuzzy]) -> List[scanOutputFuzzy]:
         """
         Consolidate fuzzy matching results and return only those matching the best meter.
         
@@ -2689,19 +2689,19 @@ class Scansion:
                 so.meter_name = fr.meter_name
                 so.feet = fr.feet
                 so.id = fr.id
-                so.is_dominant = True  # Fuzzy results are already filtered by crunch_fuzzy
+                so.is_dominant = True  # Fuzzy results are already filtered by resolve_dominant_meter_fuzzy
                 all_results.append(so)
             return all_results
         
         # Process each line
         for k in range(self.num_lines):
             line = self.lst_lines[k]
-            line_results = self.scan_line(line, k)
+            line_results = self.match_line_to_meters(line, k)
             all_results.extend(line_results)
         
-        # Consolidate results: crunch() returns only results matching dominant meter
+        # Consolidate results: resolve_dominant_meter() returns only results matching dominant meter
         if all_results:
-            all_results = self.crunch(all_results)
+            all_results = self.resolve_dominant_meter(all_results)
             # Mark all returned results as dominant (they're already filtered)
             for result in all_results:
                 result.is_dominant = True

@@ -99,8 +99,8 @@ def index():
                     # Step 1: Get dominant bahr per line (scan_line + crunch for each line)
                     per_line_dominants = []
                     for idx, line_obj in enumerate(line_objects):
-                        candidates = scanner.scan_line(line_obj, idx)
-                        per_line_dominants.append(scanner.crunch(candidates) if candidates else [])
+                        candidates = scanner.match_line_to_meters(line_obj, idx)
+                        per_line_dominants.append(scanner.resolve_dominant_meter(candidates) if candidates else [])
                     
                     # Step 2: Get overall dominant bahr for entire poem (scan_lines across all lines)
                     poem_scan_results = scanner.scan_lines()
@@ -119,7 +119,7 @@ def index():
                         }
                         
                         if dominant_results:
-                            so = dominant_results[0]  # crunch() returns list, usually 1 item
+                            so = dominant_results[0]  # resolve_dominant_meter() returns list, usually 1 item
                             feet_list_dict = _build_feet_list_dict(so)
                             meter_pattern = _get_meter_pattern(so, feet_list_dict)
                             

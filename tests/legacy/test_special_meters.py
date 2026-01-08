@@ -308,7 +308,7 @@ class TestSpecialMeterIntegration(unittest.TestCase):
         line = Lines("کتاب و قلم")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # Check if any results are special meters
         special_meter_found = False
@@ -328,7 +328,7 @@ class TestSpecialMeterIntegration(unittest.TestCase):
         line = Lines("کتاب")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # If special meters are detected, verify feet are populated
         for result in results:
@@ -397,7 +397,7 @@ class TestSpecialMeterSampleVerses(unittest.TestCase):
         line = Lines("دل کی بات کہیں نہ کہیں")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         # Check if Hindi meter index 0 is detected
         hindi_meter_found = False
@@ -419,7 +419,7 @@ class TestSpecialMeterSampleVerses(unittest.TestCase):
         line = Lines("دل کی بات کہیں")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         for result in results:
             if result.meter_name == SPECIAL_METER_NAMES[1]:
@@ -431,7 +431,7 @@ class TestSpecialMeterSampleVerses(unittest.TestCase):
         line = Lines("دل کی بات کہیں نہ کہیں")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         for result in results:
             if result.meter_name == SPECIAL_METER_NAMES[2]:
@@ -443,7 +443,7 @@ class TestSpecialMeterSampleVerses(unittest.TestCase):
         line = Lines("دل کی بات")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         for result in results:
             if result.meter_name == SPECIAL_METER_NAMES[3]:
@@ -455,7 +455,7 @@ class TestSpecialMeterSampleVerses(unittest.TestCase):
         line = Lines("دل کی بات")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         for result in results:
             if result.meter_name == SPECIAL_METER_NAMES[4]:
@@ -467,7 +467,7 @@ class TestSpecialMeterSampleVerses(unittest.TestCase):
         line = Lines("دل کی")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         for result in results:
             if result.meter_name == SPECIAL_METER_NAMES[5]:
@@ -479,7 +479,7 @@ class TestSpecialMeterSampleVerses(unittest.TestCase):
         line = Lines("دل کی بات کہیں")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         for result in results:
             if result.meter_name == SPECIAL_METER_NAMES[6]:
@@ -491,7 +491,7 @@ class TestSpecialMeterSampleVerses(unittest.TestCase):
         line = Lines("دل")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         for result in results:
             if result.meter_name == SPECIAL_METER_NAMES[7]:
@@ -503,7 +503,7 @@ class TestSpecialMeterSampleVerses(unittest.TestCase):
         line = Lines("دل کی بات کہیں نہ کہیں")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         for result in results:
             if result.meter_name == SPECIAL_METER_NAMES[8]:
@@ -521,7 +521,7 @@ class TestSpecialMeterSampleVerses(unittest.TestCase):
         line = Lines("دل کی بات کہیں")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         for result in results:
             if result.meter_name == SPECIAL_METER_NAMES[9]:
@@ -533,7 +533,7 @@ class TestSpecialMeterSampleVerses(unittest.TestCase):
         line = Lines("دل کی بات")
         self.scansion.add_line(line)
         
-        results = self.scansion.scan_line(line, 0)
+        results = self.scansion.match_line_to_meters(line, 0)
         
         for result in results:
             if result.meter_name == SPECIAL_METER_NAMES[10]:

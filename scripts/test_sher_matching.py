@@ -523,7 +523,7 @@ else:
     
     # Apply crunch() and show results
     print("Applying crunch() method...")
-    crunched_results = main_scanner.crunch(all_scan_outputs_before_crunch)
+    crunched_results = main_scanner.resolve_dominant_meter(all_scan_outputs_before_crunch)
     print(f"Results AFTER crunch(): {len(crunched_results)} result(s)")
     print("-" * 80)
     
