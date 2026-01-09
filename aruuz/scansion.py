@@ -2334,7 +2334,7 @@ class Scansion:
         
         return all_results
     
-    def is_ordered(self, line_arkaan: List[str], feet: List[str]) -> bool:
+    def follows_meter_foot_order(self, line_arkaan: List[str], feet: List[str]) -> bool:
         """
         Check if line feet are in the same order as meter feet.
         

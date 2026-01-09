@@ -839,25 +839,25 @@ class TestCrunchMethods(unittest.TestCase):
         """Test is_ordered with matching lists."""
         line_arkaan = ["مفعولن", "مفعولن", "مفعولن", "مفعول"]
         feet = ["مفعولن", "مفعولن", "مفعولن", "مفعول"]
-        self.assertTrue(self.scanner.is_ordered(line_arkaan, feet))
+        self.assertTrue(self.scanner.follows_meter_foot_order(line_arkaan, feet))
     
     def test_is_ordered_non_matching_lists(self):
         """Test is_ordered with non-matching lists."""
         line_arkaan = ["مفعولن", "مفعول"]
         feet = ["مفعول", "مفعولن"]
-        self.assertFalse(self.scanner.is_ordered(line_arkaan, feet))
+        self.assertFalse(self.scanner.follows_meter_foot_order(line_arkaan, feet))
     
     def test_is_ordered_different_lengths(self):
         """Test is_ordered with lists of different lengths."""
         line_arkaan = ["مفعولن", "مفعولن"]
         feet = ["مفعولن", "مفعولن", "مفعول"]
-        self.assertFalse(self.scanner.is_ordered(line_arkaan, feet))
+        self.assertFalse(self.scanner.follows_meter_foot_order(line_arkaan, feet))
     
     def test_is_ordered_empty_lists(self):
         """Test is_ordered with empty lists."""
-        self.assertTrue(self.scanner.is_ordered([], []))
-        self.assertFalse(self.scanner.is_ordered([], ["مفعولن"]))
-        self.assertFalse(self.scanner.is_ordered(["مفعولن"], []))
+        self.assertTrue(self.scanner.follows_meter_foot_order([], []))
+        self.assertFalse(self.scanner.follows_meter_foot_order([], ["مفعولن"]))
+        self.assertFalse(self.scanner.follows_meter_foot_order(["مفعولن"], []))
     
     def test_calculate_score_matching_meter(self):
         """Test calculate_score with matching meter and line feet."""
