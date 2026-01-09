@@ -4,12 +4,18 @@ Meter definitions for Urdu poetry.
 This module contains all meter patterns, names, and foot definitions.
 """
 
-from typing import List, Tuple, NamedTuple
+from typing import List, Tuple, NamedTuple, Dict
 from aruuz.models import Feet
 
 
 class Meter(NamedTuple):
     """Represents a meter with its pattern and Urdu name."""
+    pattern: str
+    name: str
+
+
+class Foot(NamedTuple):
+    """Represents a foot (rukn) with its pattern code and Urdu name."""
     pattern: str
     name: str
 
@@ -276,77 +282,56 @@ SPECIAL_METER_NAMES = [
     "بحرِ زمزمہ/ متدارک مربع مضاعف"
 ]
 
-# Foot patterns
-FEET = [
-    "===",
-    "==-=",
-    "==-",
-    "==",
-    "=-==",
-    "=-=-",
-    "=-=",
-    "=--=",
-    "=-",
-    "=",
-    "-===",
-    "-==-",
-    "-==",
-    "-=-=",
-    "-=-",
-    "-=",
-    "--==",
-    "--=-=",
-    "--=-",
-    "--=",
-    "-=-==",
-    "===-",
-    "-=--=",
-    "==-=-",
-    "=-==-",
-    "=--=-",
-    "-===-",
-    "-=-=-",
-    "--==-",
-    "--=-=-",
-    "-=-==-",
-    "-=--=-"
+# Internal unified structure - all foot data
+_FEET_DATA = [
+    Foot(pattern="===", name="مفعولن"),
+    Foot(pattern="==-=", name="مستفعلن"),
+    Foot(pattern="==-", name="مفعول"),
+    Foot(pattern="==", name="فِعْلن"),
+    Foot(pattern="=-==", name="فاعلاتن"),
+    Foot(pattern="=-=-", name="فاعلاتُ"),
+    Foot(pattern="=-=", name="فاعلن"),
+    Foot(pattern="=--=", name="مفتَعِلن"),
+    Foot(pattern="=-", name="فِعْل"),
+    Foot(pattern="=", name="فِع"),
+    Foot(pattern="-===", name="مفاعیلن"),
+    Foot(pattern="-==-", name="مفاعیل"),
+    Foot(pattern="-==", name="فعولن"),
+    Foot(pattern="-=-=", name="مفاعلن"),
+    Foot(pattern="-=-", name="فعول"),
+    Foot(pattern="-=", name="فَعَل"),
+    Foot(pattern="--==", name="فَعِلاتن"),
+    Foot(pattern="--=-=", name="متَفاعلن"),
+    Foot(pattern="--=-", name="فَعِلات"),
+    Foot(pattern="--=", name="فَعِلن"),
+    Foot(pattern="-=-==", name="مَفاعلاتن"),
+    Foot(pattern="===-", name="مفعولاتُ"),
+    Foot(pattern="-=--=", name="مفاعِلَتن"),
+    Foot(pattern="==-=-", name="مستفعلان"),
+    Foot(pattern="=-==-", name="فاعلاتان"),
+    Foot(pattern="=--=-", name="مفتَعِلان"),
+    Foot(pattern="-===-", name="مفاعیلان"),
+    Foot(pattern="-=-=-", name="مفاعلان"),
+    Foot(pattern="--==-", name="فَعِلاتان"),
+    Foot(pattern="--=-=-", name="متَفاعلان"),
+    Foot(pattern="-=-==-", name="مَفاعلاتان"),
+    Foot(pattern="-=--=-", name="مفاعِلَتان")
 ]
 
-# Foot names in Urdu
-FEET_NAMES = [
-    "مفعولن",
-    "مستفعلن",
-    "مفعول",
-    "فِعْلن",
-    "فاعلاتن",
-    "فاعلاتُ",
-    "فاعلن",
-    "مفتَعِلن",
-    "فِعْل",
-    "فِع",
-    "مفاعیلن",
-    "مفاعیل",
-    "فعولن",
-    "مفاعلن",
-    "فعول",
-    "فَعَل",
-    "فَعِلاتن",
-    "متَفاعلن",
-    "فَعِلات",
-    "فَعِلن",
-    "مَفاعلاتن",
-    "مفعولاتُ",
-    "مفاعِلَتن",
-    "مستفعلان",
-    "فاعلاتان",
-    "مفتَعِلان",
-    "مفاعیلان",
-    "مفاعلان",
-    "فَعِلاتان",
-    "متَفاعلان",
-    "مَفاعلاتان",
-    "مفاعِلَتان"
-]
+# Backward compatibility: derived lists for existing code
+FEET = [f.pattern for f in _FEET_DATA]
+FEET_NAMES = [f.name for f in _FEET_DATA]
+
+# Performance optimization: dictionaries for O(1) lookups
+CODE_TO_NAME: Dict[str, str] = {f.pattern: f.name for f in _FEET_DATA}
+NAME_TO_CODE: Dict[str, str] = {f.name: f.pattern for f in _FEET_DATA}
+
+# Validation: ensure counts match and data integrity
+assert len(_FEET_DATA) == 32, f"Expected 32 feet, found {len(_FEET_DATA)}"
+assert len(FEET) == len(_FEET_DATA), "FEET length mismatch"
+assert len(FEET_NAMES) == len(_FEET_DATA), "FEET_NAMES length mismatch"
+assert len(CODE_TO_NAME) == len(_FEET_DATA), "CODE_TO_NAME dictionary size mismatch"
+assert len(NAME_TO_CODE) == len(_FEET_DATA), "NAME_TO_CODE dictionary size mismatch"
 
 
 def meter_index(meter_name: str) -> List[int]:
@@ -379,10 +364,9 @@ def afail(meter: str) -> str:
     feet_str = ""
     for part in meter.split('+'):
         for foot_pattern in part.split('/'):
-            for i, foot in enumerate(FEET):
-                if foot == foot_pattern:
-                    feet_str += " " + FEET_NAMES[i]
-                    break
+            name = CODE_TO_NAME.get(foot_pattern)
+            if name:
+                feet_str += " " + name
     return feet_str.strip()
 
 
@@ -399,13 +383,12 @@ def afail_list(meter: str) -> List[Feet]:
     feet_list = []
     for part in meter.split('+'):
         for foot_pattern in part.split('/'):
-            for i, foot in enumerate(FEET):
-                if foot == foot_pattern:
-                    feet_obj = Feet()
-                    feet_obj.foot = FEET_NAMES[i]
-                    feet_obj.code = FEET[i]
-                    feet_list.append(feet_obj)
-                    break
+            name = CODE_TO_NAME.get(foot_pattern)
+            if name:
+                feet_obj = Feet()
+                feet_obj.foot = name
+                feet_obj.code = foot_pattern
+                feet_list.append(feet_obj)
     return feet_list
 
 
@@ -437,10 +420,7 @@ def rukn(code: str) -> str:
     """
     # Replace 'x' with '=' for matching
     code = code.replace('x', '=')
-    for i, foot in enumerate(FEET):
-        if foot == code:
-            return FEET_NAMES[i]
-    return ""
+    return CODE_TO_NAME.get(code, "")
 
 
 def rukn_code(name: str) -> str:
@@ -454,10 +434,7 @@ def rukn_code(name: str) -> str:
         Scansion code pattern, or empty string if not found
     """
     name = name.strip()
-    for i, foot_name in enumerate(FEET_NAMES):
-        if foot_name == name:
-            return FEET[i]
-    return ""
+    return NAME_TO_CODE.get(name, "")
 
 
 def zamzama_feet(index: int, code: str) -> Tuple[str, List[Feet]]:
