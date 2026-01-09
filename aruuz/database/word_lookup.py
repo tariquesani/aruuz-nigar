@@ -66,7 +66,7 @@ class WordLookup:
         """
         logger.debug(f"[DEBUG] find_word() called with word: '{word.word}'")
         # Import here to avoid circular dependency with aruuz.scansion
-        from aruuz.scansion import assign_code
+        from aruuz.scansion import compute_scansion
         
         # Remove araab from search word (matching C#: Araab.removeAraab(wrd.word))
         search_word = remove_araab(word.word)
@@ -196,7 +196,7 @@ class WordLookup:
                     # C#: wrd.code.Add(assignCode(wrd))
                     # assign_code uses word.taqti[-1] to get the last taqti, which we just added
                     logger.debug(f"[DEBUG] find_word() calling assign_code() for word '{word.word}' with taqti '{taqti}'")
-                    code = assign_code(word)
+                    code = compute_scansion(word)
                     word.code.append(code)
                     logger.debug(f"[DEBUG] find_word() assign_code() returned code '{code}' for word '{word.word}'")
                 
@@ -240,7 +240,7 @@ class WordLookup:
                             # C#: wrd.code.Add(assignCode(wrd))
                             # assign_code uses word.taqti[-1] to get the last taqti, which we just added
                             logger.debug(f"[DEBUG] find_word() calling assign_code() for word '{word.word}' with taqti '{taqti}'")
-                            code = assign_code(word)
+                            code = compute_scansion(word)
                             word.code.append(code)
                             logger.debug(f"[DEBUG] find_word() assign_code() returned code '{code}' for word '{word.word}'")
                     
@@ -291,7 +291,7 @@ class WordLookup:
                         # C#: wrd.code.Add(assignCode(wrd))
                         # assign_code uses word.taqti[-1] to get the last taqti, which we just added
                         logger.debug(f"[DEBUG] find_word() calling assign_code() for word '{word.word}' with taqti '{taqti}'")
-                        code = assign_code(word)
+                        code = compute_scansion(word)
                         word.code.append(code)
                         logger.debug(f"[DEBUG] find_word() assign_code() returned code '{code}' for word '{word.word}'")
                     
@@ -341,7 +341,7 @@ class WordLookup:
                             # C#: wrd.code.Add(assignCode(wrd))
                             # assign_code uses word.taqti[-1] to get the last taqti, which we just added
                             logger.debug(f"[DEBUG] find_word() calling assign_code() for word '{word.word}' with taqti '{taqti}'")
-                            code = assign_code(word)
+                            code = compute_scansion(word)
                             word.code.append(code)
                             logger.debug(f"[DEBUG] find_word() assign_code() returned code '{code}' for word '{word.word}'")
                     

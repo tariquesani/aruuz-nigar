@@ -44,7 +44,7 @@ logging.getLogger('aruuz.database.word_lookup').setLevel(logging.DEBUG)
 # Add parent directory to path to import aruuz
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from aruuz.scansion import Scansion, assign_code
+from aruuz.scansion import Scansion, compute_scansion
 from aruuz.models import Words
 from aruuz.utils.araab import remove_araab
 

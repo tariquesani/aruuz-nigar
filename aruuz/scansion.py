@@ -811,7 +811,7 @@ def length_five_scan(substr: str) -> str:
     return code
 
 
-def assign_code(word: Words) -> str:
+def compute_scansion(word: Words) -> str:
     """
     Main method that assigns scansion code to a word using heuristics.
     
@@ -1345,7 +1345,7 @@ class Scansion:
                 pass
         
         # Strategy 2: Fallback to heuristics
-        code = assign_code(word)
+        code = compute_scansion(word)
         
         # Strategy 3: Try compound word splitting if heuristics failed
         # C#: if (stripped.Length > 4 && code.Equals(""))

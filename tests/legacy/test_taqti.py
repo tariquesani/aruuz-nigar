@@ -12,7 +12,7 @@ from aruuz.scansion import (
     length_three_scan,
     length_four_scan,
     length_five_scan,
-    assign_code,
+    compute_scansion,
     noon_ghunna,
     contains_noon
 )
@@ -54,11 +54,11 @@ class TestTaqtiLengthOne(unittest.TestCase):
         word = Words()
         word.word = "آ"
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertEqual(result, "=")
 
         word.word = "ک"
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertEqual(result, "-")
 
 
@@ -115,7 +115,7 @@ class TestTaqtiLengthTwo(unittest.TestCase):
         word = Words()
         word.word = "آب"
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIn(result, ["=-", "x"], "Two-char word should have valid code")
 
 
@@ -199,7 +199,7 @@ class TestTaqtiLengthThree(unittest.TestCase):
         word = Words()
         word.word = "کتاب"
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
         self.assertTrue(all(c in "-=x" for c in result))
@@ -256,7 +256,7 @@ class TestTaqtiLengthFour(unittest.TestCase):
         word = Words()
         word.word = "کتابیں"
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
 
@@ -303,7 +303,7 @@ class TestTaqtiLengthFive(unittest.TestCase):
         word = Words()
         word.word = "کتابیں"
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
 
@@ -415,7 +415,7 @@ class TestTaqtiWithDiacritics(unittest.TestCase):
         word = Words()
         word.word = "ک\u064Eتاب"  # ک with zabar
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
 
@@ -428,7 +428,7 @@ class TestTaqtiWithDiacritics(unittest.TestCase):
         word = Words()
         word.word = "ک\u0650تاب"  # ک with zer
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
 
     def test_with_paish(self):
@@ -440,7 +440,7 @@ class TestTaqtiWithDiacritics(unittest.TestCase):
         word = Words()
         word.word = "ک\u064Fتاب"  # ک with paish
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
 
     def test_with_jazm(self):
@@ -452,7 +452,7 @@ class TestTaqtiWithDiacritics(unittest.TestCase):
         word = Words()
         word.word = "ک\u0652تاب"  # ک with jazm
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
 
     def test_with_shadd(self):
@@ -464,7 +464,7 @@ class TestTaqtiWithDiacritics(unittest.TestCase):
         word = Words()
         word.word = "ک\u0651تاب"  # ک with shadd
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
 
 
@@ -481,7 +481,7 @@ class TestTaqtiSpecialCharacters(unittest.TestCase):
         word = Words()
         word.word = "کتابھ"
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
         # ھ should be removed for scansion purposes
         stripped = remove_araab(word.word.replace("\u06BE", ""))
@@ -497,7 +497,7 @@ class TestTaqtiSpecialCharacters(unittest.TestCase):
         word = Words()
         word.word = "کتابں"
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
         # ں should be removed for scansion purposes
         stripped = remove_araab(word.word.replace("\u06BA", ""))
@@ -539,7 +539,7 @@ class TestTaqtiRealWords(unittest.TestCase):
                 stripped = remove_araab(word_text.replace("\u06BE", "").replace("\u06BA", ""))
                 word.length = len(stripped)
                 
-                result = assign_code(word)
+                result = compute_scansion(word)
                 
                 # Verify result
                 self.assertIsInstance(result, str, f"{word_text} should return a string")
@@ -566,7 +566,7 @@ class TestTaqtiEdgeCases(unittest.TestCase):
         word.word = ""
         word.taqti = []
         word.length = 0
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
 
     def test_word_with_only_diacritics(self):
@@ -578,7 +578,7 @@ class TestTaqtiEdgeCases(unittest.TestCase):
         word = Words()
         word.word = "\u064E\u0650\u064F"  # Only diacritics
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
 
     def test_very_long_word(self):
@@ -590,7 +590,7 @@ class TestTaqtiEdgeCases(unittest.TestCase):
         word = Words()
         word.word = "کتابیں"  # May be 5+ after processing
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
 
@@ -604,7 +604,7 @@ class TestTaqtiEdgeCases(unittest.TestCase):
         word = Words()
         word.word = "کتاب"
         word.taqti = ["کتاب"]  # Taqti provided
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
         # Should use taqti if available
         self.assertGreater(len(result), 0)
@@ -627,7 +627,7 @@ class TestTaqtiConsistency(unittest.TestCase):
             word = Words()
             word.word = word_text
             word.taqti = []
-            result = assign_code(word)
+            result = compute_scansion(word)
             results.append(result)
         
         # All results should be the same
@@ -649,7 +649,7 @@ class TestTaqtiConsistency(unittest.TestCase):
                 word = Words()
                 word.word = word_text
                 word.taqti = []
-                result = assign_code(word)
+                result = compute_scansion(word)
                 
                 # Code should only contain -, =, or x
                 self.assertTrue(all(c in "-=x" for c in result),
@@ -671,7 +671,7 @@ class TestTaqtiGoldenWords(unittest.TestCase):
         word = Words()
         word.word = text
         word.taqti = []
-        return assign_code(word)
+        return compute_scansion(word)
 
     def test_deterministic_words_exact(self):
         """Words with no metrical ambiguity must return exact codes."""

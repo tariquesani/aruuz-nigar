@@ -13,7 +13,7 @@ from aruuz.scansion import (
     length_three_scan,
     length_four_scan,
     length_five_scan,
-    assign_code,
+    compute_scansion,
     is_vowel_plus_h,
     is_muarrab,
     is_izafat,
@@ -512,7 +512,7 @@ class TestAssignCode(unittest.TestCase):
         word = Words()
         word.word = "آ"
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertEqual(result, "=")
 
     def test_two_character_word(self):
@@ -520,7 +520,7 @@ class TestAssignCode(unittest.TestCase):
         word = Words()
         word.word = "آب"
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
 
@@ -529,7 +529,7 @@ class TestAssignCode(unittest.TestCase):
         word = Words()
         word.word = "کتاب"
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
 
@@ -538,7 +538,7 @@ class TestAssignCode(unittest.TestCase):
         word = Words()
         word.word = "کتاب"
         word.taqti = ["کتاب"]  # Simple taqti
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
 
@@ -547,7 +547,7 @@ class TestAssignCode(unittest.TestCase):
         word = Words()
         word.word = "کتابیں"
         word.taqti = ["کتاب + یں"]  # Multiple syllables
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
 
@@ -558,7 +558,7 @@ class TestAssignCode(unittest.TestCase):
         word.taqti = ["کسی"]
         word.language = []
         word.modified = False
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
 
     def test_arabic_word_ending(self):
@@ -568,7 +568,7 @@ class TestAssignCode(unittest.TestCase):
         word.taqti = ["کتاب"]
         word.language = ["عربی"]
         word.modified = False
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
 
     def test_persian_word_ending(self):
@@ -578,7 +578,7 @@ class TestAssignCode(unittest.TestCase):
         word.taqti = ["کتابا"]
         word.language = ["فارسی"]
         word.modified = False
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
 
 
@@ -590,7 +590,7 @@ class TestEdgeCases(unittest.TestCase):
         word = Words()
         word.word = ""
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
 
     def test_word_with_special_characters(self):
@@ -598,7 +598,7 @@ class TestEdgeCases(unittest.TestCase):
         word = Words()
         word.word = "کتابھ"
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
 
     def test_word_with_diacritics(self):
@@ -606,7 +606,7 @@ class TestEdgeCases(unittest.TestCase):
         word = Words()
         word.word = "کتاب\u064E"  # with zabar
         word.taqti = []
-        result = assign_code(word)
+        result = compute_scansion(word)
         self.assertIsInstance(result, str)
 
 
