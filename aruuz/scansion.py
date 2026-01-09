@@ -2354,7 +2354,7 @@ class Scansion:
         
         return True
     
-    def calculate_score(self, meter: str, line_feet: str) -> int:
+    def calculate_meter_match_score(self, meter: str, line_feet: str) -> int:
         """
         Calculate score for how well a line matches a meter.
         
@@ -2521,7 +2521,7 @@ class Scansion:
         for i, meter_name in enumerate(meter_names):
             for item in results:
                 if item.meter_name == meter_name:
-                    scores[i] += self.calculate_score(meter_name, item.feet)
+                    scores[i] += self.calculate_meter_match_score(meter_name, item.feet)
         
         # Sort scores and meter names together (maintain pairing)
         # Create list of tuples, sort by score, then extract

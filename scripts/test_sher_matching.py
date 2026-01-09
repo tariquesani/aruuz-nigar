@@ -468,7 +468,7 @@ else:
     for i, meter_name in enumerate(meter_names):
         for item in all_scan_outputs_before_crunch:
             if item.meter_name == meter_name:
-                score = main_scanner.calculate_score(meter_name, item.feet)
+                score = main_scanner.calculate_meter_match_score(meter_name, item.feet)
                 scores[i] += score
                 # Find which line this score came from
                 line_info = ""

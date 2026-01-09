@@ -864,7 +864,7 @@ class TestCrunchMethods(unittest.TestCase):
         # Use a known meter name and its expected feet
         meter_name = "ہزج مثمن سالم"
         line_feet = "مفعولن مفعولن مفعولن مفعول"  # Typical feet for this meter
-        score = self.scanner.calculate_score(meter_name, line_feet)
+        score = self.scanner.calculate_meter_match_score(meter_name, line_feet)
         # Should return 1 if match, 0 otherwise
         self.assertIn(score, [0, 1])
     
@@ -872,7 +872,7 @@ class TestCrunchMethods(unittest.TestCase):
         """Test calculate_score with non-matching meter."""
         meter_name = "ہزج مثمن سالم"
         line_feet = "فاعلن فاعلن"  # Different feet
-        score = self.scanner.calculate_score(meter_name, line_feet)
+        score = self.scanner.calculate_meter_match_score(meter_name, line_feet)
         # Should return 0 for non-match
         self.assertEqual(score, 0)
     
@@ -880,7 +880,7 @@ class TestCrunchMethods(unittest.TestCase):
         """Test calculate_score with invalid meter name."""
         meter_name = "Invalid Meter Name"
         line_feet = "مفعولن مفعولن"
-        score = self.scanner.calculate_score(meter_name, line_feet)
+        score = self.scanner.calculate_meter_match_score(meter_name, line_feet)
         self.assertEqual(score, 0)
     
     def test_crunch_empty_results(self):

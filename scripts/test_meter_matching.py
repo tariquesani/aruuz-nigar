@@ -524,7 +524,7 @@ else:
     for i, meter_name in enumerate(meter_names):
         for item in scan_outputs:
             if item.meter_name == meter_name:
-                score = scanner.calculate_score(meter_name, item.feet)
+                score = scanner.calculate_meter_match_score(meter_name, item.feet)
                 scores[i] += score
                 print(f"  {meter_name}: added score {score} from result with feet '{item.feet}' (total so far: {scores[i]})")
     
