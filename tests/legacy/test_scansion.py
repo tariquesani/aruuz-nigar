@@ -3393,7 +3393,7 @@ class TestCompoundWord(unittest.TestCase):
             # Test compound word: "کتابخوان" (book-reader)
             wrd = Words()
             wrd.word = "کتابخوان"
-            result = self.scanner.compound_word(wrd)
+            result = self.scanner.compute_compound_word_scansion(wrd)
             
             # Verify find_word was called on first part
             self.assertGreater(self.mock_word_lookup.find_word.call_count, 0)
@@ -3455,7 +3455,7 @@ class TestCompoundWord(unittest.TestCase):
             # Test compound word: "کتابگر" (book-doer, where "گر" is 2 chars)
             wrd = Words()
             wrd.word = "کتابگر"
-            result = self.scanner.compound_word(wrd)
+            result = self.scanner.compute_compound_word_scansion(wrd)
             
             # Verify find_word was called on first part
             self.assertGreater(self.mock_word_lookup.find_word.call_count, 0)
@@ -3507,7 +3507,7 @@ class TestCompoundWord(unittest.TestCase):
             # Test compound word: "گرکتاب" where "گر" (2 chars) is first part
             wrd = Words()
             wrd.word = "گرکتاب"
-            result = self.scanner.compound_word(wrd)
+            result = self.scanner.compute_compound_word_scansion(wrd)
             
             # Verify find_word was called on first part
             self.assertGreater(self.mock_word_lookup.find_word.call_count, 0)
@@ -3564,7 +3564,7 @@ class TestCompoundWord(unittest.TestCase):
             # Test compound word
             wrd = Words()
             wrd.word = "کتابخوان"
-            result = self.scanner.compound_word(wrd)
+            result = self.scanner.compute_compound_word_scansion(wrd)
             
             # Verify codes merged via cartesian product (2 * 2 = 4 combinations)
             self.assertEqual(len(result.code), 4)
@@ -3632,7 +3632,7 @@ class TestCompoundWord(unittest.TestCase):
             # Test compound word: "کتابخوان" (8 chars, should try splits at 1-6)
             wrd = Words()
             wrd.word = "کتابخوان"
-            result = self.scanner.compound_word(wrd)
+            result = self.scanner.compute_compound_word_scansion(wrd)
             
             # Verify multiple split attempts were made
             # For word length 8, should try splits at positions 1-6
@@ -3672,7 +3672,7 @@ class TestCompoundWord(unittest.TestCase):
             # Test word that can't be split successfully
             wrd = Words()
             wrd.word = "کتابخوان"
-            result = self.scanner.compound_word(wrd)
+            result = self.scanner.compute_compound_word_scansion(wrd)
             
             # Verify find_word was called multiple times (trying different splits)
             self.assertGreater(self.mock_word_lookup.find_word.call_count, 1)
@@ -3694,7 +3694,7 @@ class TestCompoundWord(unittest.TestCase):
         # Test word with length <= 3 (can't split: need at least 4 chars, split at 1 to length-2)
         wrd = Words()
         wrd.word = "کتاب"  # 4 chars: can only split at position 1, second part would be 3 chars
-        result = self.scanner.compound_word(wrd)
+        result = self.scanner.compute_compound_word_scansion(wrd)
         
         # Verify modified flag is set
         self.assertTrue(result.modified)
@@ -3710,7 +3710,7 @@ class TestCompoundWord(unittest.TestCase):
         
         wrd = Words()
         wrd.word = "کتابخوان"
-        result = scanner_no_db.compound_word(wrd)
+        result = scanner_no_db.compute_compound_word_scansion(wrd)
         
         # Should return Words with original word and modified flag set
         self.assertEqual(result.word, "کتابخوان")
@@ -3755,7 +3755,7 @@ class TestCompoundWord(unittest.TestCase):
             # Test compound word with diacritics: "کتاب\u064Eخوان\u0650"
             wrd = Words()
             wrd.word = "کتاب\u064Eخوان\u0650"  # With zabar and zer
-            result = self.scanner.compound_word(wrd)
+            result = self.scanner.compute_compound_word_scansion(wrd)
             
             # Verify find_word was called (araab should be removed before splitting)
             self.assertGreater(self.mock_word_lookup.find_word.call_count, 0)

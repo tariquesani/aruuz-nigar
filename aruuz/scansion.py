@@ -1352,7 +1352,7 @@ class Scansion:
         stripped = remove_araab(word.word)
         if len(stripped) > 4 and code == "":
             # Try compound word splitting
-            word_result = self.compound_word(word)
+            word_result = self.compute_compound_word_scansion(word)
             # If compound_word found a valid split (has codes), use it
             if len(word_result.code) > 0:
                 return word_result
@@ -1698,7 +1698,7 @@ class Scansion:
         
         return wrd
     
-    def compound_word(self, wrd: Words) -> Words:
+    def compute_compound_word_scansion(self, wrd: Words) -> Words:
         """
         Attempt to split a word into compound parts and combine their codes.
         
