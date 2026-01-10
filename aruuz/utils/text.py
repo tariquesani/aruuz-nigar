@@ -65,9 +65,9 @@ def clean_line(line: str) -> str:
 
 def handle_noon_followed_by_stop(words: list[str]) -> list[str]:
     """
-    Split words that contain noon (ن) immediately followed by a stop consonant.
+    Split words that contain noon (ن or ں) immediately followed by a stop consonant.
 
-    If a word contains "ن" immediately followed by a stop consonant
+    If a word contains "ن" or "ں" immediately followed by a stop consonant
     (ک، گ، ت، د، پ، ب، چ، ج), split it into two parts:
     1. Everything up to and including the stop consonant
     2. The remaining suffix
@@ -91,7 +91,7 @@ def handle_noon_followed_by_stop(words: list[str]) -> list[str]:
         # Find noon followed by a stop consonant
         found_split = False
         for i in range(len(word) - 1):
-            if word[i] == "ن" and word[i + 1] in stop_consonants:
+            if word[i] in ("ن", "ں") and word[i + 1] in stop_consonants:
                 # Split at position after stop consonant
                 # First part: everything up to and including stop consonant
                 first_part = word[:i + 2]
