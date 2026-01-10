@@ -191,14 +191,14 @@ class Lines:
     """
     def __init__(self, line: str):
         """
-        Initialize a Lines object from a line of poetry.
+        Initialize a Lines object from a line of poetry: Lexical Pipeline (string and token–level preprocessing only).
         
         This method:
         1. Cleans the line using clean_line() to remove punctuation
         2. Splits the line into words by comma and space delimiters
-        3. Cleans each word using clean_word() to apply character replacements
-        4. Creates Words objects with cleaned words and calculates length
-        
+        3. Handles noon followed by stop consonant (split words like جھانکتے -> جھانک, تے)
+        4. Cleans each word using clean_word() to apply character replacements
+        5. Creates Words objects with cleaned words and calculates length       
         Args:
             line: Line of Urdu poetry text
         """
