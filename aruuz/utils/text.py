@@ -71,6 +71,7 @@ def handle_noon_followed_by_stop(words: list[str]) -> list[str]:
     (ک، گ، ت، د، پ، ب، چ، ج), split it into two parts:
     1. Everything up to and including the stop consonant
     2. The remaining suffix
+    3. Excludes word-initial "ان" - this is a special case that should not be split
 
     Args:
         words: List of Urdu words
@@ -81,17 +82,22 @@ def handle_noon_followed_by_stop(words: list[str]) -> list[str]:
     """
     # Stop consonants: ک، گ، ت، د، پ، ب، چ، ج
     stop_consonants = "کگتدپبچج"
-    
+
     result = []
     for word in words:
         if not word:
             result.append(word)
             continue
         
-        # Find noon followed by a stop consonant
+        # Find noon followed by a stop consonant, excluding word-initial "ان"
         found_split = False
         for i in range(len(word) - 1):
-            if word[i] in ("ن", "ں") and word[i + 1] in stop_consonants:
+            if (
+                word[i] in ("ن", "ں")
+                and word[i + 1] in stop_consonants
+                and not (i == 1 and word.startswith("ان")) # excludes word-initial "ان"
+            ):
+
                 # Split at position after stop consonant
                 # First part: everything up to and including stop consonant
                 first_part = word[:i + 2]
