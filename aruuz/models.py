@@ -6,7 +6,7 @@ This module contains data classes for words, lines, and output structures.
 
 from dataclasses import dataclass, field
 from typing import List, Optional
-from aruuz.utils.text import clean_line, clean_word
+from aruuz.utils.text import clean_line, clean_word, handle_noon_followed_by_stop
 from aruuz.utils.araab import remove_araab
 
 
@@ -216,6 +216,9 @@ class Lines:
         import re
         delimiters_pattern = r'[, ]+'  # Match comma or space, one or more times
         words_raw = re.split(delimiters_pattern, cleaned_line)
+        
+        # Handle noon followed by stop consonant (split words like جھانکتے -> جھانک, تے)
+        words_raw = handle_noon_followed_by_stop(words_raw)
         
         # Process each word
         for word_text in words_raw:
