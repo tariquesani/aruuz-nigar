@@ -13,7 +13,7 @@ These tests verify that PatternTree integration doesn't break existing functiona
 import unittest
 from aruuz.scansion import Scansion
 from aruuz.tree.code_tree import CodeTree
-from aruuz.models import Lines, scanPath, scanOutput, scanOutputFuzzy
+from aruuz.models import Lines, scanPath, LineScansionResult, LineScansionResultFuzzy
 from aruuz.meters import NUM_METERS, METER_NAMES
 
 
@@ -37,7 +37,7 @@ class TestRegularMetersRegression(unittest.TestCase):
         # Should return results (may be empty, but should not error)
         self.assertIsInstance(results, list)
         for result in results:
-            self.assertIsInstance(result, scanOutput)
+            self.assertIsInstance(result, LineScansionResult)
             self.assertIsInstance(result.meter_name, str)
             self.assertIsInstance(result.id, int)
 
@@ -110,7 +110,7 @@ class TestRegularMetersRegression(unittest.TestCase):
         # Should return valid scanOutput objects
         self.assertIsInstance(results, list)
         for result in results:
-            self.assertIsInstance(result, scanOutput)
+            self.assertIsInstance(result, LineScansionResult)
             self.assertEqual(result.original_line, line.original_line)
             self.assertEqual(len(result.words), len(line.words_list))
 
@@ -154,7 +154,7 @@ class TestFuzzyModeRegression(unittest.TestCase):
         # Should return fuzzy results
         self.assertIsInstance(results, list)
         for result in results:
-            self.assertIsInstance(result, scanOutputFuzzy)
+            self.assertIsInstance(result, LineScansionResultFuzzy)
             self.assertGreaterEqual(result.score, 0)
             self.assertIsInstance(result.meter_name, str)
 

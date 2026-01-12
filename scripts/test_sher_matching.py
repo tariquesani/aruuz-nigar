@@ -23,7 +23,7 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 from typing import List, Optional
-from aruuz.models import Lines, scanPath, codeLocation, scanOutput, Words
+from aruuz.models import Lines, scanPath, codeLocation, LineScansionResult, Words
 from aruuz.scansion import Scansion, is_vowel_plus_h, is_consonant_plus_consonant
 from aruuz.tree.code_tree import CodeTree
 from aruuz.meters import (
@@ -127,7 +127,7 @@ print("=" * 80)
 print()
 
 # Process each line using the same approach as test_meter_matching.py
-all_scan_outputs_before_crunch: List[scanOutput] = []
+all_scan_outputs_before_crunch: List[LineScansionResult] = []
 line_objects = []
 
 print("STEP 1: PROCESSING EACH LINE")
@@ -338,7 +338,7 @@ for line_idx, line_text in enumerate(lines_text, 1):
             
             # Create scanOutput for each matching meter
             for meter_idx in sp.meters:
-                so = scanOutput()
+                so = LineScansionResult()
                 so.original_line = line_obj.original_line
                 so.words = words_list.copy()
                 so.word_taqti = word_taqti_list.copy()

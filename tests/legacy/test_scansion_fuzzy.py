@@ -8,7 +8,7 @@ with imperfect/experimental poetry examples that don't match meters exactly.
 import unittest
 import math
 from aruuz.scansion import Scansion
-from aruuz.models import Lines, scanOutputFuzzy
+from aruuz.models import Lines, LineScansionResultFuzzy
 from aruuz.meters import METERS, METER_NAMES, NUM_METERS
 
 
@@ -40,7 +40,7 @@ class TestScanLineFuzzy(unittest.TestCase):
         
         if len(results) > 0:
             for result in results:
-                self.assertIsInstance(result, scanOutputFuzzy)
+                self.assertIsInstance(result, LineScansionResultFuzzy)
                 self.assertEqual(result.original_line, line.original_line)
                 self.assertIsInstance(result.words, list)
                 self.assertIsInstance(result.word_taqti, list)
@@ -75,7 +75,7 @@ class TestScanLineFuzzy(unittest.TestCase):
         self.assertIsInstance(results, list)
         # Even if no matches, should return empty list without errors
         for result in results:
-            self.assertIsInstance(result, scanOutputFuzzy)
+            self.assertIsInstance(result, LineScansionResultFuzzy)
             self.assertNotEqual(result.meter_name, "")
 
     def test_scan_line_fuzzy_preserves_word_order(self):
@@ -230,7 +230,7 @@ class TestScanLinesFuzzy(unittest.TestCase):
         results = self.scansion.scan_lines_fuzzy()
         
         for result in results:
-            self.assertIsInstance(result, scanOutputFuzzy)
+            self.assertIsInstance(result, LineScansionResultFuzzy)
 
 
 class TestCrunchFuzzy(unittest.TestCase):
@@ -406,8 +406,8 @@ class TestScanLinesWithFuzzyMode(unittest.TestCase):
         # Should return scanOutput objects (not scanOutputFuzzy)
         self.assertIsInstance(results, list)
         if len(results) > 0:
-            from aruuz.models import scanOutput
-            self.assertIsInstance(results[0], scanOutput)
+            from aruuz.models import LineScansionResult
+            self.assertIsInstance(results[0], LineScansionResult)
 
     def test_scan_lines_fuzzy_converts_to_scan_output(self):
         """Test that scan_lines() with fuzzy=True converts scanOutputFuzzy to scanOutput."""
@@ -419,10 +419,10 @@ class TestScanLinesWithFuzzyMode(unittest.TestCase):
         
         # Results should be scanOutput objects, not scanOutputFuzzy
         if len(results) > 0:
-            from aruuz.models import scanOutput
+            from aruuz.models import LineScansionResult
             for result in results:
-                self.assertIsInstance(result, scanOutput)
-                self.assertNotIsInstance(result, scanOutputFuzzy)
+                self.assertIsInstance(result, LineScansionResult)
+                self.assertNotIsInstance(result, LineScansionResultFuzzy)
 
     def test_scan_lines_fuzzy_preserves_basic_fields(self):
         """Test that scan_lines() with fuzzy=True preserves basic fields."""

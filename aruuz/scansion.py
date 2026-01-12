@@ -9,7 +9,7 @@ import logging
 import math
 import warnings
 from typing import List, Optional, Tuple
-from aruuz.models import Words, Lines, scanOutput, scanOutputFuzzy, scanPath, codeLocation
+from aruuz.models import Words, Lines, LineScansionResult, LineScansionResultFuzzy, scanPath, codeLocation
 from aruuz.utils.araab import remove_araab, ARABIC_DIACRITICS
 from aruuz.meters import (
     METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS,
@@ -1913,23 +1913,23 @@ class Scansion:
         # Call tree.find_meter() to get scanPath results
         return tree.find_meter(meters)
     
-    def match_line_to_meters(self, line: Lines, line_index: int) -> List[scanOutput]:
+    def match_line_to_meters(self, line: Lines, line_index: int) -> List[LineScansionResult]:
         """
         Process a single line and return possible scan outputs using tree-based matching.
         
         This method:
         1. Assigns codes to all words in the line
         2. Uses tree-based find_meter() to find matching meters
-        3. Converts scanPath results to scanOutput objects
+        3. Converts scanPath results to LineScansionResult objects
         
         Args:
             line: Lines object to scan
             line_index: Index of the line (for reference)
             
         Returns:
-            List of scanOutput objects representing possible meter matches
+            List of LineScansionResult objects representing possible meter matches
         """
-        results: List[scanOutput] = []
+        results: List[LineScansionResult] = []
         
         # Step 1: Assign codes to all words (needed for tree building)
         for word in line.words_list:
@@ -2132,7 +2132,7 @@ class Scansion:
         if not scan_paths:
             return results  # No matches found
         
-        # Step 3: Convert scanPath results to scanOutput objects
+        # Step 3: Convert scanPath results to LineScansionResult objects
         for sp in scan_paths:
             if not sp.meters:
                 continue  # Skip paths with no matching meters
@@ -2153,9 +2153,9 @@ class Scansion:
             if not full_code:
                 continue  # Skip if no code
             
-            # Step 4: Create scanOutput for each matching meter
+            # Step 4: Create LineScansionResult for each matching meter
             for meter_idx in sp.meters:
-                so = scanOutput()
+                so = LineScansionResult()
                 so.original_line = line.original_line
                 so.words = words_list.copy()
                 so.word_taqti = word_taqti_list.copy()
@@ -2259,14 +2259,14 @@ class Scansion:
         
         return (min_score, best_meter)
     
-    def scan_line_fuzzy(self, line: Lines, line_index: int) -> List[scanOutputFuzzy]:
+    def scan_line_fuzzy(self, line: Lines, line_index: int) -> List[LineScansionResultFuzzy]:
         """
         Process a single line with fuzzy matching and return fuzzy scan outputs.
         
         This method:
         1. Assigns codes to all words in the line
         2. Temporarily enables fuzzy mode and uses tree-based find_meter() to find matching meters
-        3. Converts scanPath results to scanOutputFuzzy objects
+        3. Converts scanPath results to LineScansionResultFuzzy objects
         4. Calculates fuzzy scores using Levenshtein distance
         
         Args:
@@ -2274,9 +2274,9 @@ class Scansion:
             line_index: Index of the line (for reference)
             
         Returns:
-            List of scanOutputFuzzy objects representing possible meter matches with scores
+            List of LineScansionResultFuzzy objects representing possible meter matches with scores
         """
-        results: List[scanOutputFuzzy] = []
+        results: List[LineScansionResultFuzzy] = []
         
         # Step 1: Assign codes to all words (needed for tree building)
         for word in line.words_list:
@@ -2297,7 +2297,7 @@ class Scansion:
         if not scan_paths:
             return results  # No matches found
         
-        # Step 3: Convert scanPath results to scanOutputFuzzy objects
+        # Step 3: Convert scanPath results to LineScansionResultFuzzy objects
         for sp in scan_paths:
             if not sp.meters:
                 continue  # Skip paths with no matching meters
@@ -2318,9 +2318,9 @@ class Scansion:
             if not full_code:
                 continue  # Skip if no code
             
-            # Step 4: Create scanOutputFuzzy for each matching meter
+            # Step 4: Create LineScansionResultFuzzy for each matching meter
             for meter_idx in sp.meters:
-                so = scanOutputFuzzy()
+                so = LineScansionResultFuzzy()
                 so.original_line = line.original_line
                 so.words = words_list.copy()
                 so.word_taqti = word_taqti_list.copy()
@@ -2385,21 +2385,21 @@ class Scansion:
         
         return results
     
-    def scan_lines_fuzzy(self) -> List[scanOutputFuzzy]:
+    def scan_lines_fuzzy(self) -> List[LineScansionResultFuzzy]:
         """
         Process all lines with fuzzy matching and return consolidated fuzzy scan outputs.
         
         This method:
         1. Iterates through all lines in self.lst_lines
         2. Calls scan_line_fuzzy() for each line
-        3. Collects all scanOutputFuzzy results
+        3. Collects all LineScansionResultFuzzy results
         4. Calls resolve_dominant_meter_fuzzy() to consolidate results
-        5. Returns List[scanOutputFuzzy]
+        5. Returns List[LineScansionResultFuzzy]
         
         Returns:
-            List of scanOutputFuzzy objects for all lines, consolidated by best meter
+            List of LineScansionResultFuzzy objects for all lines, consolidated by best meter
         """
-        all_results: List[scanOutputFuzzy] = []
+        all_results: List[LineScansionResultFuzzy] = []
         
         # Process each line
         for k in range(self.num_lines):
@@ -2559,7 +2559,7 @@ class Scansion:
         return count
 
     
-    def resolve_dominant_meter(self, results: List[scanOutput]) -> List[scanOutput]:
+    def resolve_dominant_meter(self, results: List[LineScansionResult]) -> List[LineScansionResult]:
         """
         Consolidate multiple meter matches and return only those matching dominant meter.
         
@@ -2568,13 +2568,13 @@ class Scansion:
         2. Score each meter by summing calculateScore() for all matching lines
         3. Sort scores and meter names together (maintain pairing)
         4. Select meter with highest score
-        5. Return all scanOutput objects matching the selected meter
+        5. Return all LineScansionResult objects matching the selected meter
         
         Args:
-            results: List of scanOutput objects (multiple matches per line)
+            results: List of LineScansionResult objects (multiple matches per line)
             
         Returns:
-            List of scanOutput objects for the dominant meter only
+            List of LineScansionResult objects for the dominant meter only
         """
         if not results:
             return []
@@ -2622,7 +2622,7 @@ class Scansion:
         if not final_meter:
             return []
         
-        # Filter results: return only scanOutput objects matching final_meter
+        # Filter results: return only LineScansionResult objects matching final_meter
         filtered_results = []
         for item in results:
             if item.meter_name == final_meter:
@@ -2630,7 +2630,7 @@ class Scansion:
         
         return filtered_results
     
-    def resolve_dominant_meter_fuzzy(self, results: List[scanOutputFuzzy]) -> List[scanOutputFuzzy]:
+    def resolve_dominant_meter_fuzzy(self, results: List[LineScansionResultFuzzy]) -> List[LineScansionResultFuzzy]:
         """
         Consolidate fuzzy matching results and return only those matching the best meter.
         
@@ -2646,10 +2646,10 @@ class Scansion:
         7. Handle special IDs (-2 for rubai, < 0 for special meters)
         
         Args:
-            results: List of scanOutputFuzzy objects (multiple matches per line)
+            results: List of LineScansionResultFuzzy objects (multiple matches per line)
             
         Returns:
-            List of scanOutputFuzzy objects for the best meter only
+            List of LineScansionResultFuzzy objects for the best meter only
         """
         if not results:
             return []
@@ -2706,7 +2706,7 @@ class Scansion:
         if not final_meter:
             return []
         
-        # Filter results: return only scanOutputFuzzy objects matching final_meter
+        # Filter results: return only LineScansionResultFuzzy objects matching final_meter
         # Matching C# logic:
         # - If id == -2: match by meter name
         # - Else if meterIndex(finalMeter).Count > 0: match by id == Meters.id[meterIndex(finalMeter).First()]
@@ -2737,7 +2737,7 @@ class Scansion:
         
         return filtered_results
     
-    def scan_lines(self) -> List[scanOutput]:
+    def scan_lines(self) -> List[LineScansionResult]:
         """
         Main method to process all lines and return scan outputs.
         
@@ -2746,9 +2746,9 @@ class Scansion:
         returns all possible scan outputs.
         
         Returns:
-            List of scanOutput objects, one per line per matching meter
+            List of LineScansionResult objects, one per line per matching meter
         """
-        all_results: List[scanOutput] = []
+        all_results: List[LineScansionResult] = []
         
         if self.free_verse:
             # For Phase 1, we don't handle free verse
@@ -2757,11 +2757,11 @@ class Scansion:
         if self.fuzzy:
             # Use fuzzy matching path
             fuzzy_results = self.scan_lines_fuzzy()
-            # Convert scanOutputFuzzy to scanOutput for compatibility
+            # Convert LineScansionResultFuzzy to LineScansionResult for compatibility
             # Note: This loses fuzzy score information but maintains API compatibility
             all_results = []
             for fr in fuzzy_results:
-                so = scanOutput()
+                so = LineScansionResult()
                 so.original_line = fr.original_line
                 so.words = fr.words
                 so.word_taqti = fr.word_taqti

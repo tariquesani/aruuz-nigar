@@ -108,7 +108,7 @@ class scanPath:
 
 
 @dataclass
-class scanOutput:
+class LineScansionResult:
     """
     Represents the output of scansion analysis for a line of poetry.
     
@@ -147,7 +147,7 @@ class scanOutput:
 
 
 @dataclass
-class scanOutputFuzzy:
+class LineScansionResultFuzzy:
     """
     Represents fuzzy scansion output (for future fuzzy matching feature).
     

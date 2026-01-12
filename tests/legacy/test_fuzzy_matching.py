@@ -13,7 +13,7 @@ import unittest
 import math
 from aruuz.scansion import Scansion
 from aruuz.tree.code_tree import CodeTree
-from aruuz.models import codeLocation, Lines, scanOutputFuzzy
+from aruuz.models import codeLocation, Lines, LineScansionResultFuzzy
 from aruuz.meters import METERS, METER_NAMES, NUM_METERS
 
 
@@ -242,7 +242,7 @@ class TestFuzzyTraversal(unittest.TestCase):
         self.assertIsInstance(results, list)
         # If results exist, they should have valid structure
         for result in results:
-            self.assertIsInstance(result, scanOutputFuzzy)
+            self.assertIsInstance(result, LineScansionResultFuzzy)
             self.assertGreaterEqual(result.score, 0)
 
     def test_scan_line_fuzzy_with_imperfect_match(self):
@@ -381,7 +381,7 @@ class TestScanLinesFuzzy(unittest.TestCase):
         results = self.scansion.scan_lines_fuzzy()
         
         for result in results:
-            self.assertIsInstance(result, scanOutputFuzzy)
+            self.assertIsInstance(result, LineScansionResultFuzzy)
             self.assertGreaterEqual(result.score, 0)
 
 
@@ -576,7 +576,7 @@ class TestFuzzyRegression(unittest.TestCase):
         self.assertIsInstance(results, list)
         # All results should have valid structure
         for result in results:
-            self.assertIsInstance(result, scanOutputFuzzy)
+            self.assertIsInstance(result, LineScansionResultFuzzy)
             self.assertGreaterEqual(result.score, 0)
             self.assertNotEqual(result.meter_name, "")
 

@@ -12,7 +12,7 @@ Tests cover:
 
 import unittest
 from aruuz.scansion import Scansion
-from aruuz.models import Lines, scanPath, scanOutput
+from aruuz.models import Lines, scanPath, LineScansionResult
 from aruuz.tree.code_tree import CodeTree
 from aruuz.meters import METERS, NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, METER_NAMES
 
@@ -267,7 +267,7 @@ class TestScanLineTreeIntegration(unittest.TestCase):
         # Should return list of scanOutput objects
         self.assertIsInstance(results, list)
         for result in results:
-            self.assertIsInstance(result, scanOutput)
+            self.assertIsInstance(result, LineScansionResult)
             self.assertEqual(result.original_line, line.original_line)
             self.assertIsInstance(result.words, list)
             self.assertIsInstance(result.word_taqti, list)

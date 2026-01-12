@@ -25,7 +25,7 @@ from aruuz.scansion import (
     remove_tashdid,
     Scansion
 )
-from aruuz.models import Words, Lines, scanOutput
+from aruuz.models import Words, Lines, LineScansionResult
 
 # Configure logging to show DEBUG messages from aruuz modules during tests
 logging.basicConfig(
@@ -890,7 +890,7 @@ class TestCrunchMethods(unittest.TestCase):
     
     def test_crunch_single_meter(self):
         """Test crunch with single meter match."""
-        so = scanOutput()
+        so = LineScansionResult()
         so.meter_name = "ہزج مثمن سالم"
         so.feet = "مفعولن مفعولن مفعولن مفعول"
         so.original_line = "test line"
@@ -901,17 +901,17 @@ class TestCrunchMethods(unittest.TestCase):
     def test_crunch_multiple_meters(self):
         """Test crunch with multiple meter matches."""
         # Create results with different meters
-        so1 = scanOutput()
+        so1 = LineScansionResult()
         so1.meter_name = "ہزج مثمن سالم"
         so1.feet = "مفعولن مفعولن مفعولن مفعول"
         so1.original_line = "line 1"
         
-        so2 = scanOutput()
+        so2 = LineScansionResult()
         so2.meter_name = "ہزج مثمن محذوف"
         so2.feet = "مفعولن مفعولن مفعول"
         so2.original_line = "line 1"
         
-        so3 = scanOutput()
+        so3 = LineScansionResult()
         so3.meter_name = "ہزج مثمن سالم"
         so3.feet = "مفعولن مفعولن مفعولن مفعول"
         so3.original_line = "line 2"

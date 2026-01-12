@@ -23,7 +23,7 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 from typing import List
-from aruuz.models import Lines, scanPath, codeLocation, scanOutput, Words
+from aruuz.models import Lines, scanPath, codeLocation, LineScansionResult, Words
 from aruuz.scansion import Scansion, is_vowel_plus_h, is_consonant_plus_consonant
 from aruuz.tree.code_tree import CodeTree
 from aruuz.meters import METERS, METERS_VARIED, RUBAI_METERS, NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, USAGE, METER_NAMES, METERS_VARIED_NAMES, RUBAI_METER_NAMES, afail, afail_list
@@ -426,7 +426,7 @@ print("-" * 80)
 
 # Convert scan_paths to scanOutput objects (same logic as scan_line())
 print("Converting scan_paths to scanOutput objects...")
-scan_outputs: List[scanOutput] = []
+scan_outputs: List[LineScansionResult] = []
 
 for sp in scan_paths:
     if not sp.meters:
@@ -450,7 +450,7 @@ for sp in scan_paths:
     
     # Create scanOutput for each matching meter
     for meter_idx in sp.meters:
-        so = scanOutput()
+        so = LineScansionResult()
         so.original_line = line_obj.original_line
         so.words = words_list.copy()
         so.word_taqti = word_taqti_list.copy()
