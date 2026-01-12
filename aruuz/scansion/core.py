@@ -31,7 +31,9 @@ class Scansion:
         Initialize Scansion instance.
         
         Args:
-            word_lookup: Optional WordLookup instance for database access
+            word_lookup: Optional WordLookup instance for database access.
+                        If not provided, creates a WordLookup instance internally.
+                        If database is unavailable, gracefully handles the error.
         """
         self.lst_lines: List[Lines] = []
         self.num_lines: int = 0
@@ -41,8 +43,20 @@ class Scansion:
         self.error_param: int = 8
         self.meter: Optional[List[int]] = None
         
+        # Initialize word_lookup for database access (matching original behavior)
+        if word_lookup is not None:
+            self.word_lookup = word_lookup
+        else:
+            # Create WordLookup instance internally with graceful fallback
+            try:
+                self.word_lookup = WordLookup()
+            except Exception:
+                # If database is unavailable, set to None
+                # Methods using word_lookup should check for None before use
+                self.word_lookup = None
+        
         # Initialize composed services
-        self.code_assigner = WordScansionAssigner(word_lookup)
+        self.code_assigner = WordScansionAssigner(self.word_lookup)
         self.meter_matcher = MeterMatcher(
             code_assigner=self.code_assigner,
             error_param=self.error_param,
@@ -253,3 +267,103 @@ class Scansion:
                 result.is_dominant = True
         
         return all_results
+    
+    def follows_meter_foot_order(self, line_arkaan: List[str], feet: List[str]) -> bool:
+        """
+        Check if line feet are in the same order as meter feet.
+        
+        This is a backward compatibility method.
+        
+        Args:
+            line_arkaan: List of feet from the line (e.g., ["مفعولن", "مفعولن"])
+            feet: List of feet from the meter (e.g., ["مفعولن", "مفعولن"])
+            
+        Returns:
+            True if feet are in the same order, False otherwise
+        """
+        if len(line_arkaan) != len(feet):
+            return False
+        
+        for i in range(len(line_arkaan)):
+            if line_arkaan[i] != feet[i]:
+                return False
+        
+        return True
+    
+    def calculate_meter_match_score(self, meter: str, line_feet: str) -> int:
+        """
+        Calculate score for how well a line matches a meter.
+        
+        This is a backward compatibility wrapper that delegates to MeterResolver.calculate_score().
+        
+        This method evaluates how well a poetry line's feet match against all
+        variants of a given meter pattern. It parses the line's feet, retrieves
+        all meter variants for the given meter name, and evaluates each variant
+        separately to find the best match.
+        
+        The score represents the number of feet that match in the correct order
+        against the best matching meter variant. Each meter variant is evaluated
+        independently, and the maximum score across all variants is returned.
+        
+        Args:
+            meter: Meter name string (e.g., "مفعولن مفعولن مفعولن مفعولن")
+            line_feet: Space-separated string of feet from the scanned line
+                      (e.g., "مفعولن مفعولن مفعولن مفعولن")
+        
+        Returns:
+            Integer score representing the number of matching feet in correct order.
+            Returns 0 if:
+            - No meter variants found for the given meter name
+            - No meter variant has matching length with the line
+            - No feet match in order
+            Otherwise returns the maximum score (1 to number of feet) across all variants.
+        
+        Note:
+            This method evaluates each meter variant separately. A meter name may
+            have multiple variants (e.g., with different '+' positions), and the
+            score is calculated for each variant independently. The method requires
+            that the line feet and meter feet have the same length (hard structural
+            constraint) before evaluating the match.
+        """
+        return MeterResolver.calculate_score(meter, line_feet)
+    
+    def ordered_match_count(self, line_feet: List[str], meter_feet: List[str]) -> int:
+        """
+        Count how many feet from line_feet appear in meter_feet in correct relative order.
+        
+        This is a backward compatibility wrapper that delegates to MeterResolver.ordered_match_count().
+        
+        This method implements a greedy matching algorithm that counts consecutive
+        matching feet starting from the beginning. It iterates through line_feet
+        and tries to find each foot in meter_feet, maintaining the relative order.
+        The matching stops at the first foot that cannot be found in the correct
+        position, and returns the count of successfully matched feet up to that point.
+        
+        The algorithm ensures that:
+        1. Feet must match exactly (string equality)
+        2. Feet must appear in the same relative order in both lists
+        3. Matching is greedy (each line foot is matched to the first available
+           meter foot that hasn't been matched yet)
+        4. Matching stops at the first failure (no backtracking)
+        
+        Args:
+            line_feet: List of foot strings from the scanned poetry line
+                      (e.g., ["مفعولن", "مفعولن", "فاعلن"])
+            meter_feet: List of foot strings from the meter pattern
+                       (e.g., ["مفعولن", "مفعولن", "مفعولن", "مفعولن"])
+        
+        Returns:
+            Integer count of feet that matched in order (0 to len(line_feet)).
+            Returns 0 if the first foot doesn't match, or the number of consecutive
+            matching feet from the start of the list.
+        
+        Example:
+            If line_feet = ["مفعولن", "مفعولن", "فاعلن"]
+            and meter_feet = ["مفعولن", "مفعولن", "مفعولن", "مفعولن"]
+            Returns 2 (first two feet match)
+            
+            If line_feet = ["مفعولن", "فاعلن", "مفعولن"]
+            and meter_feet = ["مفعولن", "مفعولن", "فاعلن"]
+            Returns 1 (only first foot matches, second doesn't match at position 1)
+        """
+        return MeterResolver.ordered_match_count(line_feet, meter_feet)
