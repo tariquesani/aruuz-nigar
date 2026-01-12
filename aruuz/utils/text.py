@@ -95,6 +95,7 @@ def handle_noon_followed_by_stop(words: list[str]) -> list[str]:
             if (
                 word[i] in ("ن", "ں")
                 and word[i + 1] in stop_consonants
+                and not (i == 0 and word[i] == "ن")          # block نکما, نمک
                 and not (i == 1 and word.startswith("ان")) # excludes word-initial "ان"
             ):
 
