@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 from .word_analysis import is_vowel_plus_h, is_consonant_plus_consonant, is_izafat
 from aruuz.utils.araab import remove_araab, ARABIC_DIACRITICS
+from .explain_logging import get_explain_logger
 
 
 class ProsodicRules:
@@ -86,6 +87,10 @@ class ProsodicRules:
                             for l in range(len(nwrd.muarrab)):
                                 if len(nwrd.muarrab[l]) >= 2:
                                     nwrd.muarrab[l] = nwrd.muarrab[l][2:]
+                            
+                            # Log Al prefix rule application
+                            explain_logger = get_explain_logger()
+                            explain_logger.info(f"RULE | Al prefix | Applied to Word {i+1} ('{nwrd.word}') | Modified Word {i}: codes updated, removed 'ال'")
     
     @staticmethod
     def process_izafat(line: 'Lines') -> None:
@@ -138,6 +143,11 @@ class ProsodicRules:
                         elif len(wrd.code[k]) > 0 and wrd.code[k][-1] == "-":
                             # Modify ending: "-" → "x"
                             wrd.code[k] = wrd.code[k][:-1] + "x"
+                
+                # Log Izafat rule application (after all modifications)
+                explain_logger = get_explain_logger()
+                codes_str = ', '.join(wrd.code) if wrd.code else 'none'
+                explain_logger.info(f"RULE | Izafat | Applied to Word '{wrd.word}' | Modified codes: {codes_str}")
     
     @staticmethod
     def process_ataf(line: 'Lines') -> None:
@@ -160,6 +170,8 @@ class ProsodicRules:
                 length = len(stripped)
                 
                 if length > 0:
+                    # Capture original codes for logging
+                    original_codes = pwrd.code.copy() if pwrd.code else []
                     for k in range(len(pwrd.code)):
                         if is_vowel_plus_h(stripped[length - 1]):
                             # Last char is vowel+h
@@ -216,6 +228,12 @@ class ProsodicRules:
                                         # Clear all codes in current word ("و")
                                         for j in range(len(wrd.code)):
                                             wrd.code[j] = ""
+                    
+                    # Log Ataf rule application (after all modifications)
+                    explain_logger = get_explain_logger()
+                    old_code_str = original_codes[0] if original_codes else 'none'
+                    new_code_str = pwrd.code[0] if pwrd.code and pwrd.code[0] else 'none'
+                    explain_logger.info(f"RULE | Ataf | Applied to Word {i} ('و') | Modified Word {i-1}: '{old_code_str}' → '{new_code_str}', cleared Word {i} codes")
     
     @staticmethod
     def process_word_grafting(line: 'Lines') -> None:
@@ -252,3 +270,9 @@ class ProsodicRules:
                                     # Create graft code: remove last char
                                     graft_code = prev_word.code[k][:-1]
                                     prev_word.taqti_word_graft.append(graft_code)
+                        
+                        # Log word grafting rule application (after graft codes created)
+                        if prev_word.taqti_word_graft:
+                            explain_logger = get_explain_logger()
+                            graft_codes_str = ', '.join(prev_word.taqti_word_graft)
+                            explain_logger.info(f"RULE | Word grafting | Applied to Word {i} ('{wrd.word}') | Created graft codes for Word {i-1}: {graft_codes_str}")

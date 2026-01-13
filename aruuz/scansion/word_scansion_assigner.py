@@ -12,6 +12,7 @@ from aruuz.utils.araab import remove_araab
 from aruuz.models import Words
 from .code_assignment import compute_scansion
 from .length_scanners import length_two_scan
+from .explain_logging import get_explain_logger
 
 
 class WordScansionAssigner:
@@ -61,6 +62,11 @@ class WordScansionAssigner:
                 if len(word.id) > 0:
                     # Apply special 3-character word handling
                     word = self._apply_db_variations(word)
+                    # Log successful code assignment from database
+                    if len(word.code) > 0:
+                        explain_logger = get_explain_logger()
+                        codes_str = ', '.join(word.code)
+                        explain_logger.info(f"RULE | Word ('{word.word}') | Assigned code '{codes_str}' | Source: database")
                     return word
             except Exception:
                 # On any DB error, fall back to heuristics
@@ -77,11 +83,20 @@ class WordScansionAssigner:
             word_result = self._split_compound_word(word)
             # If compound_word found a valid split (has codes), use it
             if len(word_result.code) > 0:
+                # Log successful code assignment from compound word splitting
+                explain_logger = get_explain_logger()
+                codes_str = ', '.join(word_result.code)
+                explain_logger.info(f"RULE | Word ('{word_result.word}') | Assigned code '{codes_str}' | Source: compound word splitting")
                 return word_result
             # Otherwise, continue with empty code (will be stored below)
         
         # Store code in word
         word.code = [code]
+        
+        # Log successful code assignment from heuristics (only if code is non-empty)
+        if code:
+            explain_logger = get_explain_logger()
+            explain_logger.info(f"RULE | Word ('{word.word}') | Assigned code '{code}' | Source: heuristic")
         
         return word
     

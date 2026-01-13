@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 from .prosodic_rules import ProsodicRules
 from .word_scansion_assigner import WordScansionAssigner
 from .scoring import MeterResolver
+from .explain_logging import get_explain_logger
 from aruuz.tree.code_tree import CodeTree
 from aruuz.meters import (
     METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS,
@@ -113,7 +114,9 @@ class MeterMatcher:
         # match_meters() handles tree building, pattern matching, and meter filtering
         scan_paths = self.match_meters(line)
         
+        explain_logger = get_explain_logger()
         if not scan_paths:
+            explain_logger.info(f"SELECT | Line {line_index} | No meters matched")
             return results  # No matches found
         
         # Step 3: Convert scanPath results to LineScansionResult objects
@@ -191,6 +194,22 @@ class MeterMatcher:
                     continue  # Skip invalid meter index
                 
                 results.append(so)
+        
+        # Log meter matching results grouped by code sequence
+        # Group results by code sequence
+        code_to_meters = {}
+        for so in results:
+            full_code = "".join(so.word_taqti)
+            if full_code not in code_to_meters:
+                code_to_meters[full_code] = []
+            if so.meter_name and so.meter_name not in code_to_meters[full_code]:
+                code_to_meters[full_code].append(so.meter_name)
+        
+        # Log each unique code sequence with matched meters
+        for code_seq, meter_names in code_to_meters.items():
+            count = len(meter_names)
+            meters_str = ', '.join([f"'{m}'" for m in meter_names])
+            explain_logger.info(f"SELECT | Line {line_index} | {count} meter(s) matched | Code: '{code_seq}' → Meters: [{meters_str}]")
         
         return results
     

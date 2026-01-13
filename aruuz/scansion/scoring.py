@@ -11,6 +11,8 @@ from typing import List, TYPE_CHECKING
 if TYPE_CHECKING:
     from aruuz.models import LineScansionResult, LineScansionResultFuzzy
 
+from .explain_logging import get_explain_logger
+
 from aruuz.meters import METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS, meter_index, afail
 
 
@@ -185,11 +187,15 @@ class MeterResolver:
             return []
         
         # Score each meter
+        explain_logger = get_explain_logger()
         scores = [0.0] * len(meter_names)
         for i, meter_name in enumerate(meter_names):
             for item in results:
                 if item.meter_name == meter_name:
-                    scores[i] += MeterResolver.calculate_score(meter_name, item.feet)
+                    score = MeterResolver.calculate_score(meter_name, item.feet)
+                    scores[i] += score
+            # Log scoring for each meter
+            explain_logger.info(f"DECISION | Dominance scoring | Meter '{meter_name}': score {scores[i]}")
         
         # Sort scores and meter names together (maintain pairing)
         # Create list of tuples, sort by score, then extract
@@ -210,6 +216,10 @@ class MeterResolver:
         
         if not final_meter:
             return []
+        
+        # Log final dominance selection with all scores
+        scores_str = ', '.join([f"{meter_name}={score}" for score, meter_name in paired])
+        explain_logger.info(f"SELECT | Dominance | Selected '{final_meter}' | Scores: {scores_str}")
         
         # Filter results: return only LineScansionResult objects matching final_meter
         filtered_results = []

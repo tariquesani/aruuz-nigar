@@ -194,11 +194,11 @@ class WordLookup:
                         word.is_varied.append(False)
                     
                     # C#: wrd.code.Add(assignCode(wrd))
-                    # assign_code uses word.taqti[-1] to get the last taqti, which we just added
-                    logger.debug(f"[DEBUG] find_word() calling assign_code() for word '{word.word}' with taqti '{taqti}'")
+                    # compute_scansion uses word.taqti[-1] to get the last taqti, which we just added
+                    logger.debug(f"[DEBUG] find_word() calling compute_scansion() for word '{word.word}' with taqti '{taqti}'")
                     code = compute_scansion(word)
                     word.code.append(code)
-                    logger.debug(f"[DEBUG] find_word() assign_code() returned code '{code}' for word '{word.word}'")
+                    logger.debug(f"[DEBUG] find_word() compute_scansion() returned code '{code}' for word '{word.word}'")
                 
                 # C#: myConn2.Close();
                 conn2.close()
@@ -238,11 +238,11 @@ class WordLookup:
                             logger.debug(f"[DEBUG] find_word() variations table (by id) - found taqti: '{taqti}' for word '{search_word}'")
                             
                             # C#: wrd.code.Add(assignCode(wrd))
-                            # assign_code uses word.taqti[-1] to get the last taqti, which we just added
-                            logger.debug(f"[DEBUG] find_word() calling assign_code() for word '{word.word}' with taqti '{taqti}'")
+                            # compute_scansion uses word.taqti[-1] to get the last taqti, which we just added
+                            logger.debug(f"[DEBUG] find_word() calling compute_scansion() for word '{word.word}' with taqti '{taqti}'")
                             code = compute_scansion(word)
                             word.code.append(code)
-                            logger.debug(f"[DEBUG] find_word() assign_code() returned code '{code}' for word '{word.word}'")
+                            logger.debug(f"[DEBUG] find_word() compute_scansion() returned code '{code}' for word '{word.word}'")
                     
                     # C#: con.Close(); (called twice in C# - once in if, once after)
                     conn3.close()
@@ -289,11 +289,11 @@ class WordLookup:
                         logger.debug(f"[DEBUG] find_word() Plurals table - found taqti: '{taqti}' for word '{search_word}'")
                         
                         # C#: wrd.code.Add(assignCode(wrd))
-                        # assign_code uses word.taqti[-1] to get the last taqti, which we just added
-                        logger.debug(f"[DEBUG] find_word() calling assign_code() for word '{word.word}' with taqti '{taqti}'")
+                        # compute_scansion uses word.taqti[-1] to get the last taqti, which we just added
+                        logger.debug(f"[DEBUG] find_word() calling compute_scansion() for word '{word.word}' with taqti '{taqti}'")
                         code = compute_scansion(word)
                         word.code.append(code)
-                        logger.debug(f"[DEBUG] find_word() assign_code() returned code '{code}' for word '{word.word}'")
+                        logger.debug(f"[DEBUG] find_word() compute_scansion() returned code '{code}' for word '{word.word}'")
                     
                     # C#: myConn3.Close();
                     conn3.close()
@@ -339,11 +339,11 @@ class WordLookup:
                             logger.debug(f"[DEBUG] find_word() Variations table - found taqti: '{taqti}' for word '{search_word}'")
                             
                             # C#: wrd.code.Add(assignCode(wrd))
-                            # assign_code uses word.taqti[-1] to get the last taqti, which we just added
-                            logger.debug(f"[DEBUG] find_word() calling assign_code() for word '{word.word}' with taqti '{taqti}'")
+                            # compute_scansion uses word.taqti[-1] to get the last taqti, which we just added
+                            logger.debug(f"[DEBUG] find_word() calling compute_scansion() for word '{word.word}' with taqti '{taqti}'")
                             code = compute_scansion(word)
                             word.code.append(code)
-                            logger.debug(f"[DEBUG] find_word() assign_code() returned code '{code}' for word '{word.word}'")
+                            logger.debug(f"[DEBUG] find_word() compute_scansion() returned code '{code}' for word '{word.word}'")
                     
                     # C#: myConn4.Close();
                     conn4.close()
