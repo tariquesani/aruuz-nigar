@@ -9,6 +9,9 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+# Global flag to track if console logging should be silenced
+_CONSOLE_LOGGING_SILENCED = False
+
 
 def setup_logging(logs_dir: Optional[Path] = None) -> None:
     """
@@ -37,6 +40,7 @@ def setup_logging(logs_dir: Optional[Path] = None) -> None:
     date_format = '%Y-%m-%d %H:%M:%S'
     
     # Configure root logger (only if not already configured)
+    global _CONSOLE_LOGGING_SILENCED
     root_logger = logging.getLogger()
     if not root_logger.handlers:
         root_logger.setLevel(logging.DEBUG)
@@ -47,17 +51,28 @@ def setup_logging(logs_dir: Optional[Path] = None) -> None:
         file_handler.setFormatter(logging.Formatter(log_format, date_format))
         root_logger.addHandler(file_handler)
         
-        # Create console handler
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.DEBUG)
-        console_handler.setFormatter(logging.Formatter(log_format, date_format))
-        root_logger.addHandler(console_handler)
+        # Only create console handler if console logging is not silenced
+        if not _CONSOLE_LOGGING_SILENCED:
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(logging.DEBUG)
+            console_handler.setFormatter(logging.Formatter(log_format, date_format))
+            root_logger.addHandler(console_handler)
     
-    # Enable DEBUG logging for aruuz modules
-    logging.getLogger('aruuz').setLevel(logging.DEBUG)
-    logging.getLogger('aruuz.scansion').setLevel(logging.DEBUG)
-    logging.getLogger('aruuz.database').setLevel(logging.DEBUG)
-    logging.getLogger('aruuz.database.word_lookup').setLevel(logging.DEBUG)
+    # Enable DEBUG logging for aruuz modules (unless silenced)
+    aruuz_level = logging.WARNING if _CONSOLE_LOGGING_SILENCED else logging.DEBUG
+    logging.getLogger('aruuz').setLevel(aruuz_level)
+    logging.getLogger('aruuz.scansion').setLevel(aruuz_level)
+    logging.getLogger('aruuz.database').setLevel(aruuz_level)
+    logging.getLogger('aruuz.database.word_lookup').setLevel(aruuz_level)
+    
+    # Remove any console handlers if silenced
+    if _CONSOLE_LOGGING_SILENCED:
+        handlers_to_remove = [
+            h for h in root_logger.handlers
+            if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
+        ]
+        for handler in handlers_to_remove:
+            root_logger.removeHandler(handler)
     
     # Reduce noise from other loggers
     logging.getLogger('werkzeug').setLevel(logging.WARNING)
@@ -75,3 +90,34 @@ def setup_logging(logs_dir: Optional[Path] = None) -> None:
         explain_logger.addHandler(explain_file_handler)
         # Prevent propagation to root logger (explain logs only go to file)
         explain_logger.propagate = False
+
+
+def silence_console_logging():
+    """
+    Silence console logging output while keeping file logging.
+    
+    This is useful for tests or scripts where you don't want DEBUG logs
+    cluttering the console output. File logs will still be written.
+    
+    Sets a flag that setup_logging() will respect, and also removes any
+    existing console handlers and sets logger levels to WARNING.
+    
+    Call this BEFORE importing aruuz modules for best results.
+    """
+    global _CONSOLE_LOGGING_SILENCED
+    _CONSOLE_LOGGING_SILENCED = True
+    
+    # Remove existing console handlers
+    root_logger = logging.getLogger()
+    handlers_to_remove = [
+        h for h in root_logger.handlers
+        if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
+    ]
+    for handler in handlers_to_remove:
+        root_logger.removeHandler(handler)
+    
+    # Set aruuz logger levels to WARNING
+    logging.getLogger('aruuz').setLevel(logging.WARNING)
+    logging.getLogger('aruuz.scansion').setLevel(logging.WARNING)
+    logging.getLogger('aruuz.database').setLevel(logging.WARNING)
+    logging.getLogger('aruuz.database.word_lookup').setLevel(logging.WARNING)
