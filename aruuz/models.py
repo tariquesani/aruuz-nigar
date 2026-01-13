@@ -8,6 +8,12 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 from aruuz.utils.text import clean_line, clean_word, handle_noon_followed_by_stop
 from aruuz.utils.araab import remove_araab
+from aruuz.scansion.word_analysis import (
+    contains_noon,
+    is_muarrab,
+    locate_araab,
+    is_vowel_plus_h
+)
 
 
 @dataclass
@@ -28,6 +34,15 @@ class Words:
         language: List of language classifications
         taqti_word_graft: List of taqti word graft strings
         breakup: List of word breakup strings
+        
+    Profile Fields (automatically populated from word string):
+        word_no_araab: Word with all diacritical marks removed
+        has_araab: Boolean indicating if word contains any diacritical marks
+        araab_mask: String mapping diacritical marks to character positions
+        contains_internal_noon: Boolean indicating if word contains noon (ن) before last position
+        ends_with_vowel_plus_h: Boolean indicating if word ends with vowel+h pattern (ا،ی،ے،و،ہ،ؤ)
+        starts_with_madd: Boolean indicating if word starts with آ (alif madd)
+        has_aspirate_char: Boolean indicating if word contains ھ (aspirate character)
     """
     word: str = ""
     code: List[str] = field(default_factory=list)
@@ -41,6 +56,13 @@ class Words:
     language: List[str] = field(default_factory=list)
     taqti_word_graft: List[str] = field(default_factory=list)
     breakup: List[str] = field(default_factory=list)
+    word_no_araab: str = field(init=False, default="")
+    has_araab: bool = field(init=False, default=False)
+    araab_mask: str = field(init=False, default="")
+    contains_internal_noon: bool = field(init=False, default=False)
+    ends_with_vowel_plus_h: bool = field(init=False, default=False)
+    starts_with_madd: bool = field(init=False, default=False)
+    has_aspirate_char: bool = field(init=False, default=False)
 
     def __copy__(self):
         """Create a copy of the Words object."""
@@ -58,6 +80,33 @@ class Words:
             taqti_word_graft=self.taqti_word_graft.copy(),
             breakup=self.breakup.copy()
         )
+
+    def __post_init__(self):
+        """Populate cached helper outputs once dataclass initialization completes."""
+        self._refresh_profile_fields()
+
+    def __setattr__(self, name, value):
+        object.__setattr__(self, name, value)
+        if name == "word":
+            self._refresh_profile_fields()
+
+    def _refresh_profile_fields(self):
+        """Keep cached helper outputs in sync with the current word string."""
+        word_value = getattr(self, "word", "") or ""
+        stripped = remove_araab(word_value)
+        object.__setattr__(self, "word_no_araab", stripped)
+        object.__setattr__(self, "has_araab", bool(word_value) and is_muarrab(word_value))
+        araab_mask = locate_araab(word_value) if word_value else ""
+        object.__setattr__(self, "araab_mask", araab_mask)
+        contains_noon_flag = bool(stripped) and contains_noon(stripped)
+        object.__setattr__(self, "contains_internal_noon", contains_noon_flag)
+        # Check if word ends with vowel+h pattern (safe for empty strings)
+        ends_with_vowel = bool(stripped) and len(stripped) > 0 and is_vowel_plus_h(stripped[-1])
+        object.__setattr__(self, "ends_with_vowel_plus_h", ends_with_vowel)
+        starts_with_madd_flag = bool(stripped) and stripped.startswith("آ")
+        object.__setattr__(self, "starts_with_madd", starts_with_madd_flag)
+        has_aspirate_flag = "ھ" in word_value
+        object.__setattr__(self, "has_aspirate_char", has_aspirate_flag)
 
 
 @dataclass
