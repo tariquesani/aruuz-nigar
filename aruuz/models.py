@@ -8,12 +8,14 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 from aruuz.utils.text import clean_line, clean_word, handle_noon_followed_by_stop
 from aruuz.utils.araab import remove_araab
-from aruuz.scansion.word_analysis import (
-    contains_noon,
-    is_muarrab,
-    locate_araab,
-    is_vowel_plus_h
-)
+
+# Import moved inside _refresh_profile_fields() to break circular dependency
+# from aruuz.scansion.word_analysis import (
+#     contains_noon,
+#     is_muarrab,
+#     locate_araab,
+#     is_vowel_plus_h
+# )
 
 
 @dataclass
@@ -92,6 +94,14 @@ class Words:
 
     def _refresh_profile_fields(self):
         """Keep cached helper outputs in sync with the current word string."""
+        # Lazy import to break circular dependency: models -> scansion.word_analysis -> scansion.__init__ -> scansion.core -> models
+        from aruuz.scansion.word_analysis import (
+            contains_noon,
+            is_muarrab,
+            locate_araab,
+            is_vowel_plus_h
+        )
+        
         word_value = getattr(self, "word", "") or ""
         stripped = remove_araab(word_value)
         object.__setattr__(self, "word_no_araab", stripped)
