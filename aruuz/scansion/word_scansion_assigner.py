@@ -71,6 +71,8 @@ class WordScansionAssigner:
                     # Log successful code assignment from database
                     if len(word.code) > 0:
                         word.assignment_method = "database"
+                        # Append assignment summary step
+                        word.scansion_generation_steps.append(f"Assigned scansion code candidates: {len(word.code)} (source: database).")
                         explain_logger = get_explain_logger()
                         codes_str = ', '.join(word.code)
                         explain_logger.info(f"RULE | Word ('{word.word}') | Assigned code '{codes_str}' | Source: database")
@@ -95,6 +97,8 @@ class WordScansionAssigner:
             if len(word_result.code) > 0:
                 word_result.assignment_method = "compound_split"
                 word_result.fallback_used = True  # Compound splitting is a fallback
+                # Append assignment summary step
+                word_result.scansion_generation_steps.append(f"Assigned scansion code candidates: {len(word_result.code)} (source: compound split).")
                 # Log successful code assignment from compound word splitting
                 explain_logger = get_explain_logger()
                 codes_str = ', '.join(word_result.code)
@@ -111,6 +115,8 @@ class WordScansionAssigner:
         
         # Log successful code assignment from heuristics (only if code is non-empty)
         if code:
+            # Append assignment summary step
+            word.scansion_generation_steps.append(f"Assigned scansion code: '{code}'.")
             explain_logger = get_explain_logger()
             explain_logger.info(f"RULE | Word ('{word.word}') | Assigned code '{code}' | Source: heuristic")
         
@@ -149,6 +155,8 @@ class WordScansionAssigner:
                         # C#: wrd.code.Add("==");
                         word.id.append(-1)
                         word.code.append("==")
+                        # Append step for 3-letter variation rule
+                        word.scansion_generation_steps.append("Applied 3-letter DB variation rule (added code: '==').")
                 else:  # First character is not alif madd
                     # C#: if (!wrd.code[0].Equals("-=") && !wrd.code[0].Equals("-x"))
                     if len(word.code) > 0 and word.code[0] != "-=" and word.code[0] != "-x":
@@ -156,6 +164,8 @@ class WordScansionAssigner:
                         # C#: wrd.code.Add("-=");
                         word.id.append(-1)
                         word.code.append("-=")
+                        # Append step for 3-letter variation rule
+                        word.scansion_generation_steps.append("Applied 3-letter DB variation rule (added code: '-=').")
         
         return word
     
@@ -550,6 +560,13 @@ class WordScansionAssigner:
                 first.muarrab = muarrab
                 # Set compound split position
                 first.compound_split_position = i
+                
+                # Append compound split steps (using original word parts before combination)
+                first_part = stripped[:i]
+                second_part = stripped[i:]
+                first.scansion_generation_steps.append(f"Compound split succeeded: '{first_part}' + '{second_part}' (split at {i}).")
+                first.scansion_generation_steps.append(f"Combined codes from split parts (results: {len(codes)}).")
+                
                 wd = first
                 break
         

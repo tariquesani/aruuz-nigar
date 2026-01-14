@@ -64,6 +64,12 @@ for i, word in enumerate(line_obj.words_list):
     print(f"Word {i} ('{word.word}'): {word.code}")
     if word.taqti_word_graft:
         print(f"  Graft codes: {word.taqti_word_graft}")
+    if word.scansion_generation_steps:
+        print(f"  Scansion generation steps:")
+        for step_idx, step in enumerate(word.scansion_generation_steps, 1):
+            print(f"    {step_idx}. {step}")
+    else:
+        print(f"  Scansion generation steps: (none - word already had codes)")
 print()
 
 # Step 1.7: Ataf (عطف) Processing - Handle conjunction "و" between words

@@ -44,10 +44,14 @@ def compute_scansion(word: 'Words') -> str:
     # Handle simple cases first
     if len(word1) == 1:
         word.heuristic_scanner_used = "length_one_scan"
-        return length_one_scan(word.word)
+        code = length_one_scan(word.word)
+        word.scansion_generation_steps.append("Applied length_one_scan.")
+        return code
     elif len(word1) == 2:
         word.heuristic_scanner_used = "length_two_scan"
-        return length_two_scan(word.word)
+        code = length_two_scan(word.word)
+        word.scansion_generation_steps.append("Applied length_two_scan.")
+        return code
     
     # For longer words, use taqti if available
     if word.taqti and len(word.taqti) > 0:
@@ -69,6 +73,10 @@ def compute_scansion(word: 'Words') -> str:
                 current += char
         if current.strip():
             sub_strings.append(current.strip())
+        
+        # Append step for taqti segmentation (only if segments exist)
+        if sub_strings:
+            word.scansion_generation_steps.append(f"Used taqti-based heuristic segmentation (segments: {len(sub_strings)}).")
         
         # Process each substring
         for sub_string in sub_strings:
@@ -109,6 +117,7 @@ def compute_scansion(word: 'Words') -> str:
                 code += length_five_scan(sub_string)
         
         # Handle word-end flexible syllable
+        word_end_rule_applied = False
         if code and (code[-1] == '=' or code[-1] == 'x'):
             if len(word1) > 0 and is_vowel_plus_h(word1[-1]):
                 # Check language for Arabic/Persian rules
@@ -118,21 +127,43 @@ def compute_scansion(word: 'Words') -> str:
                     
                     if is_arabic or is_persian:
                         code = code[:-1] + "="
+                        word_end_rule_applied = True
                     else:
                         code = code[:-1] + "x"
+                        word_end_rule_applied = True
                 else:
                     code = code[:-1] + "x"
+                    word_end_rule_applied = True
+        
+        # Append step for word-final rule if it was applied
+        if word_end_rule_applied:
+            word.scansion_generation_steps.append("Applied word-final vowel+ہ rule.")
+        
+        # Append scanner step (once per word) if not already appended for early returns
+        if word.heuristic_scanner_used:
+            # Check if any scanner step already exists
+            scanner_steps_exist = any(
+                any(scanner in step for scanner in [
+                    "length_one_scan", "length_two_scan", "length_three_scan",
+                    "length_four_scan", "length_five_scan"
+                ]) for step in word.scansion_generation_steps
+            )
+            if not scanner_steps_exist:
+                word.scansion_generation_steps.append(f"Applied {word.heuristic_scanner_used}.")
     else:
         # No taqti available - use heuristics based on word length
         if len(word1) == 3:
             word.heuristic_scanner_used = "length_three_scan"
             code = length_three_scan(word.word)
+            word.scansion_generation_steps.append("Applied length_three_scan.")
         elif len(word1) == 4:
             word.heuristic_scanner_used = "length_four_scan"
             code = length_four_scan(word.word)
+            word.scansion_generation_steps.append("Applied length_four_scan.")
         elif len(word1) >= 5:
             word.heuristic_scanner_used = "length_five_scan"
             code = length_five_scan(word.word)
+            word.scansion_generation_steps.append("Applied length_five_scan.")
         else:
             code = "-"  # Default fallback
     

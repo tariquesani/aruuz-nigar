@@ -126,6 +126,9 @@ class WordLookup:
                 except (IndexError, TypeError):
                     pass
             
+            # Append step for successful exceptions table lookup
+            word.scansion_generation_steps.append(f"Found in database exceptions table (codes: {len(word.code)}).")
+            
             # C#: myConn.Close();
             conn.close()
             return word
@@ -157,6 +160,8 @@ class WordLookup:
             if rows:
                 logger.debug(f"[DEBUG] find_word() found word '{search_word}' in mastertable")
                 word.db_lookup_successful = True
+                # Append step for successful mastertable lookup
+                word.scansion_generation_steps.append(f"Found in database mastertable (entries: {len(rows)}).")
                 # Found in mastertable
                 # C#: while (dataReader2.Read()) - process each row
                 for row_idx, row in enumerate(rows):
@@ -201,6 +206,10 @@ class WordLookup:
                     code = compute_scansion(word)
                     word.code.append(code)
                     logger.debug(f"[DEBUG] find_word() compute_scansion() returned code '{code}' for word '{word.word}'")
+                    
+                    # Append step for DB taqti computation (only if code is non-empty)
+                    if code:
+                        word.scansion_generation_steps.append("Computed code from database taqti.")
                 
                 # C#: myConn2.Close();
                 conn2.close()
@@ -245,6 +254,10 @@ class WordLookup:
                             code = compute_scansion(word)
                             word.code.append(code)
                             logger.debug(f"[DEBUG] find_word() compute_scansion() returned code '{code}' for word '{word.word}'")
+                            
+                            # Append step for DB taqti computation (only if code is non-empty)
+                            if code:
+                                word.scansion_generation_steps.append("Computed code from database taqti.")
                     
                     # C#: con.Close(); (called twice in C# - once in if, once after)
                     conn3.close()
@@ -274,6 +287,8 @@ class WordLookup:
                 if rows:
                     logger.debug(f"[DEBUG] find_word() found word '{search_word}' in Plurals table")
                     word.db_lookup_successful = True
+                    # Append step for successful plurals table lookup
+                    word.scansion_generation_steps.append(f"Found in database plurals table (entries: {len(rows)}).")
                     # Found in plurals table
                     # C#: while (dataReader3.Read()) - process each row
                     for row_idx, row in enumerate(rows):
@@ -297,6 +312,10 @@ class WordLookup:
                         code = compute_scansion(word)
                         word.code.append(code)
                         logger.debug(f"[DEBUG] find_word() compute_scansion() returned code '{code}' for word '{word.word}'")
+                        
+                        # Append step for DB taqti computation (only if code is non-empty)
+                        if code:
+                            word.scansion_generation_steps.append("Computed code from database taqti.")
                     
                     # C#: myConn3.Close();
                     conn3.close()
@@ -325,6 +344,8 @@ class WordLookup:
                     if rows:
                         logger.debug(f"[DEBUG] find_word() found word '{search_word}' in Variations table")
                         word.db_lookup_successful = True
+                        # Append step for successful variations table lookup
+                        word.scansion_generation_steps.append(f"Found in database variations table (entries: {len(rows)}).")
                         # Found in variations table
                         # C#: while (dataReader4.Read()) - process each row
                         for row_idx, row in enumerate(rows):
@@ -348,6 +369,10 @@ class WordLookup:
                             code = compute_scansion(word)
                             word.code.append(code)
                             logger.debug(f"[DEBUG] find_word() compute_scansion() returned code '{code}' for word '{word.word}'")
+                            
+                            # Append step for DB taqti computation (only if code is non-empty)
+                            if code:
+                                word.scansion_generation_steps.append("Computed code from database taqti.")
                     
                     # C#: myConn4.Close();
                     conn4.close()
