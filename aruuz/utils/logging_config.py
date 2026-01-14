@@ -12,6 +12,9 @@ from typing import Optional
 # Global flag to track if console logging should be silenced
 _CONSOLE_LOGGING_SILENCED = False
 
+# Global flag to track if file logging should be silenced
+_FILE_LOGGING_SILENCED = False
+
 
 def setup_logging(logs_dir: Optional[Path] = None) -> None:
     """
@@ -40,16 +43,17 @@ def setup_logging(logs_dir: Optional[Path] = None) -> None:
     date_format = '%Y-%m-%d %H:%M:%S'
     
     # Configure root logger (only if not already configured)
-    global _CONSOLE_LOGGING_SILENCED
+    global _CONSOLE_LOGGING_SILENCED, _FILE_LOGGING_SILENCED
     root_logger = logging.getLogger()
     if not root_logger.handlers:
         root_logger.setLevel(logging.DEBUG)
         
-        # Create file handler for debug.log
-        file_handler = logging.FileHandler(logs_dir / 'debug.log', encoding='utf-8')
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(logging.Formatter(log_format, date_format))
-        root_logger.addHandler(file_handler)
+        # Create file handler for debug.log (only if file logging is not silenced)
+        if not _FILE_LOGGING_SILENCED:
+            file_handler = logging.FileHandler(logs_dir / 'debug.log', encoding='utf-8')
+            file_handler.setLevel(logging.DEBUG)
+            file_handler.setFormatter(logging.Formatter(log_format, date_format))
+            root_logger.addHandler(file_handler)
         
         # Only create console handler if console logging is not silenced
         if not _CONSOLE_LOGGING_SILENCED:
@@ -74,6 +78,24 @@ def setup_logging(logs_dir: Optional[Path] = None) -> None:
         for handler in handlers_to_remove:
             root_logger.removeHandler(handler)
     
+    # Remove any file handlers if silenced
+    if _FILE_LOGGING_SILENCED:
+        handlers_to_remove = [
+            h for h in root_logger.handlers
+            if isinstance(h, logging.FileHandler)
+        ]
+        for handler in handlers_to_remove:
+            root_logger.removeHandler(handler)
+        
+        # Also remove file handlers from explain logger
+        explain_logger = logging.getLogger('aruuz.explain')
+        handlers_to_remove = [
+            h for h in explain_logger.handlers
+            if isinstance(h, logging.FileHandler)
+        ]
+        for handler in handlers_to_remove:
+            explain_logger.removeHandler(handler)
+    
     # Reduce noise from other loggers
     logging.getLogger('werkzeug').setLevel(logging.WARNING)
     
@@ -82,7 +104,8 @@ def setup_logging(logs_dir: Optional[Path] = None) -> None:
     explain_logger = logging.getLogger('aruuz.explain')
     
     # Only configure if not already configured (check for handlers)
-    if not explain_logger.handlers:
+    # Only create file handler if file logging is not silenced
+    if not explain_logger.handlers and not _FILE_LOGGING_SILENCED:
         explain_file_handler = logging.FileHandler(logs_dir / 'explain.log', encoding='utf-8')
         explain_file_handler.setLevel(logging.INFO)
         explain_file_handler.setFormatter(logging.Formatter(log_format, date_format))
@@ -121,3 +144,37 @@ def silence_console_logging():
     logging.getLogger('aruuz.scansion').setLevel(logging.WARNING)
     logging.getLogger('aruuz.database').setLevel(logging.WARNING)
     logging.getLogger('aruuz.database.word_lookup').setLevel(logging.WARNING)
+
+
+def silence_file_logging():
+    """
+    Silence file logging output while keeping console logging.
+    
+    This is useful for tests or scripts where you don't want log files
+    to be created or written to. Console logs will still be output.
+    
+    Sets a flag that setup_logging() will respect, and also removes any
+    existing file handlers from both the root logger and explain logger.
+    
+    Call this BEFORE importing aruuz modules for best results.
+    """
+    global _FILE_LOGGING_SILENCED
+    _FILE_LOGGING_SILENCED = True
+    
+    # Remove existing file handlers from root logger
+    root_logger = logging.getLogger()
+    handlers_to_remove = [
+        h for h in root_logger.handlers
+        if isinstance(h, logging.FileHandler)
+    ]
+    for handler in handlers_to_remove:
+        root_logger.removeHandler(handler)
+    
+    # Remove existing file handlers from explain logger
+    explain_logger = logging.getLogger('aruuz.explain')
+    handlers_to_remove = [
+        h for h in explain_logger.handlers
+        if isinstance(h, logging.FileHandler)
+    ]
+    for handler in handlers_to_remove:
+        explain_logger.removeHandler(handler)
