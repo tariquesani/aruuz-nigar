@@ -51,7 +51,12 @@ class WordScansionAssigner:
         """
         # If word already has codes, return as is
         if len(word.code) > 0:
+            word.assignment_method = "already_assigned"
             return word
+        
+        # Initialize tracking properties
+        word.db_lookup_successful = False
+        word.fallback_used = False
         
         # Strategy 1: Try database lookup first (if available)
         if self.word_lookup is not None:
@@ -60,19 +65,24 @@ class WordScansionAssigner:
                 
                 # If database lookup found results
                 if len(word.id) > 0:
+                    word.db_lookup_successful = True
                     # Apply special 3-character word handling
                     word = self._apply_db_variations(word)
                     # Log successful code assignment from database
                     if len(word.code) > 0:
+                        word.assignment_method = "database"
                         explain_logger = get_explain_logger()
                         codes_str = ', '.join(word.code)
                         explain_logger.info(f"RULE | Word ('{word.word}') | Assigned code '{codes_str}' | Source: database")
                     return word
             except Exception:
                 # On any DB error, fall back to heuristics
+                word.fallback_used = True
                 pass
         
         # Strategy 2: Fallback to heuristics
+        if not word.db_lookup_successful:
+            word.fallback_used = True
         code = compute_scansion(word)
         
         # Strategy 3: Try compound word splitting if heuristics failed
@@ -83,6 +93,8 @@ class WordScansionAssigner:
             word_result = self._split_compound_word(word)
             # If compound_word found a valid split (has codes), use it
             if len(word_result.code) > 0:
+                word_result.assignment_method = "compound_split"
+                word_result.fallback_used = True  # Compound splitting is a fallback
                 # Log successful code assignment from compound word splitting
                 explain_logger = get_explain_logger()
                 codes_str = ', '.join(word_result.code)
@@ -92,6 +104,10 @@ class WordScansionAssigner:
         
         # Store code in word
         word.code = [code]
+        
+        # Set assignment method for heuristic path
+        if word.assignment_method is None:
+            word.assignment_method = "heuristic"
         
         # Log successful code assignment from heuristics (only if code is non-empty)
         if code:
@@ -532,6 +548,8 @@ class WordScansionAssigner:
                     for j in range(len(second.muarrab)):
                         muarrab.append(first.muarrab[k] + second.muarrab[j])
                 first.muarrab = muarrab
+                # Set compound split position
+                first.compound_split_position = i
                 wd = first
                 break
         

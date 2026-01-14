@@ -31,6 +31,10 @@ def compute_scansion(word: 'Words') -> str:
     Returns:
         Scansion code string (e.g., "=-=", "x", etc.)
     """
+    # Initialize tracking properties
+    word.heuristic_scanner_used = None
+    word.heuristic_taqti_used = False
+    
     # Remove araab and special characters
     word1 = remove_araab(word.word)
     word1 = word1.replace("\u06BE", "").replace("\u06BA", "")  # Remove ھ and ں
@@ -39,12 +43,15 @@ def compute_scansion(word: 'Words') -> str:
     
     # Handle simple cases first
     if len(word1) == 1:
+        word.heuristic_scanner_used = "length_one_scan"
         return length_one_scan(word.word)
     elif len(word1) == 2:
+        word.heuristic_scanner_used = "length_two_scan"
         return length_two_scan(word.word)
     
     # For longer words, use taqti if available
     if word.taqti and len(word.taqti) > 0:
+        word.heuristic_taqti_used = True
         residue = word.taqti[-1].strip()
         # Remove ھ and ں from taqti
         residue = residue.replace("\u06BE", "").replace("\u06BA", "")
@@ -72,8 +79,12 @@ def compute_scansion(word: 'Words') -> str:
             stripped_len = len(remove_araab(sub_string.replace("\u06BE", "").replace("\u06BA", "")))
             
             if stripped_len == 1:
+                if word.heuristic_scanner_used is None:
+                    word.heuristic_scanner_used = "length_one_scan"
                 code += length_one_scan(sub_string)
             elif stripped_len == 2:
+                if word.heuristic_scanner_used is None:
+                    word.heuristic_scanner_used = "length_two_scan"
                 stripped = remove_araab(sub_string)
                 # Case 1: alif madd (special long, splittable)
                 if stripped and stripped[0] == 'آ':
@@ -85,10 +96,16 @@ def compute_scansion(word: 'Words') -> str:
                 else:
                     code += "x"
             elif stripped_len == 3:
+                if word.heuristic_scanner_used is None:
+                    word.heuristic_scanner_used = "length_three_scan"
                 code += length_three_scan(sub_string)
             elif stripped_len == 4:
+                if word.heuristic_scanner_used is None:
+                    word.heuristic_scanner_used = "length_four_scan"
                 code += length_four_scan(sub_string)
             elif stripped_len >= 5:
+                if word.heuristic_scanner_used is None:
+                    word.heuristic_scanner_used = "length_five_scan"
                 code += length_five_scan(sub_string)
         
         # Handle word-end flexible syllable
@@ -108,10 +125,13 @@ def compute_scansion(word: 'Words') -> str:
     else:
         # No taqti available - use heuristics based on word length
         if len(word1) == 3:
+            word.heuristic_scanner_used = "length_three_scan"
             code = length_three_scan(word.word)
         elif len(word1) == 4:
+            word.heuristic_scanner_used = "length_four_scan"
             code = length_four_scan(word.word)
         elif len(word1) >= 5:
+            word.heuristic_scanner_used = "length_five_scan"
             code = length_five_scan(word.word)
         else:
             code = "-"  # Default fallback

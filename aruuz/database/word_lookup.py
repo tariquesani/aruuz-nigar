@@ -89,6 +89,7 @@ class WordLookup:
         
         if rows:
             logger.debug(f"[DEBUG] find_word() found word '{search_word}' in exceptions table")
+            word.db_lookup_successful = True
             # Found in exceptions table - populate and return early
             # C#: while (dataReader.Read()) - process each row
             for row_idx, row in enumerate(rows):
@@ -155,6 +156,7 @@ class WordLookup:
             
             if rows:
                 logger.debug(f"[DEBUG] find_word() found word '{search_word}' in mastertable")
+                word.db_lookup_successful = True
                 # Found in mastertable
                 # C#: while (dataReader2.Read()) - process each row
                 for row_idx, row in enumerate(rows):
@@ -271,6 +273,7 @@ class WordLookup:
                 
                 if rows:
                     logger.debug(f"[DEBUG] find_word() found word '{search_word}' in Plurals table")
+                    word.db_lookup_successful = True
                     # Found in plurals table
                     # C#: while (dataReader3.Read()) - process each row
                     for row_idx, row in enumerate(rows):
@@ -321,6 +324,7 @@ class WordLookup:
                     
                     if rows:
                         logger.debug(f"[DEBUG] find_word() found word '{search_word}' in Variations table")
+                        word.db_lookup_successful = True
                         # Found in variations table
                         # C#: while (dataReader4.Read()) - process each row
                         for row_idx, row in enumerate(rows):

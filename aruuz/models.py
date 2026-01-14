@@ -36,6 +36,12 @@ class Words:
         language: List of language classifications
         taqti_word_graft: List of taqti word graft strings
         breakup: List of word breakup strings
+        assignment_method: Primary strategy used for code assignment ("database", "heuristic", "compound_split", "already_assigned")
+        heuristic_scanner_used: Which heuristic function was called ("length_one_scan", "length_two_scan", etc.)
+        heuristic_taqti_used: Whether taqti was available and used
+        compound_split_position: Character position where compound word was split (None if not split)
+        db_lookup_successful: Whether database lookup succeeded
+        fallback_used: Whether fallback strategy was needed
         
     Profile Fields (automatically populated from word string):
         word_no_araab: Word with all diacritical marks removed
@@ -58,6 +64,12 @@ class Words:
     language: List[str] = field(default_factory=list)
     taqti_word_graft: List[str] = field(default_factory=list)
     breakup: List[str] = field(default_factory=list)
+    assignment_method: Optional[str] = None
+    heuristic_scanner_used: Optional[str] = None
+    heuristic_taqti_used: bool = False
+    compound_split_position: Optional[int] = None
+    db_lookup_successful: bool = False
+    fallback_used: bool = False
     word_no_araab: str = field(init=False, default="")
     has_araab: bool = field(init=False, default=False)
     araab_mask: str = field(init=False, default="")
@@ -80,7 +92,13 @@ class Words:
             modified=self.modified,
             language=self.language.copy(),
             taqti_word_graft=self.taqti_word_graft.copy(),
-            breakup=self.breakup.copy()
+            breakup=self.breakup.copy(),
+            assignment_method=self.assignment_method,
+            heuristic_scanner_used=self.heuristic_scanner_used,
+            heuristic_taqti_used=self.heuristic_taqti_used,
+            compound_split_position=self.compound_split_position,
+            db_lookup_successful=self.db_lookup_successful,
+            fallback_used=self.fallback_used
         )
 
     def __post_init__(self):
