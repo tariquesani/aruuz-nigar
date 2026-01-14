@@ -95,6 +95,7 @@ class Words:
         word_value = getattr(self, "word", "") or ""
         stripped = remove_araab(word_value)
         object.__setattr__(self, "word_no_araab", stripped)
+        object.__setattr__(self, "length", len(stripped))
         object.__setattr__(self, "has_araab", bool(word_value) and is_muarrab(word_value))
         araab_mask = locate_araab(word_value) if word_value else ""
         object.__setattr__(self, "araab_mask", araab_mask)
@@ -280,10 +281,7 @@ class Lines:
                 # Create Words object
                 word = Words()
                 word.word = cleaned_word
-                
-                # Calculate length after removing diacritics
-                # This matches: wrd.length = Araab.removeAraab(wrd.word).Length
-                word.length = len(remove_araab(cleaned_word))
+                # length is automatically calculated in _refresh_profile_fields()
                 
                 # Only add words with length > 0
                 # This matches: if (wrd.length > 0) wordsList.Add(wrd);
