@@ -22,6 +22,16 @@ parent_dir = os.path.dirname(script_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
+# Import logging config first to silence console output before other imports
+from aruuz.utils.logging_config import silence_console_logging, silence_file_logging
+
+# Silence console debug logging for cleaner test output
+# File logs (debug.log, explain.log) will still be written if needed
+silence_console_logging()
+
+# Silence file logging to avoid creating log files
+silence_file_logging()
+
 from typing import List
 from aruuz.models import Lines, scanPath, codeLocation, LineScansionResult, Words
 from aruuz.scansion import Scansion, is_vowel_plus_h, is_consonant_plus_consonant
