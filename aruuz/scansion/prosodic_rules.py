@@ -49,6 +49,7 @@ class ProsodicRules:
                         length = len(stripped)
                         
                         if length > 0:
+                            al_applied = False
                             # Process each code in current word
                             for k in range(len(wrd.code)):
                                 if is_vowel_plus_h(stripped[length - 1]):
@@ -57,22 +58,27 @@ class ProsodicRules:
                                         last_char = wrd.code[k][-1]
                                         if last_char == "=" or last_char == "x":
                                             wrd.code[k] = wrd.code[k][:-1] + "="
+                                            al_applied = True
                                         elif last_char == "-":
                                             wrd.code[k] = wrd.code[k][:-1] + "="
+                                            al_applied = True
                                 else:
                                     # Last char is consonant
                                     if length == 2 and is_consonant_plus_consonant(wrd.word):
                                         # 2-char words with consonant+consonant: modify to "=="
                                         if len(wrd.code[k]) > 0:
                                             wrd.code[k] = wrd.code[k][:-1] + "=="
+                                            al_applied = True
                                     else:
                                         # Otherwise: modify ending ("=" or "x" → "-=", "-" → "=")
                                         if len(wrd.code[k]) > 0:
                                             last_char = wrd.code[k][-1]
                                             if last_char == "=" or last_char == "x":
                                                 wrd.code[k] = wrd.code[k][:-1] + "-="
+                                                al_applied = True
                                             elif last_char == "-":
                                                 wrd.code[k] = wrd.code[k][:-1] + "="
+                                                al_applied = True
                             
                             # Remove first character from all codes in next word
                             for k in range(len(nwrd.code)):
@@ -89,8 +95,13 @@ class ProsodicRules:
                                     nwrd.muarrab[l] = nwrd.muarrab[l][2:]
                             
                             # Log Al prefix rule application
-                            explain_logger = get_explain_logger()
-                            explain_logger.info(f"RULE | Al prefix | Applied to Word {i+1} ('{nwrd.word}') | Modified Word {i}: codes updated, removed 'ال'")
+                            if al_applied:
+                                # Record per-word prosodic transformation steps
+                                wrd.prosodic_transformation_steps.append("Extended previous word to absorb 'ال' (Al).")
+                                nwrd.prosodic_transformation_steps.append("Merged 'ال' with previous word (Al).")
+
+                                explain_logger = get_explain_logger()
+                                explain_logger.info(f"RULE | Al prefix | Applied to Word {i+1} ('{nwrd.word}') | Modified Word {i}: codes updated, removed 'ال'")
     
     @staticmethod
     def process_izafat(line: 'Lines') -> None:
@@ -106,6 +117,7 @@ class ProsodicRules:
         # Adjust codes for possessive markers
         for wrd in line.words_list:
             if is_izafat(wrd.word):
+                izafat_applied = False
                 if len(wrd.id) > 0:
                     # Word has database ID
                     count = len(wrd.code)
@@ -115,11 +127,13 @@ class ProsodicRules:
                         # Arabic Monosyllabic Words (2-character words)
                         if wrd.length == 2:
                             wrd.code[k] = "xx"
+                            izafat_applied = True
                         # Words ending in "ا" or "و"
                         elif len(wrd.code[k]) > 0 and (wrd.code[k][-1] == "=" or wrd.code[k][-1] == "x"):
                             if len(t_word) > 0 and (t_word[-1] == 'ا' or t_word[-1] == 'و'):
                                 # Modify ending: "=" or "x" → "=x"
                                 wrd.code[k] = wrd.code[k][:-1] + "=x"
+                                izafat_applied = True
                             else:
                                 # Words ending in "ی"
                                 if len(t_word) > 0 and t_word[-1] == 'ی':
@@ -127,27 +141,34 @@ class ProsodicRules:
                                     wrd.code.append(wrd.code[k] + "x")
                                     # Modify current code: "=" or "x" → "-x"
                                     wrd.code[k] = wrd.code[k][:-1] + "-x"
+                                    izafat_applied = True
                                 else:
                                     # Other cases: "=" or "x" → "-x"
                                     wrd.code[k] = wrd.code[k][:-1] + "-x"
+                                    izafat_applied = True
                         # Words ending with "-"
                         elif len(wrd.code[k]) > 0 and wrd.code[k][-1] == "-":
                             # Modify ending: "-" → "x"
                             wrd.code[k] = wrd.code[k][:-1] + "x"
+                            izafat_applied = True
                 else:
                     # Word has no database ID
                     for k in range(len(wrd.code)):
                         if len(wrd.code[k]) > 0 and (wrd.code[k][-1] == "=" or wrd.code[k][-1] == "x"):
                             # Modify ending: "=" or "x" → "-x"
                             wrd.code[k] = wrd.code[k][:-1] + "-x"
+                            izafat_applied = True
                         elif len(wrd.code[k]) > 0 and wrd.code[k][-1] == "-":
                             # Modify ending: "-" → "x"
                             wrd.code[k] = wrd.code[k][:-1] + "x"
+                            izafat_applied = True
                 
                 # Log Izafat rule application (after all modifications)
-                explain_logger = get_explain_logger()
-                codes_str = ', '.join(wrd.code) if wrd.code else 'none'
-                explain_logger.info(f"RULE | Izafat | Applied to Word '{wrd.word}' | Modified codes: {codes_str}")
+                if izafat_applied:
+                    wrd.prosodic_transformation_steps.append("Applied Izafat adjustment to final syllable.")
+                    explain_logger = get_explain_logger()
+                    codes_str = ', '.join(wrd.code) if wrd.code else 'none'
+                    explain_logger.info(f"RULE | Izafat | Applied to Word '{wrd.word}' | Modified codes: {codes_str}")
     
     @staticmethod
     def process_ataf(line: 'Lines') -> None:
@@ -172,6 +193,8 @@ class ProsodicRules:
                 if length > 0:
                     # Capture original codes for logging
                     original_codes = pwrd.code.copy() if pwrd.code else []
+                    previous_modified = False
+                    conjunction_cleared = False
                     for k in range(len(pwrd.code)):
                         if is_vowel_plus_h(stripped[length - 1]):
                             # Last char is vowel+h
@@ -184,56 +207,83 @@ class ProsodicRules:
                                     last_char = pwrd.code[k][-1]
                                     if last_char == "=" or last_char == "x":
                                         pwrd.code[k] = pwrd.code[k][:-1] + "-x"
+                                        previous_modified = True
                                         # Clear all codes in current word ("و")
                                         for j in range(len(wrd.code)):
-                                            wrd.code[j] = ""
+                                            if wrd.code[j] != "":
+                                                wrd.code[j] = ""
+                                                conjunction_cleared = True
                                     elif last_char == "-":
                                         pwrd.code[k] = pwrd.code[k][:-1] + "x"
+                                        previous_modified = True
                                         # Clear all codes in current word ("و")
                                         for j in range(len(wrd.code)):
-                                            wrd.code[j] = ""
+                                            if wrd.code[j] != "":
+                                                wrd.code[j] = ""
+                                                conjunction_cleared = True
                             else:
                                 # Other vowels: modify code and clear current word codes
                                 if len(pwrd.code[k]) > 0:
                                     last_char = pwrd.code[k][-1]
                                     if last_char == "=" or last_char == "x":
                                         pwrd.code[k] = pwrd.code[k][:-1] + "-x"
+                                        previous_modified = True
                                         # Clear all codes in current word ("و")
                                         for j in range(len(wrd.code)):
-                                            wrd.code[j] = ""
+                                            if wrd.code[j] != "":
+                                                wrd.code[j] = ""
+                                                conjunction_cleared = True
                                     elif last_char == "-":
                                         pwrd.code[k] = pwrd.code[k][:-1] + "x"
+                                        previous_modified = True
                                         # Clear all codes in current word ("و")
                                         for j in range(len(wrd.code)):
-                                            wrd.code[j] = ""
+                                            if wrd.code[j] != "":
+                                                wrd.code[j] = ""
+                                                conjunction_cleared = True
                         else:
                             # Last char is consonant
                             if length == 2 and is_consonant_plus_consonant(remove_araab(pwrd.word)):
                                 # 2-char consonant+consonant words: set code to "xx" and clear current word codes
                                 pwrd.code[k] = "xx"
+                                previous_modified = True
                                 # Clear all codes in current word ("و")
                                 for j in range(len(wrd.code)):
-                                    wrd.code[j] = ""
+                                    if wrd.code[j] != "":
+                                        wrd.code[j] = ""
+                                        conjunction_cleared = True
                             else:
                                 # Otherwise: modify code and clear current word codes
                                 if len(pwrd.code[k]) > 0:
                                     last_char = pwrd.code[k][-1]
                                     if last_char == "=" or last_char == "x":
                                         pwrd.code[k] = pwrd.code[k][:-1] + "-x"
+                                        previous_modified = True
                                         # Clear all codes in current word ("و")
                                         for j in range(len(wrd.code)):
-                                            wrd.code[j] = ""
+                                            if wrd.code[j] != "":
+                                                wrd.code[j] = ""
+                                                conjunction_cleared = True
                                     elif last_char == "-":
                                         pwrd.code[k] = pwrd.code[k][:-1] + "x"
+                                        previous_modified = True
                                         # Clear all codes in current word ("و")
                                         for j in range(len(wrd.code)):
-                                            wrd.code[j] = ""
+                                            if wrd.code[j] != "":
+                                                wrd.code[j] = ""
+                                                conjunction_cleared = True
                     
                     # Log Ataf rule application (after all modifications)
-                    explain_logger = get_explain_logger()
-                    old_code_str = original_codes[0] if original_codes else 'none'
-                    new_code_str = pwrd.code[0] if pwrd.code and pwrd.code[0] else 'none'
-                    explain_logger.info(f"RULE | Ataf | Applied to Word {i} ('و') | Modified Word {i-1}: '{old_code_str}' → '{new_code_str}', cleared Word {i} codes")
+                    if previous_modified or conjunction_cleared:
+                        if previous_modified:
+                            pwrd.prosodic_transformation_steps.append("Adjusted previous word code for conjunction 'و' (Ataf).")
+                        if conjunction_cleared:
+                            wrd.prosodic_transformation_steps.append("Cleared scansion codes for 'و' after merge (Ataf).")
+
+                        explain_logger = get_explain_logger()
+                        old_code_str = original_codes[0] if original_codes else 'none'
+                        new_code_str = pwrd.code[0] if pwrd.code and pwrd.code[0] else 'none'
+                        explain_logger.info(f"RULE | Ataf | Applied to Word {i} ('و') | Modified Word {i-1}: '{old_code_str}' → '{new_code_str}', cleared Word {i} codes")
     
     @staticmethod
     def process_word_grafting(line: 'Lines') -> None:
@@ -273,6 +323,7 @@ class ProsodicRules:
                         
                         # Log word grafting rule application (after graft codes created)
                         if prev_word.taqti_word_graft:
+                            prev_word.prosodic_transformation_steps.append("Grafted with following vowel-initial word; added graft codes.")
                             explain_logger = get_explain_logger()
                             graft_codes_str = ', '.join(prev_word.taqti_word_graft)
                             explain_logger.info(f"RULE | Word grafting | Applied to Word {i} ('{wrd.word}') | Created graft codes for Word {i-1}: {graft_codes_str}")

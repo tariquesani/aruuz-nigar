@@ -43,6 +43,7 @@ class Words:
         db_lookup_successful: Whether database lookup succeeded
         fallback_used: Whether fallback strategy was needed
         scansion_generation_steps: Step-by-step explanation of what led to generation of scansion code for the word, only positive events not negative ones
+        prosodic_transformation_steps: Step-by-step explanation of prosodic adjustments applied to this word after base scansion (Al, Izafat, Ataf, grafting)
         
     Profile Fields (automatically populated from word string):
         word_no_araab: Word with all diacritical marks removed
@@ -72,6 +73,7 @@ class Words:
     db_lookup_successful: bool = False
     fallback_used: bool = False
     scansion_generation_steps: List[str] = field(default_factory=list)
+    prosodic_transformation_steps: List[str] = field(default_factory=list)
     word_no_araab: str = field(init=False, default="")
     has_araab: bool = field(init=False, default=False)
     araab_mask: str = field(init=False, default="")
@@ -101,7 +103,8 @@ class Words:
             compound_split_position=self.compound_split_position,
             db_lookup_successful=self.db_lookup_successful,
             fallback_used=self.fallback_used,
-            scansion_generation_steps=self.scansion_generation_steps.copy()
+            scansion_generation_steps=self.scansion_generation_steps.copy(),
+            prosodic_transformation_steps=self.prosodic_transformation_steps.copy()
         )
 
     def __post_init__(self):
