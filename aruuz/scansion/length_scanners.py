@@ -189,6 +189,7 @@ def length_three_scan(substr: str, trace: Optional[List[str]] = None) -> str:
     if is_muarrab(sub_string):
         if trace is not None:
             trace.append("L3S| WORD_IS_MUARRAB: has_diacritics=true")
+            trace.append("L3S| ENTERING_MUARRAB_BRANCH: checking_diacritic_patterns")
         loc = locate_araab(sub_string)
         if trace is not None:
             trace.append(f"L3S| LOCATED_DIACRITICS: positions={len(loc)},mask='{loc}'")
@@ -196,47 +197,60 @@ def length_three_scan(substr: str, trace: Optional[List[str]] = None) -> str:
         if len(loc) > 1 and loc[1] == ARABIC_DIACRITICS[2]:  # jazm
             if trace is not None:
                 trace.append(f"L3S| CHECKING_DIACRITIC_AT_POSITION: pos=1,diacritic=jazm,character='{stripped[1] if len(stripped) > 1 else 'N/A'}'")
+                trace.append("L3S| PATTERN_CHECK_1: jazm_at_pos_1=true")
             if stripped[0] == 'آ':
+                if trace is not None:
+                    trace.append(f"L3S| CHECKING_SUB_CONDITION: first_char='{stripped[0]}',is_alif_madd=true")
                 code = "=--"
                 if trace is not None:
-                    trace.append(f"L3S| PATTERN_MATCHED: diacritic=jazm,starts_with_alif_madd,code={code}")
+                    trace.append(f"L3S| PATTERN_MATCHED: diacritic=jazm_at_pos_1,first_char_is_alif_madd=true,branch=if,code={code}")
             else:
+                if trace is not None:
+                    trace.append(f"L3S| CHECKING_SUB_CONDITION: first_char='{stripped[0] if len(stripped) > 0 else 'N/A'}',is_alif_madd=false")
                 code = "=-"
                 if trace is not None:
-                    trace.append(f"L3S| PATTERN_MATCHED: diacritic=jazm_at_pos_1,first_char_not_alif_madd='{stripped[0] if len(stripped) > 0 else 'N/A'}',code={code}")
+                    trace.append(f"L3S| PATTERN_MATCHED: diacritic=jazm_at_pos_1,first_char='{stripped[0] if len(stripped) > 0 else 'N/A'}',is_alif_madd=false,branch=else,ruled_out_patterns=[alif_madd],code={code}")
         elif len(loc) > 1 and (loc[1] == ARABIC_DIACRITICS[1] or  # zer
                                loc[1] == ARABIC_DIACRITICS[8] or  # zabar
                                loc[1] == ARABIC_DIACRITICS[9]):  # paish
             diacritic_type = "zer" if loc[1] == ARABIC_DIACRITICS[1] else ("zabar" if loc[1] == ARABIC_DIACRITICS[8] else "paish")
             if trace is not None:
                 trace.append(f"L3S| CHECKING_DIACRITIC_AT_POSITION: pos=1,diacritic={diacritic_type},character='{stripped[1] if len(stripped) > 1 else 'N/A'}'")
+                trace.append(f"L3S| PATTERN_CHECK_2: {diacritic_type}_at_pos_1=true,ruled_out_patterns=[jazm]")
             code = "-="
             if trace is not None:
-                trace.append(f"L3S| PATTERN_MATCHED: diacritic={diacritic_type}_at_pos_1,code={code}")
+                trace.append(f"L3S| PATTERN_MATCHED: diacritic={diacritic_type}_at_pos_1,ruled_out_patterns=[jazm],code={code}")
         elif len(loc) > 1 and loc[1] == ARABIC_DIACRITICS[0]:  # shadd
             if trace is not None:
                 trace.append(f"L3S| CHECKING_DIACRITIC_AT_POSITION: pos=1,diacritic=shadd,character='{stripped[1] if len(stripped) > 1 else 'N/A'}'")
+                trace.append("L3S| PATTERN_CHECK_3: shadd_at_pos_1=true,ruled_out_patterns=[jazm,zer/zabar/paish]")
             code = "=="
             if trace is not None:
-                trace.append(f"L3S| PATTERN_MATCHED: diacritic=shadd_at_pos_1,code={code}")
+                trace.append(f"L3S| PATTERN_MATCHED: diacritic=shadd_at_pos_1,ruled_out_patterns=[jazm,zer/zabar/paish],code={code}")
         elif len(stripped) > 2 and stripped[2] == 'ا':
             if trace is not None:
                 trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=2,character='{stripped[2]}'")
+                trace.append("L3S| PATTERN_CHECK_4: alif_at_pos_2=true,ruled_out_patterns=[jazm,zer/zabar/paish,shadd]")
             code = "-="
             if trace is not None:
-                trace.append(f"L3S| PATTERN_MATCHED: alif_at_pos_2,code={code}")
+                trace.append(f"L3S| PATTERN_MATCHED: alif_at_pos_2,ruled_out_patterns=[jazm,zer/zabar/paish,shadd],code={code}")
         elif len(stripped) > 2 and stripped[2] in ['ا', 'ی', 'ے', 'و', 'ہ']:  # vowels at end
             vowel_char = stripped[2]
             if trace is not None:
                 trace.append(f"L3S| CHECKING_VOWEL_AT_POSITION: pos=2,character='{vowel_char}'")
+                trace.append("L3S| PATTERN_CHECK_5: vowel_at_pos_2=true,ruled_out_patterns=[jazm,zer/zabar/paish,shadd,alif_at_pos_2]")
             if stripped[1] == 'ا':
+                if trace is not None:
+                    trace.append(f"L3S| CHECKING_SUB_CONDITION: pos_1_character='{stripped[1]}',is_alif=true")
                 code = "=-"
                 if trace is not None:
-                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_pos_2='{vowel_char}',alif_at_pos_1,code={code}")
+                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_pos_2='{vowel_char}',alif_at_pos_1=true,branch=if,code={code}")
             else:
+                if trace is not None:
+                    trace.append(f"L3S| CHECKING_SUB_CONDITION: pos_1_character='{stripped[1] if len(stripped) > 1 else 'N/A'}',is_alif=false")
                 code = "-="
                 if trace is not None:
-                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_pos_2='{vowel_char}',code={code}")
+                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_pos_2='{vowel_char}',alif_at_pos_1=false,branch=else,code={code}")
         elif (len(stripped) > 1 and stripped[1] in ['ا', 'ی', 'ے', 'و']) or (len(stripped) > 2 and stripped[2] == 'ہ'):  # vowels at center
             vowel_pos = None
             vowel_char = None
@@ -248,61 +262,81 @@ def length_three_scan(substr: str, trace: Optional[List[str]] = None) -> str:
                 vowel_char = 'ہ'
             if trace is not None:
                 trace.append(f"L3S| CHECKING_VOWEL_AT_POSITION: pos={vowel_pos},character='{vowel_char}'")
+                trace.append(f"L3S| PATTERN_CHECK_6: vowel_at_pos_{vowel_pos}=true,ruled_out_patterns=[jazm,zer/zabar/paish,shadd,alif_at_pos_2,vowel_at_pos_2]")
             code = "=-"
             if trace is not None:
-                trace.append(f"L3S| PATTERN_MATCHED: vowel_at_pos_{vowel_pos}='{vowel_char}',code={code}")
+                trace.append(f"L3S| PATTERN_MATCHED: vowel_at_pos_{vowel_pos}='{vowel_char}',ruled_out_patterns=[jazm,zer/zabar/paish,shadd,alif_at_pos_2,vowel_at_pos_2],code={code}")
         else:  # default case
             if trace is not None:
+                trace.append("L3S| PATTERN_CHECK_7: all_previous_checks_failed")
                 trace.append("L3S| NO_PATTERN_MATCHED: using_default_muarrab_rule")
             code = "=-"
             if trace is not None:
-                trace.append(f"L3S| PATTERN_MATCHED: default_muarrab,code={code}")
+                trace.append(f"L3S| PATTERN_MATCHED: default_muarrab,ruled_out_patterns=[jazm,zer/zabar/paish,shadd,alif_at_pos_2,vowel_at_pos_2,vowel_at_center],code={code}")
     else:
         if trace is not None:
             trace.append("L3S| WORD_NOT_MUARRAB: has_diacritics=false")
+            trace.append("L3S| ENTERING_NON_MUARRAB_BRANCH: checking_character_patterns")
         if stripped[0] == 'آ':
             if trace is not None:
                 trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=0,character='{stripped[0]}'")
+                trace.append("L3S| PATTERN_CHECK_1: starts_with_alif_madd=true")
             code = "=="
             if trace is not None:
                 trace.append(f"L3S| PATTERN_MATCHED: starts_with_alif_madd_at_pos_0,code={code}")
         elif len(stripped) > 1 and stripped[1] == 'ا':  # Alif at centre
             if trace is not None:
                 trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=1,character='{stripped[1]}'")
+                trace.append("L3S| PATTERN_CHECK_2: alif_at_pos_1=true,ruled_out_patterns=[alif_madd_at_pos_0]")
             code = "=-"
             if trace is not None:
-                trace.append(f"L3S| PATTERN_MATCHED: alif_at_pos_1,code={code}")
+                trace.append(f"L3S| PATTERN_MATCHED: alif_at_pos_1,ruled_out_patterns=[alif_madd_at_pos_0],code={code}")
         elif len(stripped) > 2 and stripped[2] == 'ا':
             if trace is not None:
                 trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=2,character='{stripped[2]}'")
+                trace.append("L3S| PATTERN_CHECK_3: alif_at_pos_2=true,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1]")
             code = "-="
             if trace is not None:
-                trace.append(f"L3S| PATTERN_MATCHED: alif_at_pos_2,code={code}")
+                trace.append(f"L3S| PATTERN_MATCHED: alif_at_pos_2,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1],code={code}")
         elif len(stripped) > 1 and stripped[1] in ['ی', 'ے', 'و', 'ہ']:  # vowels + h at centre
+            if trace is not None:
+                trace.append(f"L3S| PATTERN_CHECK_4: vowel_at_center=true,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1,alif_at_pos_2]")
             if len(stripped) > 2 and stripped[2] == 'ہ':
+                if trace is not None:
+                    trace.append(f"L3S| CHECKING_SUB_CONDITION: pos_2_character='{stripped[2]}',is_haa=true")
                 code = "=-"
                 if trace is not None:
-                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_center,haa_at_end,code={code}")
+                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_center,haa_at_end=true,branch=if,code={code}")
             elif len(stripped) > 2 and stripped[2] in ['ی', 'ے', 'و']:  # vowels + h at end
+                if trace is not None:
+                    trace.append(f"L3S| CHECKING_SUB_CONDITION: pos_2_character='{stripped[2]}',is_vowel=true")
                 code = "-="
                 if trace is not None:
-                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_center,vowel_at_end,code={code}")
+                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_center,vowel_at_end=true,branch=elif,code={code}")
             else:
+                if trace is not None:
+                    trace.append("L3S| CHECKING_SUB_CONDITION: pos_2_check=false,using_else_branch")
                 code = "=-"
                 if trace is not None:
-                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_center,code={code}")
+                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_center,no_special_end,branch=else,code={code}")
         elif len(stripped) > 2 and stripped[2] in ['ی', 'ے', 'و', 'ہ']:  # vowels + h at end
+            if trace is not None:
+                trace.append("L3S| PATTERN_CHECK_5: vowel_at_end=true,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1,alif_at_pos_2,vowel_at_center]")
             code = "-="
             if trace is not None:
-                trace.append(f"L3S| PATTERN_MATCHED: vowel_at_end,code={code}")
+                trace.append(f"L3S| PATTERN_MATCHED: vowel_at_end,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1,alif_at_pos_2,vowel_at_center],code={code}")
         elif len(stripped) > 0 and is_vowel_plus_h(stripped[0]):
+            if trace is not None:
+                trace.append(f"L3S| PATTERN_CHECK_6: vowel_plus_h_at_start=true,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1,alif_at_pos_2,vowel_at_center,vowel_at_end]")
             code = "-="
             if trace is not None:
-                trace.append(f"L3S| PATTERN_MATCHED: vowel_plus_h_at_start,code={code}")
+                trace.append(f"L3S| PATTERN_MATCHED: vowel_plus_h_at_start,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1,alif_at_pos_2,vowel_at_center,vowel_at_end],code={code}")
         else:
+            if trace is not None:
+                trace.append("L3S| PATTERN_CHECK_7: all_previous_checks_failed")
             code = "-="
             if trace is not None:
-                trace.append(f"L3S| PATTERN_MATCHED: default_non_muarrab,code={code}")
+                trace.append(f"L3S| PATTERN_MATCHED: default_non_muarrab,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1,alif_at_pos_2,vowel_at_center,vowel_at_end,vowel_plus_h_at_start],code={code}")
     
     # Apply noon ghunna adjustments if needed
     if contains_noon(stripped):
