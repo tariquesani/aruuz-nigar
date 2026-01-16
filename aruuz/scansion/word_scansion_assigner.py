@@ -72,7 +72,7 @@ class WordScansionAssigner:
                     if len(word.code) > 0:
                         word.assignment_method = "database"
                         # Append assignment summary step
-                        word.scansion_generation_steps.append(f"Assigned scansion code candidates: {len(word.code)} (source: database).")
+                        word.scansion_generation_steps.append(f"ASSIGNED_CODE_CANDIDATES_DATABASE:count={len(word.code)}")
                         explain_logger = get_explain_logger()
                         codes_str = ', '.join(word.code)
                         explain_logger.info(f"RULE | Word ('{word.word}') | Assigned code '{codes_str}' | Source: database")
@@ -98,7 +98,7 @@ class WordScansionAssigner:
                 word_result.assignment_method = "compound_split"
                 word_result.fallback_used = True  # Compound splitting is a fallback
                 # Append assignment summary step
-                word_result.scansion_generation_steps.append(f"Assigned scansion code candidates: {len(word_result.code)} (source: compound split).")
+                word_result.scansion_generation_steps.append(f"ASSIGNED_CODE_CANDIDATES_COMPOUND_SPLIT:count={len(word_result.code)}")
                 # Log successful code assignment from compound word splitting
                 explain_logger = get_explain_logger()
                 codes_str = ', '.join(word_result.code)
@@ -116,7 +116,7 @@ class WordScansionAssigner:
         # Log successful code assignment from heuristics (only if code is non-empty)
         if code:
             # Append assignment summary step
-            word.scansion_generation_steps.append(f"Assigned scansion code: '{code}'.")
+            word.scansion_generation_steps.append(f"ASSIGNED_SCANSION_CODE_HEURISTIC:code={code}")
             explain_logger = get_explain_logger()
             explain_logger.info(f"RULE | Word ('{word.word}') | Assigned code '{code}' | Source: heuristic")
         
@@ -156,7 +156,7 @@ class WordScansionAssigner:
                         word.id.append(-1)
                         word.code.append("==")
                         # Append step for 3-letter variation rule
-                        word.scansion_generation_steps.append("Applied 3-letter DB variation rule (added code: '==').")
+                        word.scansion_generation_steps.append("APPLIED_3_LETTER_DB_VARIATION_RULE_EQ_EQ")
                 else:  # First character is not alif madd
                     # C#: if (!wrd.code[0].Equals("-=") && !wrd.code[0].Equals("-x"))
                     if len(word.code) > 0 and word.code[0] != "-=" and word.code[0] != "-x":
@@ -165,7 +165,7 @@ class WordScansionAssigner:
                         word.id.append(-1)
                         word.code.append("-=")
                         # Append step for 3-letter variation rule
-                        word.scansion_generation_steps.append("Applied 3-letter DB variation rule (added code: '-=').")
+                        word.scansion_generation_steps.append("APPLIED_3_LETTER_DB_VARIATION_RULE_MINUS_EQ")
         
         return word
     
@@ -564,8 +564,8 @@ class WordScansionAssigner:
                 # Append compound split steps (using original word parts before combination)
                 first_part = stripped[:i]
                 second_part = stripped[i:]
-                first.scansion_generation_steps.append(f"Compound split succeeded: '{first_part}' + '{second_part}' (split at {i}).")
-                first.scansion_generation_steps.append(f"Combined codes from split parts (results: {len(codes)}).")
+                first.scansion_generation_steps.append(f"COMPOUND_SPLIT_SUCCEEDED:first_part={first_part},second_part={second_part},i={i}")
+                first.scansion_generation_steps.append(f"COMBINED_CODES_FROM_SPLIT_PARTS:count={len(codes)}")
                 
                 wd = first
                 break

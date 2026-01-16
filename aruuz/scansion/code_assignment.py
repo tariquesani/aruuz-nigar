@@ -45,12 +45,12 @@ def compute_scansion(word: 'Words') -> str:
     if len(word1) == 1:
         word.heuristic_scanner_used = "length_one_scan"
         code = length_one_scan(word.word)
-        word.scansion_generation_steps.append("Applied length_one_scan.")
+        word.scansion_generation_steps.append("APPLIED_LENGTH_ONE_SCAN")
         return code
     elif len(word1) == 2:
         word.heuristic_scanner_used = "length_two_scan"
         code = length_two_scan(word.word)
-        word.scansion_generation_steps.append("Applied length_two_scan.")
+        word.scansion_generation_steps.append("APPLIED_LENGTH_TWO_SCAN")
         return code
     
     # For longer words, use taqti if available
@@ -76,7 +76,7 @@ def compute_scansion(word: 'Words') -> str:
         
         # Append step for taqti segmentation (only if segments exist)
         if sub_strings:
-            word.scansion_generation_steps.append(f"Used taqti-based heuristic segmentation (segments: {len(sub_strings)}).")
+            word.scansion_generation_steps.append(f"USED_TAQTI_BASED_HEURISTIC_SEGMENTATION:count={len(sub_strings)}")
         
         # Process each substring
         for sub_string in sub_strings:
@@ -137,7 +137,7 @@ def compute_scansion(word: 'Words') -> str:
         
         # Append step for word-final rule if it was applied
         if word_end_rule_applied:
-            word.scansion_generation_steps.append("Applied word-final vowel+ہ rule.")
+            word.scansion_generation_steps.append("APPLIED_WORD_FINAL_VOWEL_H_RULE")
         
         # Append scanner step (once per word) if not already appended for early returns
         if word.heuristic_scanner_used:
@@ -149,21 +149,21 @@ def compute_scansion(word: 'Words') -> str:
                 ]) for step in word.scansion_generation_steps
             )
             if not scanner_steps_exist:
-                word.scansion_generation_steps.append(f"Applied {word.heuristic_scanner_used}.")
+                word.scansion_generation_steps.append(f"APPLIED_HEURISTIC_SCANNER_USED:scanner={word.heuristic_scanner_used}")
     else:
         # No taqti available - use heuristics based on word length
         if len(word1) == 3:
             word.heuristic_scanner_used = "length_three_scan"
             code = length_three_scan(word.word)
-            word.scansion_generation_steps.append("Applied length_three_scan.")
+            word.scansion_generation_steps.append("APPLIED_LENGTH_THREE_SCAN")
         elif len(word1) == 4:
             word.heuristic_scanner_used = "length_four_scan"
             code = length_four_scan(word.word)
-            word.scansion_generation_steps.append("Applied length_four_scan.")
+            word.scansion_generation_steps.append("APPLIED_LENGTH_FOUR_SCAN")
         elif len(word1) >= 5:
             word.heuristic_scanner_used = "length_five_scan"
             code = length_five_scan(word.word)
-            word.scansion_generation_steps.append("Applied length_five_scan.")
+            word.scansion_generation_steps.append("APPLIED_LENGTH_FIVE_SCAN")
         else:
             code = "-"  # Default fallback
     

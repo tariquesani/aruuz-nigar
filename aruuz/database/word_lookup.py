@@ -127,7 +127,7 @@ class WordLookup:
                     pass
             
             # Append step for successful exceptions table lookup
-            word.scansion_generation_steps.append(f"Found in database exceptions table (codes: {len(word.code)}).")
+            word.scansion_generation_steps.append(f"FOUND_IN_DATABASE_EXCEPTIONS_TABLE:codes={len(word.code)}")
             
             # C#: myConn.Close();
             conn.close()
@@ -161,7 +161,7 @@ class WordLookup:
                 logger.debug(f"[DEBUG] find_word() found word '{search_word}' in mastertable")
                 word.db_lookup_successful = True
                 # Append step for successful mastertable lookup
-                word.scansion_generation_steps.append(f"Found in database mastertable (entries: {len(rows)}).")
+                word.scansion_generation_steps.append(f"FOUND_IN_DATABASE_MASTERTABLE:entries={len(rows)}")
                 # Found in mastertable
                 # C#: while (dataReader2.Read()) - process each row
                 for row_idx, row in enumerate(rows):
@@ -209,7 +209,7 @@ class WordLookup:
                     
                     # Append step for DB taqti computation (only if code is non-empty)
                     if code:
-                        word.scansion_generation_steps.append("Computed code from database taqti.")
+                        word.scansion_generation_steps.append("COMPUTED_CODE_FROM_DATABASE_TAQTI")
                 
                 # C#: myConn2.Close();
                 conn2.close()
@@ -345,7 +345,7 @@ class WordLookup:
                         logger.debug(f"[DEBUG] find_word() found word '{search_word}' in Variations table")
                         word.db_lookup_successful = True
                         # Append step for successful variations table lookup
-                        word.scansion_generation_steps.append(f"Found in database variations table (entries: {len(rows)}).")
+                        word.scansion_generation_steps.append(f"FOUND_IN_DATABASE_VARIATIONS_TABLE:entries={len(rows)}")
                         # Found in variations table
                         # C#: while (dataReader4.Read()) - process each row
                         for row_idx, row in enumerate(rows):

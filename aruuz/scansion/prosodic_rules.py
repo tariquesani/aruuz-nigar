@@ -97,8 +97,8 @@ class ProsodicRules:
                             # Log Al prefix rule application
                             if al_applied:
                                 # Record per-word prosodic transformation steps
-                                wrd.prosodic_transformation_steps.append("Extended previous word to absorb 'ال' (Al).")
-                                nwrd.prosodic_transformation_steps.append("Merged 'ال' with previous word (Al).")
+                                wrd.prosodic_transformation_steps.append("EXTENDED_PREVIOUS_WORD_TO_ABSORB_AL")
+                                nwrd.prosodic_transformation_steps.append("MERGED_AL_WITH_PREVIOUS_WORD")
 
                                 explain_logger = get_explain_logger()
                                 explain_logger.info(f"RULE | Al prefix | Applied to Word {i+1} ('{nwrd.word}') | Modified Word {i}: codes updated, removed 'ال'")
@@ -165,7 +165,7 @@ class ProsodicRules:
                 
                 # Log Izafat rule application (after all modifications)
                 if izafat_applied:
-                    wrd.prosodic_transformation_steps.append("Applied Izafat adjustment to final syllable.")
+                    wrd.prosodic_transformation_steps.append("APPLIED_IZAFAT_ADJUSTMENT_TO_FINAL_SYLLABLE")
                     explain_logger = get_explain_logger()
                     codes_str = ', '.join(wrd.code) if wrd.code else 'none'
                     explain_logger.info(f"RULE | Izafat | Applied to Word '{wrd.word}' | Modified codes: {codes_str}")
@@ -276,9 +276,9 @@ class ProsodicRules:
                     # Log Ataf rule application (after all modifications)
                     if previous_modified or conjunction_cleared:
                         if previous_modified:
-                            pwrd.prosodic_transformation_steps.append("Adjusted previous word code for conjunction 'و' (Ataf).")
+                            pwrd.prosodic_transformation_steps.append("ADJUSTED_PREVIOUS_WORD_CODE_FOR_CONJUNCTION_ATAF")
                         if conjunction_cleared:
-                            wrd.prosodic_transformation_steps.append("Cleared scansion codes for 'و' after merge (Ataf).")
+                            wrd.prosodic_transformation_steps.append("CLEARED_SCANSION_CODES_FOR_CONJUNCTION_AFTER_MERGE")
 
                         explain_logger = get_explain_logger()
                         old_code_str = original_codes[0] if original_codes else 'none'
@@ -323,7 +323,7 @@ class ProsodicRules:
                         
                         # Log word grafting rule application (after graft codes created)
                         if prev_word.taqti_word_graft:
-                            prev_word.prosodic_transformation_steps.append("Grafted with following vowel-initial word; added graft codes.")
+                            prev_word.prosodic_transformation_steps.append("GRAFTED_WITH_FOLLOWING_VOWEL_INITIAL_WORD")
                             explain_logger = get_explain_logger()
                             graft_codes_str = ', '.join(prev_word.taqti_word_graft)
                             explain_logger.info(f"RULE | Word grafting | Applied to Word {i} ('{wrd.word}') | Created graft codes for Word {i-1}: {graft_codes_str}")
