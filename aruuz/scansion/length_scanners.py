@@ -6,6 +6,7 @@ No classes, no state dependencies.
 """
 
 import logging
+from typing import Optional, List
 from aruuz.utils.araab import remove_araab, ARABIC_DIACRITICS
 from aruuz.scansion.word_analysis import (
     is_vowel_plus_h,
@@ -88,24 +89,31 @@ def noon_ghunna(word: str, code: str) -> str:
     return code
 
 
-def length_one_scan(substr: str) -> str:
+def length_one_scan(substr: str, trace: Optional[List[str]] = None) -> str:
     """
     Handle 1-character words for scansion.
     
     Args:
         substr: Single character substring
+        trace: Optional list to record trace messages
         
     Returns:
         Scansion code: "=" for آ (long), "-" otherwise (short)
     """
+    if trace is not None:
+        trace.append(f"L1S| INPUT_SUBSTRING: substr={substr}")
     stripped = remove_araab(substr)
     if stripped == "آ":
+        if trace is not None:
+            trace.append("L1S| DETECTED_ALIF_MADD: return_code==")
         return "="
     else:
+        if trace is not None:
+            trace.append("L1S| NO_ALIF_MADD: return_code=-")
         return "-"
 
 
-def length_two_scan(substr: str) -> str:
+def length_two_scan(substr: str, trace: Optional[List[str]] = None) -> str:
     """
     Handle 2-character words for scansion.
     
@@ -113,100 +121,202 @@ def length_two_scan(substr: str) -> str:
     
     Args:
         substr: Two-character substring
+        trace: Optional list to record trace messages
         
     Returns:
         Scansion code: "=-" if starts with آ, "x" if ends with vowel+h, "=" otherwise
     """
+    if trace is not None:
+        trace.append(f"L2S| INPUT_SUBSTRING: substr={substr}")
     # Remove ھ and ں for scansion purposes
     sub_string = substr.replace("\u06BE", "").replace("\u06BA", "")
+    if trace is not None:
+        trace.append(f"L2S| AFTER_REMOVING_HAY_AND_NUN: result={sub_string}")
     stripped = remove_araab(sub_string)
     
     code = "="
     if substr[0] == '\u0622':  # آ
         code = "=-"
+        if trace is not None:
+            trace.append("L2S| DETECTED_ALIF_MADD_START: return_code=-=")
     elif len(stripped) > 0 and is_vowel_plus_h(stripped[-1]):
         code = "x"
+        if trace is not None:
+            trace.append(f"L2S| DETECTED_VOWEL_PLUS_H_END: return_code=x")
+    else:
+        if trace is not None:
+            trace.append("L2S| DEFAULT_PATTERN: return_code==")
     
     return code
 
 
-def length_three_scan(substr: str) -> str:
+def length_three_scan(substr: str, trace: Optional[List[str]] = None) -> str:
     """
     Handle 3-character words for scansion.
     
     Args:
         substr: Three-character substring
+        trace: Optional list to record trace messages
         
     Returns:
         Scansion code based on character patterns and diacritics
     """
+    if trace is not None:
+        trace.append(f"L3S| INPUT_SUBSTRING: substr={substr}")
     code = ""
     # Remove ھ and ں for scansion purposes
     sub_string = substr.replace("\u06BE", "").replace("\u06BA", "")
+    if trace is not None:
+        trace.append(f"L3S| AFTER_REMOVING_HAY_AND_NUN: result={sub_string}")
     stripped = remove_araab(sub_string)
+    if trace is not None:
+        trace.append(f"L3S| AFTER_REMOVING_ARAAB_STRIPPED: result={stripped},length={len(stripped)}")
     
     if len(stripped) == 1:
         if stripped[0] == 'آ':
+            if trace is not None:
+                trace.append("L3S| STRIPPED_LENGTH_1_ALIF_MADD: return_code=-")
             return "-"
         else:
+            if trace is not None:
+                trace.append("L3S| STRIPPED_LENGTH_1_NO_ALIF_MADD: return_code==")
             return "="
     elif len(stripped) == 2:
-        return length_two_scan(substr)
+        if trace is not None:
+            trace.append("L3S| STRIPPED_LENGTH_DELEGATE: length=2,delegate_to=L2S")
+        return length_two_scan(substr, trace=trace)
     
     if is_muarrab(sub_string):
+        if trace is not None:
+            trace.append("L3S| WORD_IS_MUARRAB: has_diacritics=true")
         loc = locate_araab(sub_string)
+        if trace is not None:
+            trace.append(f"L3S| LOCATED_DIACRITICS: positions={len(loc)},mask='{loc}'")
         
         if len(loc) > 1 and loc[1] == ARABIC_DIACRITICS[2]:  # jazm
+            if trace is not None:
+                trace.append(f"L3S| CHECKING_DIACRITIC_AT_POSITION: pos=1,diacritic=jazm,character='{stripped[1] if len(stripped) > 1 else 'N/A'}'")
             if stripped[0] == 'آ':
                 code = "=--"
+                if trace is not None:
+                    trace.append(f"L3S| PATTERN_MATCHED: diacritic=jazm,starts_with_alif_madd,code={code}")
             else:
                 code = "=-"
+                if trace is not None:
+                    trace.append(f"L3S| PATTERN_MATCHED: diacritic=jazm_at_pos_1,first_char_not_alif_madd='{stripped[0] if len(stripped) > 0 else 'N/A'}',code={code}")
         elif len(loc) > 1 and (loc[1] == ARABIC_DIACRITICS[1] or  # zer
                                loc[1] == ARABIC_DIACRITICS[8] or  # zabar
                                loc[1] == ARABIC_DIACRITICS[9]):  # paish
+            diacritic_type = "zer" if loc[1] == ARABIC_DIACRITICS[1] else ("zabar" if loc[1] == ARABIC_DIACRITICS[8] else "paish")
+            if trace is not None:
+                trace.append(f"L3S| CHECKING_DIACRITIC_AT_POSITION: pos=1,diacritic={diacritic_type},character='{stripped[1] if len(stripped) > 1 else 'N/A'}'")
             code = "-="
+            if trace is not None:
+                trace.append(f"L3S| PATTERN_MATCHED: diacritic={diacritic_type}_at_pos_1,code={code}")
         elif len(loc) > 1 and loc[1] == ARABIC_DIACRITICS[0]:  # shadd
+            if trace is not None:
+                trace.append(f"L3S| CHECKING_DIACRITIC_AT_POSITION: pos=1,diacritic=shadd,character='{stripped[1] if len(stripped) > 1 else 'N/A'}'")
             code = "=="
+            if trace is not None:
+                trace.append(f"L3S| PATTERN_MATCHED: diacritic=shadd_at_pos_1,code={code}")
         elif len(stripped) > 2 and stripped[2] == 'ا':
+            if trace is not None:
+                trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=2,character='{stripped[2]}'")
             code = "-="
+            if trace is not None:
+                trace.append(f"L3S| PATTERN_MATCHED: alif_at_pos_2,code={code}")
         elif len(stripped) > 2 and stripped[2] in ['ا', 'ی', 'ے', 'و', 'ہ']:  # vowels at end
+            vowel_char = stripped[2]
+            if trace is not None:
+                trace.append(f"L3S| CHECKING_VOWEL_AT_POSITION: pos=2,character='{vowel_char}'")
             if stripped[1] == 'ا':
                 code = "=-"
+                if trace is not None:
+                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_pos_2='{vowel_char}',alif_at_pos_1,code={code}")
             else:
                 code = "-="
+                if trace is not None:
+                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_pos_2='{vowel_char}',code={code}")
         elif (len(stripped) > 1 and stripped[1] in ['ا', 'ی', 'ے', 'و']) or (len(stripped) > 2 and stripped[2] == 'ہ'):  # vowels at center
+            vowel_pos = None
+            vowel_char = None
+            if len(stripped) > 1 and stripped[1] in ['ا', 'ی', 'ے', 'و']:
+                vowel_pos = 1
+                vowel_char = stripped[1]
+            elif len(stripped) > 2 and stripped[2] == 'ہ':
+                vowel_pos = 2
+                vowel_char = 'ہ'
+            if trace is not None:
+                trace.append(f"L3S| CHECKING_VOWEL_AT_POSITION: pos={vowel_pos},character='{vowel_char}'")
             code = "=-"
+            if trace is not None:
+                trace.append(f"L3S| PATTERN_MATCHED: vowel_at_pos_{vowel_pos}='{vowel_char}',code={code}")
         else:  # default case
+            if trace is not None:
+                trace.append("L3S| NO_PATTERN_MATCHED: using_default_muarrab_rule")
             code = "=-"
+            if trace is not None:
+                trace.append(f"L3S| PATTERN_MATCHED: default_muarrab,code={code}")
     else:
+        if trace is not None:
+            trace.append("L3S| WORD_NOT_MUARRAB: has_diacritics=false")
         if stripped[0] == 'آ':
+            if trace is not None:
+                trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=0,character='{stripped[0]}'")
             code = "=="
+            if trace is not None:
+                trace.append(f"L3S| PATTERN_MATCHED: starts_with_alif_madd_at_pos_0,code={code}")
         elif len(stripped) > 1 and stripped[1] == 'ا':  # Alif at centre
+            if trace is not None:
+                trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=1,character='{stripped[1]}'")
             code = "=-"
+            if trace is not None:
+                trace.append(f"L3S| PATTERN_MATCHED: alif_at_pos_1,code={code}")
         elif len(stripped) > 2 and stripped[2] == 'ا':
+            if trace is not None:
+                trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=2,character='{stripped[2]}'")
             code = "-="
+            if trace is not None:
+                trace.append(f"L3S| PATTERN_MATCHED: alif_at_pos_2,code={code}")
         elif len(stripped) > 1 and stripped[1] in ['ی', 'ے', 'و', 'ہ']:  # vowels + h at centre
             if len(stripped) > 2 and stripped[2] == 'ہ':
                 code = "=-"
+                if trace is not None:
+                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_center,haa_at_end,code={code}")
             elif len(stripped) > 2 and stripped[2] in ['ی', 'ے', 'و']:  # vowels + h at end
                 code = "-="
+                if trace is not None:
+                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_center,vowel_at_end,code={code}")
             else:
                 code = "=-"
+                if trace is not None:
+                    trace.append(f"L3S| PATTERN_MATCHED: vowel_at_center,code={code}")
         elif len(stripped) > 2 and stripped[2] in ['ی', 'ے', 'و', 'ہ']:  # vowels + h at end
             code = "-="
+            if trace is not None:
+                trace.append(f"L3S| PATTERN_MATCHED: vowel_at_end,code={code}")
         elif len(stripped) > 0 and is_vowel_plus_h(stripped[0]):
             code = "-="
+            if trace is not None:
+                trace.append(f"L3S| PATTERN_MATCHED: vowel_plus_h_at_start,code={code}")
         else:
             code = "-="
+            if trace is not None:
+                trace.append(f"L3S| PATTERN_MATCHED: default_non_muarrab,code={code}")
     
     # Apply noon ghunna adjustments if needed
     if contains_noon(stripped):
+        old_code = code
         code = noon_ghunna(substr, code)
+        if trace is not None and old_code != code:
+            trace.append(f"L3S| APPLIED_NOON_GHUNNA_ADJUSTMENT: old_code={old_code},new_code={code}")
     
+    if trace is not None:
+        trace.append(f"L3S| RETURNING: code={code}")
     return code
 
 
-def length_four_scan(substr: str) -> str:
+def length_four_scan(substr: str, trace: Optional[List[str]] = None) -> str:
     """
     Handle 4-character words for scansion.
     
@@ -222,17 +332,21 @@ def length_four_scan(substr: str) -> str:
     stripped = remove_araab(sub_string)
     
     if len(stripped) == 1:
-        code = length_one_scan(sub_string)
+        code = length_one_scan(sub_string, trace=trace)
     elif len(stripped) == 2:
-        code = length_two_scan(sub_string)
+        code = length_two_scan(sub_string, trace=trace)
     elif len(stripped) == 3:
-        code = length_three_scan(sub_string)
+        code = length_three_scan(sub_string, trace=trace)
     else:
         if stripped[0] == 'آ':
             # Remove first character and scan the rest
             remaining = sub_string[1:] if len(sub_string) > 1 else ""
-            code = "=" + length_three_scan(remaining)
+            if trace is not None:
+                trace.append(f"L4S| SPLIT_AT_POSITION: split_pos=1,delegate_to=L3S,remaining={remaining}")
+            code = "=" + length_three_scan(remaining, trace=trace)
         elif is_muarrab(sub_string):
+            if trace is not None:
+                trace.append("L4S| WORD_IS_MUARRAB: has_diacritics=true")
             loc = locate_araab(sub_string)
             if len(stripped) > 1 and stripped[1] == 'ا':
                 if len(loc) > 2 and loc[2] == ARABIC_DIACRITICS[2]:  # jazr
@@ -319,51 +433,78 @@ def length_four_scan(substr: str) -> str:
                 code = "-=-"
         else:  # default
             code = "=="
+            if trace is not None:
+                trace.append("L4S| PATTERN_MATCHED: default_non_muarrab,code====")
+        if trace is not None:
+            trace.append(f"L4S| PATTERN_MATCHED: pattern=non_muarrab_vowel_check,code={code}")
     
     # Apply noon ghunna adjustments if needed
     if contains_noon(stripped):
+        old_code = code
         code = noon_ghunna(substr, code)
+        if trace is not None and old_code != code:
+            trace.append(f"L4S| APPLIED_NOON_GHUNNA_ADJUSTMENT: old_code={old_code},new_code={code}")
     
+    if trace is not None:
+        trace.append(f"L4S| RETURNING: code={code}")
     return code
 
 
-def length_five_scan(word: str) -> str:
+def length_five_scan(word: str, trace: Optional[List[str]] = None) -> str:
     """
     Handle 5+ character words for scansion.
     
     Args:
-        substr: Five or more character substring
+        word: Five or more character substring
+        trace: Optional list to record trace messages
         
     Returns:
         Scansion code based on character patterns
     """
+    if trace is not None:
+        trace.append(f"L5S| INPUT_SUBSTRING: substr={word}")
     logger.debug(f"length_five_scan: Input substring = '{word}'")
     code = ""
     # Remove ھ and ں for scansion purposes
     word_no_aspirate = word.replace("\u06BE", "").replace("\u06BA", "")
+    if trace is not None:
+        trace.append(f"L5S| AFTER_REMOVING_HAY_AND_NUN: result={word_no_aspirate}")
     logger.debug(f"length_five_scan: After removing ھ and ں = '{word_no_aspirate}'")
     word_no_diacritics = remove_araab(word_no_aspirate)
+    if trace is not None:
+        trace.append(f"L5S| AFTER_REMOVING_ARAAB_STRIPPED: result={word_no_diacritics},length={len(word_no_diacritics)}")
     logger.debug(f"length_five_scan: After removing araab (word_no_diacritics) = '{word_no_diacritics}' (length={len(word_no_diacritics)})")
     
     # --- FIX: aspirated + ی should force short medial vowel (e.g. اندھیرے) ---
     if 'ھ' in word:
         for i in range(len(word) - 2):
             if word[i+1] == 'ھ' and word[i+2] == 'ی':
+                if trace is not None:
+                    trace.append(f"L5S| DETECTED_ASPIRATED_YEH_PATTERN: start_pos={i+1},end_pos={i+2}")
+                    trace.append("L5S| EARLY_RETURN_ASPIRATED_YEH_PATTERN: return_code=-==")
                 logger.debug(f"length_five_scan: Early return for aspirated+ی pattern, returning '-=='")
                 return "-=="    
     if len(word_no_diacritics) == 3:
+        if trace is not None:
+            trace.append("L5S| STRIPPED_LENGTH_DELEGATE: length=3,delegate_to=L3S")
         logger.debug(f"length_five_scan: Stripped length is 3, delegating to length_three_scan")
-        code = length_three_scan(word)
+        code = length_three_scan(word, trace=trace)
     elif len(word_no_diacritics) == 4:
+        if trace is not None:
+            trace.append("L5S| STRIPPED_LENGTH_DELEGATE: length=4,delegate_to=L4S")
         logger.debug(f"length_five_scan: Stripped length is 4, delegating to length_four_scan")
-        code = length_four_scan(word)
+        code = length_four_scan(word, trace=trace)
     else:
         if word_no_diacritics[0] == 'آ':
             # Remove first 2 characters (آ + next) and scan the rest
             remaining = word_no_aspirate[2:] if len(word_no_aspirate) > 2 else ""
+            if trace is not None:
+                trace.append(f"L5S| SPLIT_AT_POSITION: split_pos=2,delegate_to=L4S,remaining={remaining}")
             logger.debug(f"length_five_scan: Split at position 2 (آ pattern): prefix='{word_no_aspirate[:2]}', remaining='{remaining}'")
-            code = "=" + length_four_scan(remaining)
+            code = "=" + length_four_scan(remaining, trace=trace)
         elif is_muarrab(word_no_aspirate):
+            if trace is not None:
+                trace.append("L5S| WORD_IS_MUARRAB: has_diacritics=true")
             logger.debug(f"length_five_scan: Word is muarrab (has diacritics), using muarrab path")
             diacritic_positions = locate_araab(word_no_aspirate)
             if len(word_no_diacritics) > 1 and (word_no_diacritics[1] == 'ا' or word_no_diacritics[2] == 'ا' or word_no_diacritics[3] == 'ا'):  # check alif at position 2,3,4
@@ -383,23 +524,23 @@ def length_five_scan(word: str) -> str:
                             split_pos = 3
                             remaining = word_no_aspirate[split_pos:] if len(word_no_aspirate) > split_pos else ""
                             logger.debug(f"length_five_scan: Split at position {split_pos} (Position 2 Alif, muarrab[0] and muarrab[1]): prefix='{word_no_aspirate[:split_pos]}', remaining='{remaining}'")
-                            code = "=" + length_three_scan(remaining)
+                            code = "=" + length_three_scan(remaining, trace=trace)
                         else:
                             split_pos = 4
                             remaining = word_no_aspirate[split_pos:] if len(word_no_aspirate) > split_pos else ""
                             logger.debug(f"length_five_scan: Split at position {split_pos} (Position 2 Alif, muarrab[0] only): prefix='{word_no_aspirate[:split_pos]}', remaining='{remaining}'")
-                            code = "=" + length_three_scan(remaining)
+                            code = "=" + length_three_scan(remaining, trace=trace)
                     else:
                         if len(diacritic_positions) > 1 and is_muarrab(diacritic_positions[1]):
                             split_pos = 2
                             remaining = word_no_aspirate[split_pos:] if len(word_no_aspirate) > split_pos else ""
                             logger.debug(f"length_five_scan: Split at position {split_pos} (Position 2 Alif, muarrab[1] only): prefix='{word_no_aspirate[:split_pos]}', remaining='{remaining}'")
-                            code = "=" + length_three_scan(remaining)
+                            code = "=" + length_three_scan(remaining, trace=trace)
                         else:
                             split_pos = 3
                             remaining = word_no_aspirate[split_pos:] if len(word_no_aspirate) > split_pos else ""
                             logger.debug(f"length_five_scan: Split at position {split_pos} (Position 2 Alif, no muarrab): prefix='{word_no_aspirate[:split_pos]}', remaining='{remaining}'")
-                            code = "=" + length_three_scan(remaining)
+                            code = "=" + length_three_scan(remaining, trace=trace)
                 # Position 4 Alif
                 else:
                     code = "==-"
@@ -432,23 +573,23 @@ def length_five_scan(word: str) -> str:
                                     split_pos = 5
                                     remaining = word_no_aspirate[split_pos:] if len(word_no_aspirate) > split_pos else ""
                                     logger.debug(f"length_five_scan: Split at position {split_pos} (Position 1 و/ی, jazr, muarrab[0] and muarrab[1]): prefix='{word_no_aspirate[:split_pos]}', remaining='{remaining}'")
-                                    code = "=" + length_three_scan(remaining)
+                                    code = "=" + length_three_scan(remaining, trace=trace)
                                 else:
                                     split_pos = 4
                                     remaining = word_no_aspirate[split_pos:] if len(word_no_aspirate) > split_pos else ""
                                     logger.debug(f"length_five_scan: Split at position {split_pos} (Position 1 و/ی, jazr, muarrab[0] only): prefix='{word_no_aspirate[:split_pos]}', remaining='{remaining}'")
-                                    code = "=" + length_three_scan(remaining)
+                                    code = "=" + length_three_scan(remaining, trace=trace)
                             else:
                                 if len(diacritic_positions) > 1 and is_muarrab(diacritic_positions[1]):
                                     split_pos = 3
                                     remaining = word_no_aspirate[split_pos:] if len(word_no_aspirate) > split_pos else ""
                                     logger.debug(f"length_five_scan: Split at position {split_pos} (Position 1 و/ی, jazr, muarrab[1] only): prefix='{word_no_aspirate[:split_pos]}', remaining='{remaining}'")
-                                    code = "=" + length_three_scan(remaining)
+                                    code = "=" + length_three_scan(remaining, trace=trace)
                                 else:
                                     split_pos = 4
                                     remaining = word_no_aspirate[split_pos:] if len(word_no_aspirate) > split_pos else ""
                                     logger.debug(f"length_five_scan: Split at position {split_pos} (Position 1 و/ی, jazr, no muarrab): prefix='{word_no_aspirate[:split_pos]}', remaining='{remaining}'")
-                                    code = "=" + length_three_scan(remaining)
+                                    code = "=" + length_three_scan(remaining, trace=trace)
                         elif len(diacritic_positions) > 1 and (diacritic_positions[1] == ARABIC_DIACRITICS[1] or  # zer
                                                diacritic_positions[1] == ARABIC_DIACRITICS[8] or  # zabar
                                                diacritic_positions[1] == ARABIC_DIACRITICS[9]):  # paish
@@ -482,17 +623,17 @@ def length_five_scan(word: str) -> str:
                                         split_pos = 4
                                         remaining = word_no_aspirate[split_pos:] if len(word_no_aspirate) > split_pos else ""
                                         logger.debug(f"length_five_scan: Split at position {split_pos} (Position 1 و/ی, jazr at 2, muarrab[2]): prefix='{word_no_aspirate[:split_pos]}', remaining='{remaining}'")
-                                        code = "=" + length_three_scan(remaining)
+                                        code = "=" + length_three_scan(remaining, trace=trace)
                                     else:
                                         split_pos = 3
                                         remaining = word_no_aspirate[split_pos:] if len(word_no_aspirate) > split_pos else ""
                                         logger.debug(f"length_five_scan: Split at position {split_pos} (Position 1 و/ی, jazr at 2, no muarrab[2]): prefix='{word_no_aspirate[:split_pos]}', remaining='{remaining}'")
-                                        code = "=" + length_three_scan(remaining)
+                                        code = "=" + length_three_scan(remaining, trace=trace)
                             else:
                                 split_pos = 2
                                 remaining = word_no_aspirate[split_pos:] if len(word_no_aspirate) > split_pos else ""
                                 logger.debug(f"length_five_scan: Split at position {split_pos} (Position 1 و/ی, no jazr at 2): prefix='{word_no_aspirate[:split_pos]}', remaining='{remaining}'")
-                                code = "=" + length_three_scan(remaining)
+                                code = "=" + length_three_scan(remaining, trace=trace)
                     elif len(word_no_diacritics) > 2 and (word_no_diacritics[2] == 'و' or word_no_diacritics[2] == 'ی'):
                         if len(diacritic_positions) > 2 and (diacritic_positions[2] == ARABIC_DIACRITICS[1] or  # zer
                                             diacritic_positions[2] == ARABIC_DIACRITICS[8] or  # zabar
@@ -564,12 +705,12 @@ def length_five_scan(word: str) -> str:
                             split_pos = 4
                             remaining = word_no_aspirate[split_pos:] if len(word_no_aspirate) > split_pos else ""
                             logger.debug(f"length_five_scan: Split at position {split_pos} (no و/ی, jazr at 1, muarrab[0]): prefix='{word_no_aspirate[:split_pos]}', remaining='{remaining}'")
-                            code = "=" + length_three_scan(remaining)
+                            code = "=" + length_three_scan(remaining, trace=trace)
                         else:
                             split_pos = 3
                             remaining = word_no_aspirate[split_pos:] if len(word_no_aspirate) > split_pos else ""
                             logger.debug(f"length_five_scan: Split at position {split_pos} (no و/ی, jazr at 1, no muarrab[0]): prefix='{word_no_aspirate[:split_pos]}', remaining='{remaining}'")
-                            code = "=" + length_three_scan(remaining)
+                            code = "=" + length_three_scan(remaining, trace=trace)
                     elif len(diacritic_positions) > 2 and (diacritic_positions[2] == ARABIC_DIACRITICS[1] or  # zer
                                           diacritic_positions[2] == ARABIC_DIACRITICS[8] or  # zabar
                                           diacritic_positions[2] == ARABIC_DIACRITICS[9]):  # paish
@@ -690,13 +831,19 @@ def length_five_scan(word: str) -> str:
         old_code = code
         code = noon_ghunna(word, code)
         if old_code != code:
+            if trace is not None:
+                trace.append(f"L5S| APPLIED_NOON_GHUNNA_ADJUSTMENT: old_code={old_code},new_code={code}")
             logger.debug(f"length_five_scan: Applied noon ghunna adjustment: '{old_code}' -> '{code}'")
 
     # Apply yaa adjustment if needed
     if code.endswith("==") and word_no_diacritics.endswith("ے"):
         new_code = code[:-1] + "x"
+        if trace is not None:
+            trace.append(f"L5S| APPLIED_YAA_ADJUSTMENT: old_code={code},new_code={new_code}")
         logger.debug(f"length_five_scan: Applying yaa adjustment: '{code}' -> '{new_code}'")
         code = new_code
 
+    if trace is not None:
+        trace.append(f"L5S| RETURNING: code={code}")
     logger.debug(f"length_five_scan: Final code for '{word}' = '{code}'")
     return code

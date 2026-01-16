@@ -567,6 +567,11 @@ class WordScansionAssigner:
                 first.scansion_generation_steps.append(f"COMPOUND_SPLIT_SUCCEEDED:first_part={first_part},second_part={second_part},i={i}")
                 first.scansion_generation_steps.append(f"COMBINED_CODES_FROM_SPLIT_PARTS:count={len(codes)}")
                 
+                # Add trace message for compound word split
+                # Each part has its own trace from assign_code_to_word, parent records split decision
+                first.scan_trace_steps.append(f"COMPOUND_WORD_SPLIT: split_pos={i}")
+                first.scan_trace_steps.append(f"COMPOUND_WORD_PARTS: first={first_part},second={second_part}")
+                
                 wd = first
                 break
         

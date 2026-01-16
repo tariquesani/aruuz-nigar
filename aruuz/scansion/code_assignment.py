@@ -35,6 +35,9 @@ def compute_scansion(word: 'Words') -> str:
     word.heuristic_scanner_used = None
     word.heuristic_taqti_used = False
     
+    # Create trace list for length_*_scan functions
+    trace_steps = []
+    
     # Remove araab and special characters
     word1 = remove_araab(word.word)
     word1 = word1.replace("\u06BE", "").replace("\u06BA", "")  # Remove ھ and ں
@@ -44,12 +47,14 @@ def compute_scansion(word: 'Words') -> str:
     # Handle simple cases first
     if len(word1) == 1:
         word.heuristic_scanner_used = "length_one_scan"
-        code = length_one_scan(word.word)
+        code = length_one_scan(word.word, trace=trace_steps)
+        word.scan_trace_steps = trace_steps.copy()
         word.scansion_generation_steps.append("APPLIED_LENGTH_ONE_SCAN")
         return code
     elif len(word1) == 2:
         word.heuristic_scanner_used = "length_two_scan"
-        code = length_two_scan(word.word)
+        code = length_two_scan(word.word, trace=trace_steps)
+        word.scan_trace_steps = trace_steps.copy()
         word.scansion_generation_steps.append("APPLIED_LENGTH_TWO_SCAN")
         return code
     
@@ -83,13 +88,16 @@ def compute_scansion(word: 'Words') -> str:
             if not sub_string:
                 continue
             
+            # Add trace message for taqti substring processing
+            trace_steps.append(f"PROCESSING_TAQTI_SUBSTRING: substr={sub_string}")
+            
             # Remove ھ and ں for length calculation
             stripped_len = len(remove_araab(sub_string.replace("\u06BE", "").replace("\u06BA", "")))
             
             if stripped_len == 1:
                 if word.heuristic_scanner_used is None:
                     word.heuristic_scanner_used = "length_one_scan"
-                code += length_one_scan(sub_string)
+                code += length_one_scan(sub_string, trace=trace_steps)
             elif stripped_len == 2:
                 if word.heuristic_scanner_used is None:
                     word.heuristic_scanner_used = "length_two_scan"
@@ -106,15 +114,15 @@ def compute_scansion(word: 'Words') -> str:
             elif stripped_len == 3:
                 if word.heuristic_scanner_used is None:
                     word.heuristic_scanner_used = "length_three_scan"
-                code += length_three_scan(sub_string)
+                code += length_three_scan(sub_string, trace=trace_steps)
             elif stripped_len == 4:
                 if word.heuristic_scanner_used is None:
                     word.heuristic_scanner_used = "length_four_scan"
-                code += length_four_scan(sub_string)
+                code += length_four_scan(sub_string, trace=trace_steps)
             elif stripped_len >= 5:
                 if word.heuristic_scanner_used is None:
                     word.heuristic_scanner_used = "length_five_scan"
-                code += length_five_scan(sub_string)
+                code += length_five_scan(sub_string, trace=trace_steps)
         
         # Handle word-end flexible syllable
         word_end_rule_applied = False
@@ -154,17 +162,19 @@ def compute_scansion(word: 'Words') -> str:
         # No taqti available - use heuristics based on word length
         if len(word1) == 3:
             word.heuristic_scanner_used = "length_three_scan"
-            code = length_three_scan(word.word)
+            code = length_three_scan(word.word, trace=trace_steps)
             word.scansion_generation_steps.append("APPLIED_LENGTH_THREE_SCAN")
         elif len(word1) == 4:
             word.heuristic_scanner_used = "length_four_scan"
-            code = length_four_scan(word.word)
+            code = length_four_scan(word.word, trace=trace_steps)
             word.scansion_generation_steps.append("APPLIED_LENGTH_FOUR_SCAN")
         elif len(word1) >= 5:
             word.heuristic_scanner_used = "length_five_scan"
-            code = length_five_scan(word.word)
+            code = length_five_scan(word.word, trace=trace_steps)
             word.scansion_generation_steps.append("APPLIED_LENGTH_FIVE_SCAN")
         else:
             code = "-"  # Default fallback
     
+    # Copy trace to word before returning
+    word.scan_trace_steps = trace_steps.copy()
     return code

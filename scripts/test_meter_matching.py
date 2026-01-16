@@ -79,6 +79,10 @@ for i, word in enumerate(line_obj.words_list):
         print(f"  Prosodic transformation steps:")
         for step_idx, step in enumerate(word.prosodic_transformation_steps, 1):
             print(f"    {step_idx}. {step}")
+    if word.scan_trace_steps:
+        print(f"  Scan trace steps (length_*_scan decisions):")
+        for step_idx, step in enumerate(word.scan_trace_steps, 1):
+            print(f"    {step_idx}. {step}")
 print()
 print("STEP 1.7: WORD CODES AFTER PROSODIC RULES (AL, IZAFAT, ATAF, GRAFTING)")
 print("-" * 80)
