@@ -36,6 +36,7 @@ from typing import List
 from aruuz.models import Lines, scanPath, codeLocation, LineScansionResult, Words
 from aruuz.scansion import Scansion
 from aruuz.scansion.prosodic_rules import ProsodicRules
+from aruuz.scansion.explanation_builder import ExplanationBuilder
 from aruuz.tree.code_tree import CodeTree
 from aruuz.meters import METERS, METERS_VARIED, RUBAI_METERS, NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, USAGE, METER_NAMES, METERS_VARIED_NAMES, RUBAI_METER_NAMES, afail, afail_list
 from aruuz.utils.araab import remove_araab
@@ -58,6 +59,9 @@ scanner.add_line(line_obj)
 for word in line_obj.words_list:
     if not word.code:
         scanner.assign_scansion_to_word(word)
+
+# Create explanation builder for user-friendly explanations
+explanation_builder = ExplanationBuilder(language="en")
 
 # Apply prosodic rules (Al → Izafat → Ataf → Word Grafting)
 ProsodicRules.process_al_prefix(line_obj)
@@ -83,6 +87,29 @@ for i, word in enumerate(line_obj.words_list):
         print(f"  Scan trace steps (length_*_scan decisions):")
         for step_idx, step in enumerate(word.scan_trace_steps, 1):
             print(f"    {step_idx}. {step}")
+print()
+
+print("STEP 1.5: USER-FACING EXPLANATIONS FOR EACH WORD")
+print("-" * 80)
+for i, word in enumerate(line_obj.words_list):
+    print(f"\nWord {i} ('{word.word}'):")
+    explanation = explanation_builder.get_explanation(word, format="string")
+    if explanation:
+        print(f"  Explanation: {explanation}")
+    else:
+        print(f"  (No explanation available)")
+    
+    # Also show structured format for detailed view
+    structured = explanation_builder.get_explanation(word, format="structured")
+    if structured and isinstance(structured, dict):
+        if structured.get("summary"):
+            print(f"  Summary: {structured['summary']}")
+        if structured.get("method"):
+            print(f"  Method: {structured['method']}")
+        if structured.get("steps") and len(structured['steps']) > 0:
+            print(f"  Steps ({len(structured['steps'])}):")
+            for step_idx, step in enumerate(structured['steps'], 1):  # Show all steps
+                print(f"    {step_idx}. {step}")
 print()
 print("STEP 1.7: WORD CODES AFTER PROSODIC RULES (AL, IZAFAT, ATAF, GRAFTING)")
 print("-" * 80)

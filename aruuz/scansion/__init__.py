@@ -25,6 +25,9 @@ from .word_analysis import (
 # Code assignment
 from .code_assignment import compute_scansion
 
+# Explanation builder
+from .explanation_builder import ExplanationBuilder
+
 # Length scanners
 from .length_scanners import (
     length_one_scan,
@@ -52,5 +55,6 @@ __all__ = [
     'length_three_scan',
     'length_four_scan',
     'length_five_scan',
-    'noon_ghunna'
+    'noon_ghunna',
+    'ExplanationBuilder'
 ]
