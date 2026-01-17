@@ -101,16 +101,23 @@ def compute_scansion(word: 'Words') -> str:
             elif stripped_len == 2:
                 if word.heuristic_scanner_used is None:
                     word.heuristic_scanner_used = "length_two_scan"
-                stripped = remove_araab(sub_string)
+                # Add trace messages for manual length-2 processing
+                trace_steps.append(f"L2S| INPUT_SUBSTRING: substr={sub_string}")
+                sub_string_no_aspirate = sub_string.replace("\u06BE", "").replace("\u06BA", "")
+                trace_steps.append(f"L2S| AFTER_REMOVING_HAY_AND_NUN: result={sub_string_no_aspirate}")
+                stripped = remove_araab(sub_string_no_aspirate)
                 # Case 1: alif madd (special long, splittable)
                 if stripped and stripped[0] == 'آ':
                     code += "=-"
+                    trace_steps.append("L2S| DETECTED_ALIF_MADD_START: return_code=-=")
                 # Case 2: inherent long vowel
                 elif any(ch in stripped for ch in ['ے', 'و', 'ی']):
                     code += "="
+                    trace_steps.append(f"L2S| DETECTED_INHERENT_LONG_VOWEL: return_code==")
                 # Case 3: closed short-vowel syllable
                 else:
                     code += "x"
+                    trace_steps.append("L2S| DETECTED_CLOSED_SHORT_VOWEL_SYLLABLE: return_code=x")
             elif stripped_len == 3:
                 if word.heuristic_scanner_used is None:
                     word.heuristic_scanner_used = "length_three_scan"
