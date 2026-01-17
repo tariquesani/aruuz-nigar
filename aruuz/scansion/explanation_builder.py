@@ -431,6 +431,89 @@ class ExplanationBuilder:
         self.parts: List[str] = []
         self.structured: Dict[str, Any] = {}
     
+    def _extract_decisive_event(self) -> Dict[str, Any]:
+        """
+        Find the decisive pattern match that determined the final code.
+        
+        Extracts the key event from trace steps that explains why the code was chosen.
+        This is the core event-driven approach - identifying the semantic hinge
+        that determines the scansion code.
+        
+        Returns:
+            Dictionary containing decisive facts: source, is_muarrab, diacritic, position,
+            code, word_length. Returns empty dict if no decisive event found.
+        """
+        result = {
+            "source": None,  # "exceptions" | "heuristic" | None
+            "is_muarrab": False,
+            "diacritic": None,
+            "position": None,
+            "code": None,
+            "word_length": None,
+        }
+
+        if not self.word:
+            return result
+
+        # First, check scansion_generation_steps for exception table hit (highest priority)
+        if self.word.scansion_generation_steps:
+            for step in self.word.scansion_generation_steps:
+                if step.startswith("FOUND_IN_DATABASE_EXCEPTIONS_TABLE"):
+                    result["source"] = "exceptions"
+                    # Get code from word.code if available
+                    if self.word.code:
+                        result["code"] = self.word.code[0] if isinstance(self.word.code, list) and len(self.word.code) > 0 else self.word.code
+                    return result  # Early return - exceptions are decisive
+
+        # If not exceptions, check scan_trace_steps for heuristic/muarrab patterns
+        if not self.word.scan_trace_steps:
+            return result
+
+        result["source"] = "heuristic"  # Default to heuristic if we have trace steps
+
+        for raw in self.word.scan_trace_steps:
+            step = self._strip_function_prefix(raw)
+
+            if step.startswith("WORD_IS_MUARRAB"):
+                # Check for explicit parameter first
+                params = self._parse_identifier_params(step)
+                if "has_diacritics" in params:
+                    result["is_muarrab"] = params.get("has_diacritics", "false").lower() == "true"
+                else:
+                    # If identifier exists but no parameters, assume true (identifier itself is the signal)
+                    result["is_muarrab"] = True
+
+            if step.startswith("AFTER_REMOVING_ARAAB_STRIPPED"):
+                params = self._parse_identifier_params(step)
+                if "length" in params:
+                    try:
+                        result["word_length"] = int(params["length"])
+                    except (ValueError, TypeError):
+                        pass
+
+            if step.startswith("CHECKING_DIACRITIC_AT_POSITION"):
+                params = self._parse_identifier_params(step)
+                if params.get("diacritic") == "jazm":
+                    result["diacritic"] = "jazm"
+                    if "pos" in params:
+                        try:
+                            result["position"] = int(params["pos"])
+                        except (ValueError, TypeError):
+                            pass
+
+            if step.startswith("PATTERN_MATCHED"):
+                params = self._parse_identifier_params(step)
+                if "code" in params:
+                    result["code"] = params["code"]
+                    # CRITICAL: stop at first decisive match
+                    break
+
+        # If no code found in pattern match, try to get from word.code
+        if not result["code"] and self.word.code:
+            result["code"] = self.word.code[0] if isinstance(self.word.code, list) and len(self.word.code) > 0 else self.word.code
+
+        return result
+    
     def add_summary(self) -> None:
         """
         Add one-line summary overview based on assignment method.
@@ -589,6 +672,94 @@ class ExplanationBuilder:
             # No taqti available - set to None in structured format
             self.structured["taqti"] = None
             self.structured["taqti_breakdown"] = None
+    
+    def _add_exception_explanation(self, codes: Union[str, List[str]]) -> None:
+        """
+        Add explanation for words found in exceptions table.
+        
+        Args:
+            codes: Single code string or list of codes from the exceptions table
+        """
+        if not self.word:
+            return
+        
+        word = self.word.word if self.word.word else "word"
+        
+        # Normalize codes to list
+        if isinstance(codes, str):
+            codes_list = [codes]
+        elif isinstance(codes, list):
+            codes_list = codes
+        else:
+            # Fallback: try to get from word.code
+            codes_list = self.word.code if self.word.code else []
+        
+        if len(codes_list) == 0:
+            # No codes available
+            self.parts.append(
+                f", and it has a fixed scansion recorded in the exceptions table."
+            )
+        elif len(codes_list) == 1:
+            self.parts.append(
+                f", and it has a fixed scansion recorded in the exceptions table."
+            )
+            self.parts.append(
+                f"This word is always scanned as {codes_list[0]}."
+            )
+        else:
+            codes_str = ", ".join(codes_list)
+            self.parts.append(
+                f", and it has fixed scansion variants recorded in the exceptions table."
+            )
+            self.parts.append(
+                f"Accepted scansion codes are: {codes_str}."
+            )
+    
+    def add_explanation(self) -> None:
+        """
+        Add narrative explanation derived from the decisive trace event.
+        
+        Builds explanation from facts extracted from the trace, focusing on:
+        1. How was the word classified? (muarrab vs non-muarrab)
+        2. What feature decided the scan? (jazm at position, alif madd, etc.)
+        3. What code did that produce?
+        
+        This is the event-driven approach - constructing explanation from
+        the decisive rule rather than translating all traces.
+        """
+        if not self.word:
+            return
+        
+        facts = self._extract_decisive_event()
+        
+        # Short-circuit: if word is from exceptions table, use authoritative explanation
+        if facts["source"] == "exceptions":
+            codes = self.word.code if self.word.code else facts.get("code")
+            self._add_exception_explanation(codes)
+            return
+        
+        # Fallback: heuristic / muarrab explanation
+        if not facts["code"]:
+            # No decisive event found - skip explanation
+            return
+
+        word = self.word.word if self.word.word else "word"
+
+        # 1. How was the word classified?
+        if facts["is_muarrab"]:
+            self.parts.append(f", and it was read with vowel marks (diacritics/اعراب).")
+
+        # 2. What feature decided the scan?
+        if facts["diacritic"] == "jazm" and facts["word_length"] == 3:
+            if facts["position"] == 1:
+                self.parts.append(
+                    "The middle letter has a jazm, which closes the syllable."
+                )
+
+        # 3. What code did that produce?
+        self.parts.append(
+            f"This produces the scansion {facts['code']}."
+        )
     
     def add_steps(self) -> None:
         """
@@ -932,11 +1103,12 @@ class ExplanationBuilder:
         self.structured = {}
         
         # Call component builder methods in order
-        self.add_summary()
+        self.add_summary()     # optional, you may later remove this
         self.add_method()
         self.add_taqti()
-        self.add_steps()
-        self.add_code()
+        self.add_explanation() # NEW CORE: event-driven explanation from decisive trace event
+        # self.add_steps()     # TEMPORARILY disabled - was string-mapping driven
+        # self.add_code()      # explanation already states code
         self.add_transformations()
         
         # Handle missing information edge case (Phase 4.4)
