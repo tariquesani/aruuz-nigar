@@ -100,7 +100,8 @@ def length_one_scan(substr: str, trace: Optional[List[str]] = None) -> str:
     Returns:
         Scansion code: "=" for آ (long), "-" otherwise (short)
     """
-    trace = trace or []
+    if trace is None:
+        trace = []
     trace.append(f"L1S| INPUT_SUBSTRING: substr={substr}")
     stripped = remove_araab(substr)
     if stripped == "آ":
@@ -124,7 +125,8 @@ def length_two_scan(substr: str, trace: Optional[List[str]] = None) -> str:
     Returns:
         Scansion code: "=-" if starts with آ, "x" if ends with vowel+h, "=" otherwise
     """
-    trace = trace or []
+    if trace is None:
+        trace = []
     trace.append(f"L2S| INPUT_SUBSTRING: substr={substr}")
     # Remove ھ and ں for scansion purposes
     sub_string = substr.replace("\u06BE", "").replace("\u06BA", "")
@@ -155,7 +157,8 @@ def length_three_scan(substr: str, trace: Optional[List[str]] = None) -> str:
     Returns:
         Scansion code based on character patterns and diacritics
     """
-    trace = trace or []
+    if trace is None:
+        trace = []
     trace.append(f"L3S| INPUT_SUBSTRING: substr={substr}")
     code = ""
     # Remove ھ and ں for scansion purposes
@@ -306,6 +309,8 @@ def length_four_scan(substr: str, trace: Optional[List[str]] = None) -> str:
     Returns:
         Scansion code based on character patterns
     """
+    if trace is None:
+        trace = []
     code = ""
     # Remove ھ and ں for scansion purposes
     sub_string = substr.replace("\u06BE", "").replace("\u06BA", "")
@@ -439,7 +444,8 @@ def length_five_scan(word: str, trace: Optional[List[str]] = None) -> str:
     Returns:
         Scansion code based on character patterns
     """
-    trace = trace or []
+    if trace is None:
+        trace = []
     trace.append(f"L5S| INPUT_SUBSTRING: substr={word}")
     logger.debug(f"length_five_scan: Input substring = '{word}'")
     code = ""
