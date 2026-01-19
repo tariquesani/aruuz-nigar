@@ -61,7 +61,7 @@ for word in line_obj.words_list:
         scanner.assign_scansion_to_word(word)
 
 # Create explanation builder for user-friendly explanations
-explanation_builder = ExplanationBuilder(language="en")
+explanation_builder = ExplanationBuilder()
 
 # Apply prosodic rules (Al → Izafat → Ataf → Word Grafting)
 ProsodicRules.process_al_prefix(line_obj)
@@ -102,14 +102,10 @@ for i, word in enumerate(line_obj.words_list):
     # Also show structured format for detailed view
     structured = explanation_builder.get_explanation(word, format="structured")
     if structured and isinstance(structured, dict):
-        if structured.get("summary"):
-            print(f"  Summary: {structured['summary']}")
-        if structured.get("method"):
-            print(f"  Method: {structured['method']}")
-        if structured.get("steps") and len(structured['steps']) > 0:
-            print(f"  Steps ({len(structured['steps'])}):")
-            for step_idx, step in enumerate(structured['steps'], 1):  # Show all steps
-                print(f"    {step_idx}. {step}")
+        if structured.get("text"):
+            print(f"  Text: {structured['text']}")
+        if structured.get("events_used") is not None:
+            print(f"  Events used: {structured['events_used']}")
 print()
 print("STEP 1.7: WORD CODES AFTER PROSODIC RULES (AL, IZAFAT, ATAF, GRAFTING)")
 print("-" * 80)
