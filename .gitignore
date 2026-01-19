@@ -56,3 +56,4 @@ data/*.db
 *.md
 # Logs
 *.log
+aruuz/scansion/legacy_explanation_builder.py

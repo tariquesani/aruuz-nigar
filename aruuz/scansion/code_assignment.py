@@ -47,6 +47,8 @@ def compute_scansion(word: 'Words') -> str:
     # Handle simple cases first
     if len(word1) == 1:
         word.heuristic_scanner_used = "length_one_scan"
+        # SINGLE_SYLLABLE: standalone one-character word
+        # Reason: independent syllable, no surrounding context
         code = length_one_scan(word.word, trace=trace_steps)
         word.scan_trace_steps = trace_steps.copy()
         word.scansion_generation_steps.append("APPLIED_LENGTH_ONE_SCAN")
@@ -97,6 +99,8 @@ def compute_scansion(word: 'Words') -> str:
             if stripped_len == 1:
                 if word.heuristic_scanner_used is None:
                     word.heuristic_scanner_used = "length_one_scan"
+                # SINGLE_SYLLABLE: taqti residue of length 1
+                # Reason: fragment produced after syllabic split; treated like standalone mora
                 code += length_one_scan(sub_string, trace=trace_steps)
             elif stripped_len == 2:
                 if word.heuristic_scanner_used is None:

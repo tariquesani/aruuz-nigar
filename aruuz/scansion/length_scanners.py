@@ -171,6 +171,10 @@ def length_three_scan(word: str, trace: Optional[List[str]] = None) -> str:
     trace.append(f"L3S| AFTER_REMOVING_ARAAB_STRIPPED: result={word_no_diacritics},length={len(word_no_diacritics)}")
     
     if len(word_no_diacritics) == 1:
+        # SINGLE_SYLLABLE: internal reduction inside 3-char word
+        # Reason: when a multi-character word collapses to one phonetic unit,
+        #         syllabic weight is inverted due to internal prosodic compensation
+        #         (NOT equivalent to standalone single-character word)
         if word_no_diacritics[0] == 'آ':
             trace.append("L3S| STRIPPED_LENGTH_1_ALIF_MADD: return_code=-")
             return "-"
@@ -321,6 +325,8 @@ def length_four_scan(word: str, trace: Optional[List[str]] = None) -> str:
     
     if len(word_no_diacritics) == 1:
         trace.append("L4S| STRIPPED_LENGTH_DELEGATE: length=1,delegate_to=L1S")
+        # SINGLE_SYLLABLE: degenerate case after araab removal
+        # Reason: defensive fallback; treat as standalone syllable
         code = length_one_scan(word_no_aspirate, trace=trace)
     elif len(word_no_diacritics) == 2:
         trace.append("L4S| STRIPPED_LENGTH_DELEGATE: length=2,delegate_to=L2S")
