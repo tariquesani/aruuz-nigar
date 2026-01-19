@@ -104,12 +104,33 @@ def length_one_scan(word: str, trace: Optional[List[str]] = None) -> str:
         trace = []
     trace.append(f"L1S| INPUT_SUBSTRING: substr={word}")
     word_no_diacritics = remove_araab(word)
+    
+    # ============================================================================
+    # PATTERN MATCHING: Single-character word scansion
+    # ============================================================================
+    # Priority order (checked in sequence, first match wins):
+    # 1. Alif Madd (آ) - special long character
+    # 2. Default - all other characters are short
+    # ============================================================================
+    
+    # Pattern 1: Alif Madd (آ)
+    # Linguistic rule: Alif Madd (آ) is a special long character representing
+    #                  a long vowel sound (alif maddah).
+    # Justification: Alif Madd gets long weight (=) because it represents
+    #                a long vowel sound. This is the only single character
+    #                that gets long weight in standalone context.
     if word_no_diacritics == "آ":
         trace.append("L1S| DETECTED_ALIF_MADD: return_code==")
-        return "="
+        return "="  # Long: Alif Madd represents a long vowel sound
+    
+    # Pattern 2: Default pattern (all other characters)
+    # Linguistic rule: All single characters except Alif Madd are treated as short.
+    # Justification: Single characters default to short weight (-) unless they
+    #                are the special Alif Madd character. This is the fallback
+    #                pattern for all other single-character words.
     else:
         trace.append("L1S| NO_ALIF_MADD: return_code=-")
-        return "-"
+        return "-"  # Short: Default for all non-Alif-Madd single characters
 
 
 def length_two_scan(word: str, trace: Optional[List[str]] = None) -> str:
@@ -128,27 +149,74 @@ def length_two_scan(word: str, trace: Optional[List[str]] = None) -> str:
     if trace is None:
         trace = []
     trace.append(f"L2S| INPUT_SUBSTRING: substr={word}")
+    
     # Remove ھ and ں for scansion purposes
     word_no_aspirate = word.replace("\u06BE", "").replace("\u06BA", "")
     trace.append(f"L2S| AFTER_REMOVING_HAY_AND_NUN: result={word_no_aspirate}")
     word_no_diacritics = remove_araab(word_no_aspirate)
-    # Single long syllable, default case
+    
+    # ============================================================================
+    # PATTERN MATCHING: Two-character word scansion
+    # ============================================================================
+    # Priority order (checked in sequence, first match wins):
+    # 1. Alif Madd (آ) at start - special long character, splittable
+    # 2. Vowel plus h at end - flexible terminal pattern
+    # 3. Default - single long syllable
+    # ============================================================================
+    
+    # Default case: Single long syllable
+    # Justification: Two-character words default to a single long syllable (=)
+    #                unless they match a specific pattern that requires different treatment.
     code = "="
-    # Case 1: alif madd (special long, splittable)
+    
+    # Pattern 1: Alif Madd (آ) at start
+    # Linguistic rule: Alif Madd (آ) is a special long character that creates
+    #                  a splittable long-short pattern.
+    # Justification: Alif Madd at start creates long-short pattern ("=-").
+    #                The آ itself is long, and it splits the word into two syllables.
+    #                This is the highest priority pattern for two-character words.
     if word[0] == '\u0622':  # آ
-        code = "=-"
+        code = "=-"  # Long-short: Alif Madd (long) + remaining character (short)
         trace.append("L2S| DETECTED_ALIF_MADD_START: return_code==-")
         trace.append(f"L2S| PATTERN_MATCHED: starts_with_alif_madd,code={code}")
-    # Case 2: flexible terminal vowel
+    
+    # Pattern 2: Vowel plus h at end (flexible terminal)
+    # Linguistic rule: Words ending in vowel plus h (ا،ی،ے،و،ہ) are treated as flexible.
+    #                  The flexible terminal allows the word to be either long or short
+    #                  depending on metrical context.
+    # Justification: Flexible terminals get code "x" to indicate they can be either
+    #                long (=) or short (-) depending on the metrical requirements.
+    #                This flexibility is essential for proper scansion matching.
     elif len(word_no_diacritics) > 0 and is_vowel_plus_h(word_no_diacritics[-1]):
-        code = "x"
+        code = "x"  # Flexible: Can be either long (=) or short (-) based on context
         trace.append(f"L2S| DETECTED_VOWEL_PLUS_H_END: return_code=x")
         trace.append(f"L2S| PATTERN_MATCHED: ends_with_vowel_plus_h,code={code}")
+    
+    # Pattern 3: Default pattern
+    # Justification: When no specific pattern matches, use default single long syllable.
+    #                This is the fallback for two-character words that don't match
+    #                the special patterns above.
     else:
         trace.append("L2S| DEFAULT_PATTERN: return_code==")
         trace.append(f"L2S| PATTERN_MATCHED: default_pattern,code={code}")
     
     return code
+
+
+def _has_vowel_at_center(word_no_diacritics: str) -> bool:
+    """
+    Check if word has a vowel at center position (position 1 or position 2 with 'ہ').
+    
+    This helper extracts the complex boolean condition for readability.
+    Pattern: vowel at position 1 (ا, ی, ے, و) OR 'ہ' at position 2.
+    
+    Args:
+        word_no_diacritics: Word with diacritics removed
+        
+    Returns:
+        True if vowel found at center position
+    """
+    return (len(word_no_diacritics) > 1 and word_no_diacritics[1] in ['ا', 'ی', 'ے', 'و']) or (len(word_no_diacritics) > 2 and word_no_diacritics[2] == 'ہ')
 
 
 def length_three_scan(word: str, trace: Optional[List[str]] = None) -> str:
@@ -166,77 +234,156 @@ def length_three_scan(word: str, trace: Optional[List[str]] = None) -> str:
         trace = []
     trace.append(f"L3S| INPUT_SUBSTRING: substr={word}")
     code = ""
+    
     # Remove ھ and ں for scansion purposes
     word_no_aspirate = word.replace("\u06BE", "").replace("\u06BA", "")
     trace.append(f"L3S| AFTER_REMOVING_HAY_AND_NUN: result={word_no_aspirate}")
     word_no_diacritics = remove_araab(word_no_aspirate)
     trace.append(f"L3S| AFTER_REMOVING_ARAAB_STRIPPED: result={word_no_diacritics},length={len(word_no_diacritics)}")
     
-    # DECISION POINT: Single unit collapse inside 3-char word
+    # ============================================================================
+    # SECTION 1: EARLY EXITS - Length-based delegation
+    # ============================================================================
+    # These patterns handle cases where the word collapses to fewer characters
+    # after removing diacritics and aspirates. These are checked FIRST because
+    # they represent degenerate cases that need special handling.
+    
+    # Pattern: Word collapses to single character after stripping
+    # Justification: When a multi-character word collapses to one phonetic unit,
+    #                syllabic weight is inverted due to internal prosodic compensation.
+    #                This is NOT equivalent to a standalone single-character word.
+    #                Alif Madd (آ) gets short weight (-) in this context, others get long (=).
     if len(word_no_diacritics) == 1:
-        # SINGLE_SYLLABLE: internal reduction inside 3-char word
-        # Reason: when a multi-character word collapses to one phonetic unit,
-        #         syllabic weight is inverted due to internal prosodic compensation
-        #         (NOT equivalent to standalone single-character word)
         if word_no_diacritics[0] == 'آ':
             trace.append("L3S| STRIPPED_LENGTH_1_ALIF_MADD: return_code=-")
-            return "-"
+            return "-"  # Short: Alif Madd in collapsed context becomes short
         else:
             trace.append("L3S| STRIPPED_LENGTH_1_NO_ALIF_MADD: return_code==")
-            return "="
+            return "="  # Long: Other single characters get long weight
+    
+    # Pattern: Word collapses to two characters after stripping
+    # Justification: Delegate to length_two_scan which has specialized logic
+    #                for two-character patterns (flexible terminals, alif madd, etc.)
     elif len(word_no_diacritics) == 2:
         trace.append("L3S| STRIPPED_LENGTH_DELEGATE: length=2,delegate_to=L2S")
         return length_two_scan(word, trace=trace)
     
-    # DECISION POINT: Muarrab word (with diacritics)
+    # ============================================================================
+    # SECTION 2: PRIMARY SPLIT - Muarrab vs Non-Muarrab
+    # ============================================================================
+    # The fundamental division: words WITH diacritics (muarrab) vs WITHOUT.
+    # Muarrab words use diacritic-driven pattern matching (more specific).
+    # Non-muarrab words use character-driven pattern matching (less specific).
+    
     if is_muarrab(word_no_aspirate):
         trace.append("L3S| WORD_IS_MUARRAB: has_diacritics=true")
         trace.append("L3S| ENTERING_MUARRAB_BRANCH: checking_diacritic_patterns")
         diacritic_positions = locate_araab(word_no_aspirate)
         trace.append(f"L3S| LOCATED_DIACRITICS: positions={len(diacritic_positions)},mask='{diacritic_positions}'")
         
+        # ========================================================================
+        # MUARRAB BRANCH: Diacritic-driven pattern matching
+        # ========================================================================
+        # NOTE ON PRIORITY:
+        # Diacritic-driven rules always outrank character-driven rules
+        # because they encode explicit phonetic intent, not inference.
+        # Priority order (checked in sequence, first match wins):
+        # 1. Jazm at position 1 (highest priority - most specific diacritic)
+        # 2. Zer/Zabar/Paish at position 1 (vowel diacritics)
+        # 3. Shadd at position 1 (gemination marker)
+        # 4. Alif at position 2 (character pattern, lower priority than diacritics)
+        # 5. Vowel at position 2 (character pattern)
+        # 6. Vowel at center (position 1 or position 2 with 'ہ')
+        # 7. Default muarrab pattern (fallback)
+        # ========================================================================
+        
+        # Pattern 1: Jazm (sukoon) at position 1
+        # Linguistic rule: Jazm indicates a consonant cluster or closed syllable.
+        #                  This is the most specific diacritic pattern.
         if len(diacritic_positions) > 1 and diacritic_positions[1] == ARABIC_DIACRITICS[2]:  # jazm
             trace.append(f"L3S| CHECKING_DIACRITIC_AT_POSITION: pos=1,diacritic=jazm,character='{word_no_diacritics[1] if len(word_no_diacritics) > 1 else 'N/A'}'")
             trace.append("L3S| PATTERN_CHECK_1: jazm_at_pos_1=true")
+            
+            # Sub-pattern 1a: Jazm with Alif Madd at start
+            # Justification: Alif Madd (آ) at start + Jazm creates long-short-short pattern.
+            #                The initial long syllable (آ) followed by jazm creates this specific rhythm.
             if word_no_diacritics[0] == 'آ':
                 trace.append(f"L3S| CHECKING_SUB_CONDITION: first_char='{word_no_diacritics[0]}',is_alif_madd=true")
-                code = "=--"
+                code = "=--"  # Long-short-short: Alif Madd (long) + Jazm (short) + final (short)
                 trace.append(f"L3S| PATTERN_MATCHED: diacritic=jazm_at_pos_1,first_char_is_alif_madd=true,branch=if,code={code}")
+            
+            # Sub-pattern 1b: Jazm without Alif Madd at start
+            # Justification: Jazm alone creates short-long pattern.
+            #                The jazm forces a short first syllable, followed by long second syllable.
             else:
                 trace.append(f"L3S| CHECKING_SUB_CONDITION: first_char='{word_no_diacritics[0] if len(word_no_diacritics) > 0 else 'N/A'}',is_alif_madd=false")
-                code = "=-"
+                code = "=-"  # Short-long: Jazm (short) + remaining (long)
                 trace.append(f"L3S| PATTERN_MATCHED: diacritic=jazm_at_pos_1,first_char='{word_no_diacritics[0] if len(word_no_diacritics) > 0 else 'N/A'}',is_alif_madd=false,branch=else,ruled_out_patterns=[alif_madd],code={code}")
+        
+        # Pattern 2: Zer/Zabar/Paish at position 1
+        # Linguistic rule: These diacritics (zer=kasra, zabar=fatha, paish=damma) indicate
+        #                  vowel sounds, creating short-long pattern.
+        # Justification: Vowel diacritics at position 1 create a short first syllable,
+        #                followed by a long second syllable.
         elif len(diacritic_positions) > 1 and (diacritic_positions[1] == ARABIC_DIACRITICS[1] or  # zer
                                diacritic_positions[1] == ARABIC_DIACRITICS[8] or  # zabar
                                diacritic_positions[1] == ARABIC_DIACRITICS[9]):  # paish
             diacritic_type = "zer" if diacritic_positions[1] == ARABIC_DIACRITICS[1] else ("zabar" if diacritic_positions[1] == ARABIC_DIACRITICS[8] else "paish")
             trace.append(f"L3S| CHECKING_DIACRITIC_AT_POSITION: pos=1,diacritic={diacritic_type},character='{word_no_diacritics[1] if len(word_no_diacritics) > 1 else 'N/A'}'")
             trace.append(f"L3S| PATTERN_CHECK_2: {diacritic_type}_at_pos_1=true,ruled_out_patterns=[jazm]")
-            code = "-="
+            code = "-="  # Short-long: Vowel diacritic (short) + remaining (long)
             trace.append(f"L3S| PATTERN_MATCHED: diacritic={diacritic_type}_at_pos_1,ruled_out_patterns=[jazm],code={code}")
+        
+        # Pattern 3: Shadd at position 1
+        # Linguistic rule: Shadd indicates gemination (doubling) of the consonant.
+        # Justification: Gemination creates a long first syllable, followed by long second syllable.
+        #                  The doubled consonant extends the syllable length.
         elif len(diacritic_positions) > 1 and diacritic_positions[1] == ARABIC_DIACRITICS[0]:  # shadd
             trace.append(f"L3S| CHECKING_DIACRITIC_AT_POSITION: pos=1,diacritic=shadd,character='{word_no_diacritics[1] if len(word_no_diacritics) > 1 else 'N/A'}'")
             trace.append("L3S| PATTERN_CHECK_3: shadd_at_pos_1=true,ruled_out_patterns=[jazm,zer/zabar/paish]")
-            code = "=="
+            code = "=="  # Long-long: Shadd (long via gemination) + remaining (long)
             trace.append(f"L3S| PATTERN_MATCHED: diacritic=shadd_at_pos_1,ruled_out_patterns=[jazm,zer/zabar/paish],code={code}")
+        
+        # Pattern 4: Alif at position 2
+        # Linguistic rule: Alif (ا) at center position acts as a long vowel nucleus.
+        # Justification: Alif in the middle creates short-long pattern.
+        #                First syllable is short, second syllable (with alif) is long.
         elif len(word_no_diacritics) > 2 and word_no_diacritics[2] == 'ا':
             trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=2,character='{word_no_diacritics[2]}'")
             trace.append("L3S| PATTERN_CHECK_4: alif_at_pos_2=true,ruled_out_patterns=[jazm,zer/zabar/paish,shadd]")
-            code = "-="
+            code = "-="  # Short-long: First (short) + Alif at pos 2 (long)
             trace.append(f"L3S| PATTERN_MATCHED: alif_at_pos_2,ruled_out_patterns=[jazm,zer/zabar/paish,shadd],code={code}")
+        
+        # Pattern 5: Vowel at position 2 (end position)
+        # Linguistic rule: Vowels (ا, ی, ے, و, ہ) at the end position create flexible patterns.
+        # Justification: The pattern depends on what's at position 1.
+        #                If position 1 is alif, we get short-long. Otherwise, short-long.
         elif len(word_no_diacritics) > 2 and word_no_diacritics[2] in ['ا', 'ی', 'ے', 'و', 'ہ']:  # vowels at end
             vowel_char = word_no_diacritics[2]
             trace.append(f"L3S| CHECKING_VOWEL_AT_POSITION: pos=2,character='{vowel_char}'")
             trace.append(f"L3S| PATTERN_CHECK_5: vowel_at_pos_2='{vowel_char}',ruled_out_patterns=[jazm,zer/zabar/paish,shadd,alif_at_pos_2]")
+            
+            # Sub-pattern 5a: Vowel at end with Alif at position 1
+            # Justification: Alif at position 1 + vowel at end creates short-long pattern.
+            #                The alif at position 1 creates a short first syllable.
             if word_no_diacritics[1] == 'ا':
                 trace.append(f"L3S| CHECKING_SUB_CONDITION: pos_1_character='{word_no_diacritics[1]}',is_alif=true")
-                code = "=-"
+                code = "=-"  # Short-long: Alif at pos 1 (short) + vowel at end (long)
                 trace.append(f"L3S| PATTERN_MATCHED: vowel_at_pos_2='{vowel_char}',alif_at_pos_1=true,branch=if,code={code}")
+            
+            # Sub-pattern 5b: Vowel at end without Alif at position 1
+            # Justification: Vowel at end without alif at position 1 creates short-long pattern.
+            #                First syllable is short, second syllable (ending in vowel) is long.
             else:
                 trace.append(f"L3S| CHECKING_SUB_CONDITION: pos_1_character='{word_no_diacritics[1] if len(word_no_diacritics) > 1 else 'N/A'}',is_alif=false")
-                code = "-="
+                code = "-="  # Short-long: First (short) + vowel at end (long)
                 trace.append(f"L3S| PATTERN_MATCHED: vowel_at_pos_2='{vowel_char}',alif_at_pos_1=false,branch=else,code={code}")
-        elif (len(word_no_diacritics) > 1 and word_no_diacritics[1] in ['ا', 'ی', 'ے', 'و']) or (len(word_no_diacritics) > 2 and word_no_diacritics[2] == 'ہ'):  # vowels at center
+        
+        # Pattern 6: Vowel at center position
+        # Linguistic rule: Vowels at center (position 1: ا, ی, ے, و) OR 'ہ' at position 2.
+        # Justification: Vowel at center creates short-long pattern.
+        #                The center vowel creates a short first syllable, long second syllable.
+        elif _has_vowel_at_center(word_no_diacritics):  # vowels at center
             vowel_pos = None
             vowel_char = None
             if len(word_no_diacritics) > 1 and word_no_diacritics[1] in ['ا', 'ی', 'ے', 'و']:
@@ -247,60 +394,131 @@ def length_three_scan(word: str, trace: Optional[List[str]] = None) -> str:
                 vowel_char = 'ہ'
             trace.append(f"L3S| CHECKING_VOWEL_AT_POSITION: pos={vowel_pos},character='{vowel_char}'")
             trace.append(f"L3S| PATTERN_CHECK_6: vowel_at_pos_{vowel_pos}=true,ruled_out_patterns=[jazm,zer/zabar/paish,shadd,alif_at_pos_2,vowel_at_pos_2]")
-            code = "=-"
+            code = "=-"  # Short-long: First (short) + vowel at center (long)
             trace.append(f"L3S| PATTERN_MATCHED: vowel_at_pos_{vowel_pos}='{vowel_char}',ruled_out_patterns=[jazm,zer/zabar/paish,shadd,alif_at_pos_2,vowel_at_pos_2],code={code}")
+        
+        # Pattern 7: Default muarrab pattern
+        # Justification: When no specific pattern matches, use default short-long pattern.
+        #                This is the fallback for muarrab words that don't match any specific rule.
         else:  # default case
             trace.append("L3S| PATTERN_CHECK_7: all_previous_checks_failed")
             trace.append("L3S| NO_PATTERN_MATCHED: using_default_muarrab_rule")
-            code = "=-"
+            code = "=-"  # Short-long: Default pattern for muarrab words
             trace.append(f"L3S| PATTERN_MATCHED: default_muarrab,ruled_out_patterns=[jazm,zer/zabar/paish,shadd,alif_at_pos_2,vowel_at_pos_2,vowel_at_center],code={code}")
+    
     else:
         trace.append("L3S| WORD_NOT_MUARRAB: has_diacritics=false")
         trace.append("L3S| ENTERING_NON_MUARRAB_BRANCH: checking_character_patterns")
+        
+        # ========================================================================
+        # NON-MUARRAB BRANCH: Character-driven pattern matching
+        # ========================================================================
+        # NOTE ON PRIORITY:
+        # Diacritic-driven rules always outrank character-driven rules
+        # because they encode explicit phonetic intent, not inference.
+        # Priority order (checked in sequence, first match wins):
+        # 1. Starts with Alif Madd (آ) - special long character
+        # 2. Alif at position 1 - internal vowel nucleus
+        # 3. Alif at position 2 - internal vowel nucleus at end
+        # 4. Vowel at center (position 1: ی, ے, و, ہ)
+        # 5. Vowel at end (position 2: ی, ے, و, ہ)
+        # 6. Vowel plus h at start (flexible terminal)
+        # 7. Default non-muarrab pattern (fallback)
+        # ========================================================================
+        
+        # Pattern 1: Starts with Alif Madd (آ)
+        # Linguistic rule: Alif Madd (آ) is a special long character that creates long-long pattern.
+        # Justification: Alif Madd at start creates two long syllables.
+        #                The آ itself is long, and it typically creates a long second syllable.
         if word_no_diacritics[0] == 'آ':
             trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=0,character='{word_no_diacritics[0]}'")
             trace.append("L3S| PATTERN_CHECK_1: starts_with_alif_madd=true")
-            code = "=="
+            code = "=="  # Long-long: Alif Madd (long) + remaining (long)
             trace.append(f"L3S| PATTERN_MATCHED: starts_with_alif_madd_at_pos_0,code={code}")
-        #  DECISION POINT: Alif acting as internal vowel nucleus 
+        
+        # Pattern 2: Alif at position 1 (center)
+        # Linguistic rule: Alif (ا) acting as internal vowel nucleus.
+        # Justification: Alif at center creates short-long pattern.
+        #                First syllable is short, second syllable (with alif) is long.
         elif len(word_no_diacritics) > 1 and word_no_diacritics[1] == 'ا':  # Alif at centre
             trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=1,character='{word_no_diacritics[1]}'")
             trace.append("L3S| PATTERN_CHECK_2: alif_at_pos_1=true,ruled_out_patterns=[alif_madd_at_pos_0]")
-            code = "=-"
+            code = "=-"  # Short-long: First (short) + Alif at pos 1 (long)
             trace.append(f"L3S| PATTERN_MATCHED: alif_at_pos_1,ruled_out_patterns=[alif_madd_at_pos_0],code={code}")
+        
+        # Pattern 3: Alif at position 2 (end)
+        # Linguistic rule: Alif (ا) at end position acts as long vowel nucleus.
+        # Justification: Alif at end creates short-long pattern.
+        #                First syllable is short, second syllable (ending in alif) is long.
         elif len(word_no_diacritics) > 2 and word_no_diacritics[2] == 'ا':
             trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=2,character='{word_no_diacritics[2]}'")
             trace.append("L3S| PATTERN_CHECK_3: alif_at_pos_2=true,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1]")
-            code = "-="
+            code = "-="  # Short-long: First (short) + Alif at pos 2 (long)
             trace.append(f"L3S| PATTERN_MATCHED: alif_at_pos_2,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1],code={code}")
+        
+        # Pattern 4: Vowel at center (position 1: ی, ے, و, ہ)
+        # Linguistic rule: Vowels at center position create patterns that depend on what follows.
+        # Justification: The pattern varies based on what's at position 2.
         elif len(word_no_diacritics) > 1 and word_no_diacritics[1] in ['ی', 'ے', 'و', 'ہ']:  # vowels + h at centre
             trace.append(f"L3S| PATTERN_CHECK_4: vowel_at_center=true,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1,alif_at_pos_2]")
+            
+            # Sub-pattern 4a: Vowel at center with 'ہ' at end
+            # Justification: Vowel at center + 'ہ' at end creates short-long pattern.
+            #                The 'ہ' at end doesn't change the basic short-long structure.
             if len(word_no_diacritics) > 2 and word_no_diacritics[2] == 'ہ':
                 trace.append(f"L3S| CHECKING_SUB_CONDITION: pos_2_character='{word_no_diacritics[2]}',is_haa=true")
-                code = "=-"
+                code = "=-"  # Short-long: First (short) + vowel at center + 'ہ' (long)
                 trace.append(f"L3S| PATTERN_MATCHED: vowel_at_center,haa_at_end=true,branch=if,code={code}")
+            
+            # Sub-pattern 4b: Vowel at center with vowel at end
+            # Justification: Vowel at center + vowel at end creates short-long pattern.
+            #                The double vowel structure maintains short-long rhythm.
             elif len(word_no_diacritics) > 2 and word_no_diacritics[2] in ['ی', 'ے', 'و']:  # vowels + h at end
                 trace.append(f"L3S| CHECKING_SUB_CONDITION: pos_2_character='{word_no_diacritics[2]}',is_vowel=true")
-                code = "-="
+                code = "-="  # Short-long: First (short) + vowel at center + vowel at end (long)
                 trace.append(f"L3S| PATTERN_MATCHED: vowel_at_center,vowel_at_end=true,branch=elif,code={code}")
+            
+            # Sub-pattern 4c: Vowel at center without special end
+            # Justification: Vowel at center without special end character creates short-long pattern.
+            #                Default behavior for center vowel.
             else:
                 trace.append("L3S| CHECKING_SUB_CONDITION: pos_2_check=false,using_else_branch")
-                code = "=-"
+                code = "=-"  # Short-long: First (short) + vowel at center (long)
                 trace.append(f"L3S| PATTERN_MATCHED: vowel_at_center,no_special_end,branch=else,code={code}")
+        
+        # Pattern 5: Vowel at end (position 2: ی, ے, و, ہ)
+        # Linguistic rule: Vowels at end position create short-long pattern.
+        # Justification: Vowel at end creates a long final syllable, with short first syllable.
         elif len(word_no_diacritics) > 2 and word_no_diacritics[2] in ['ی', 'ے', 'و', 'ہ']:  # vowels + h at end
             trace.append("L3S| PATTERN_CHECK_5: vowel_at_end=true,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1,alif_at_pos_2,vowel_at_center]")
-            code = "-="
+            code = "-="  # Short-long: First (short) + vowel at end (long)
             trace.append(f"L3S| PATTERN_MATCHED: vowel_at_end,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1,alif_at_pos_2,vowel_at_center],code={code}")
+        
+        # Pattern 6: Vowel plus h at start
+        # Linguistic rule: Vowel plus h (ہ) at start creates flexible terminal pattern.
+        # Justification: This creates short-long pattern, similar to other vowel patterns.
+        #                The vowel+h combination at start creates a short first syllable.
         elif len(word_no_diacritics) > 0 and is_vowel_plus_h(word_no_diacritics[0]):
             trace.append(f"L3S| PATTERN_CHECK_6: vowel_plus_h_at_start=true,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1,alif_at_pos_2,vowel_at_center,vowel_at_end]")
-            code = "-="
+            code = "-="  # Short-long: Vowel+h at start (short) + remaining (long)
             trace.append(f"L3S| PATTERN_MATCHED: vowel_plus_h_at_start,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1,alif_at_pos_2,vowel_at_center,vowel_at_end],code={code}")
+        
+        # Pattern 7: Default non-muarrab pattern
+        # Justification: When no specific pattern matches, use default short-long pattern.
+        #                This is the fallback for non-muarrab words that don't match any specific rule.
         else:
             trace.append("L3S| PATTERN_CHECK_7: all_previous_checks_failed")
-            code = "-="
+            code = "-="  # Short-long: Default pattern for non-muarrab words
             trace.append(f"L3S| PATTERN_MATCHED: default_non_muarrab,ruled_out_patterns=[alif_madd_at_pos_0,alif_at_pos_1,alif_at_pos_2,vowel_at_center,vowel_at_end,vowel_plus_h_at_start],code={code}")
     
-    # Apply noon ghunna adjustments if needed
+    # ============================================================================
+    # SECTION 3: POST-PROCESSING - Noon Ghunna adjustments
+    # ============================================================================
+    # Noon (ن) with jazm requires special handling due to nasalization (ghunna).
+    # This adjustment modifies the code based on specific noon+jazm patterns.
+    # Justification: Noon ghunna is a phonological phenomenon that affects scansion.
+    #                It must be applied AFTER the main pattern matching to override
+    #                certain patterns when noon+jazm is present.
     if contains_noon(word_no_diacritics):
         old_code = code
         code = noon_ghunna(word, code)
