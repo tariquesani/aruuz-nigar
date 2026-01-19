@@ -132,12 +132,14 @@ def length_two_scan(word: str, trace: Optional[List[str]] = None) -> str:
     word_no_aspirate = word.replace("\u06BE", "").replace("\u06BA", "")
     trace.append(f"L2S| AFTER_REMOVING_HAY_AND_NUN: result={word_no_aspirate}")
     word_no_diacritics = remove_araab(word_no_aspirate)
-    
+    # Single long syllable, default case
     code = "="
+    # Case 1: alif madd (special long, splittable)
     if word[0] == '\u0622':  # آ
         code = "=-"
-        trace.append("L2S| DETECTED_ALIF_MADD_START: return_code=-=")
+        trace.append("L2S| DETECTED_ALIF_MADD_START: return_code==-")
         trace.append(f"L2S| PATTERN_MATCHED: starts_with_alif_madd,code={code}")
+    # Case 2: flexible terminal vowel
     elif len(word_no_diacritics) > 0 and is_vowel_plus_h(word_no_diacritics[-1]):
         code = "x"
         trace.append(f"L2S| DETECTED_VOWEL_PLUS_H_END: return_code=x")
@@ -170,6 +172,7 @@ def length_three_scan(word: str, trace: Optional[List[str]] = None) -> str:
     word_no_diacritics = remove_araab(word_no_aspirate)
     trace.append(f"L3S| AFTER_REMOVING_ARAAB_STRIPPED: result={word_no_diacritics},length={len(word_no_diacritics)}")
     
+    # DECISION POINT: Single unit collapse inside 3-char word
     if len(word_no_diacritics) == 1:
         # SINGLE_SYLLABLE: internal reduction inside 3-char word
         # Reason: when a multi-character word collapses to one phonetic unit,
@@ -185,6 +188,7 @@ def length_three_scan(word: str, trace: Optional[List[str]] = None) -> str:
         trace.append("L3S| STRIPPED_LENGTH_DELEGATE: length=2,delegate_to=L2S")
         return length_two_scan(word, trace=trace)
     
+    # DECISION POINT: Muarrab word (with diacritics)
     if is_muarrab(word_no_aspirate):
         trace.append("L3S| WORD_IS_MUARRAB: has_diacritics=true")
         trace.append("L3S| ENTERING_MUARRAB_BRANCH: checking_diacritic_patterns")
@@ -258,6 +262,7 @@ def length_three_scan(word: str, trace: Optional[List[str]] = None) -> str:
             trace.append("L3S| PATTERN_CHECK_1: starts_with_alif_madd=true")
             code = "=="
             trace.append(f"L3S| PATTERN_MATCHED: starts_with_alif_madd_at_pos_0,code={code}")
+        #  DECISION POINT: Alif acting as internal vowel nucleus 
         elif len(word_no_diacritics) > 1 and word_no_diacritics[1] == 'ا':  # Alif at centre
             trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=1,character='{word_no_diacritics[1]}'")
             trace.append("L3S| PATTERN_CHECK_2: alif_at_pos_1=true,ruled_out_patterns=[alif_madd_at_pos_0]")
