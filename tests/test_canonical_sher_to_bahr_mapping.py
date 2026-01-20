@@ -16,6 +16,13 @@ parent_dir = os.path.dirname(test_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
+# Import logging config first to silence console output before other imports
+from aruuz.utils.logging_config import silence_console_logging
+
+# Silence console debug logging for cleaner test output
+# File logs (debug.log, explain.log) will still be written
+silence_console_logging()
+
 from aruuz.scansion import Scansion
 from aruuz.models import Lines
 
@@ -39,7 +46,7 @@ class TestCanonicalSherToBahrMapping(unittest.TestCase):
         try:
             with open(json_path, 'r', encoding='utf-8') as f:
                 cls.test_data = json.load(f)
-            print(f"✓ Successfully loaded {len(cls.test_data)} sher entries")
+            print(f"[OK] Successfully loaded {len(cls.test_data)} sher entries")
         except FileNotFoundError:
             raise FileNotFoundError(
                 f"Test data file not found: {json_path}\n"
@@ -67,7 +74,7 @@ class TestCanonicalSherToBahrMapping(unittest.TestCase):
                     f"Invalid entry at index {idx} in test data: "
                     f"missing keys: {missing_keys}"
                 )
-        print("✓ All entries validated successfully")
+        print("[OK] All entries validated successfully")
         print("=" * 80 + "\n")
 
     def test_sher_bahr_detection(self):
@@ -153,10 +160,10 @@ class TestCanonicalSherToBahrMapping(unittest.TestCase):
                 
                 # Check if they match and print result
                 if dominant_meter == expected_bahr:
-                    print(f"  ✓ PASSED - Bahr matches expected value")
+                    print(f"  [PASS] Bahr matches expected value")
                     passed_count += 1
                 else:
-                    print(f"  ✗ FAILED - Bahr mismatch")
+                    print(f"  [FAIL] Bahr mismatch")
                     print(f"    Expected: {expected_bahr}")
                     print(f"    Got:      {dominant_meter}")
                     failed_count += 1

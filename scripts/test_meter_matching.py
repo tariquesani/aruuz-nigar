@@ -22,9 +22,21 @@ parent_dir = os.path.dirname(script_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
+# Import logging config first to silence console output before other imports
+from aruuz.utils.logging_config import silence_console_logging, silence_file_logging
+
+# Silence console debug logging for cleaner test output
+# File logs (debug.log, explain.log) will still be written if needed
+silence_console_logging()
+
+# Silence file logging to avoid creating log files
+silence_file_logging()
+
 from typing import List
 from aruuz.models import Lines, scanPath, codeLocation, LineScansionResult, Words
-from aruuz.scansion import Scansion, is_vowel_plus_h, is_consonant_plus_consonant
+from aruuz.scansion import Scansion
+from aruuz.scansion.prosodic_rules import ProsodicRules
+from aruuz.scansion.explanation_builder import ExplanationBuilder
 from aruuz.tree.code_tree import CodeTree
 from aruuz.meters import METERS, METERS_VARIED, RUBAI_METERS, NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, USAGE, METER_NAMES, METERS_VARIED_NAMES, RUBAI_METER_NAMES, afail, afail_list
 from aruuz.utils.araab import remove_araab
@@ -48,101 +60,54 @@ for word in line_obj.words_list:
     if not word.code:
         scanner.assign_scansion_to_word(word)
 
-print("STEP 1: WORD CODES ASSIGNED")
+# Create explanation builder for user-friendly explanations
+explanation_builder = ExplanationBuilder()
+
+# Apply prosodic rules (Al → Izafat → Ataf → Word Grafting)
+ProsodicRules.process_al_prefix(line_obj)
+ProsodicRules.process_izafat(line_obj)
+ProsodicRules.process_ataf(line_obj)
+ProsodicRules.process_word_grafting(line_obj)
+
+print("STEP 1: WORD CODES AFTER PROSODIC RULES")
 print("-" * 80)
 for i, word in enumerate(line_obj.words_list):
     print(f"Word {i} ('{word.word}'): {word.code}")
     if word.taqti_word_graft:
         print(f"  Graft codes: {word.taqti_word_graft}")
+    if word.scansion_generation_steps:
+        print(f"  Scansion generation steps:")
+        for step_idx, step in enumerate(word.scansion_generation_steps, 1):
+            print(f"    {step_idx}. {step}")
+    if word.prosodic_transformation_steps:
+        print(f"  Prosodic transformation steps:")
+        for step_idx, step in enumerate(word.prosodic_transformation_steps, 1):
+            print(f"    {step_idx}. {step}")
+    if word.scan_trace_steps:
+        print(f"  Scan trace steps (length_*_scan decisions):")
+        for step_idx, step in enumerate(word.scan_trace_steps, 1):
+            print(f"    {step_idx}. {step}")
 print()
 
-# Step 1.7: Ataf (عطف) Processing - Handle conjunction "و" between words
-print("STEP 1.7: ATAF (عطف) PROCESSING")
+print("STEP 1.5: USER-FACING EXPLANATIONS FOR EACH WORD")
 print("-" * 80)
-for i in range(1, len(line_obj.words_list)):
-    wrd = line_obj.words_list[i]
-    pwrd = line_obj.words_list[i - 1]
+for i, word in enumerate(line_obj.words_list):
+    print(f"\nWord {i} ('{word.word}'):")
+    explanation = explanation_builder.get_explanation(word, format="string")
+    if explanation:
+        print(f"  Explanation: {explanation}")
+    else:
+        print(f"  (No explanation available)")
     
-    if wrd.word == "و":
-        print(f"Found 'و' at word {i}, processing with previous word {i-1} ('{pwrd.word}')")
-        stripped = remove_araab(pwrd.word)
-        length = len(stripped)
-        
-        if length > 0:
-            for k in range(len(pwrd.code)):
-                if is_vowel_plus_h(stripped[length - 1]):
-                    # Last char is vowel+h
-                    if stripped[length - 1] == 'ا' or stripped[length - 1] == 'ی':
-                        # Do nothing as it already in correct form
-                        print(f"  Previous word ends with '{stripped[length - 1]}' (ا or ی) - no change needed")
-                        pass
-                    elif stripped[length - 1] == 'ے' or stripped[length - 1] == 'و':
-                        # Modify code and clear current word codes
-                        if len(pwrd.code[k]) > 0:
-                            last_char = pwrd.code[k][-1]
-                            if last_char == "=" or last_char == "x":
-                                pwrd.code[k] = pwrd.code[k][:-1] + "-x"
-                                print(f"  Modified previous word code: '{pwrd.code[k]}'")
-                                # Clear all codes in current word ("و")
-                                for j in range(len(wrd.code)):
-                                    wrd.code[j] = ""
-                                print(f"  Cleared all codes in 'و': {wrd.code}")
-                            elif last_char == "-":
-                                pwrd.code[k] = pwrd.code[k][:-1] + "x"
-                                print(f"  Modified previous word code: '{pwrd.code[k]}'")
-                                # Clear all codes in current word ("و")
-                                for j in range(len(wrd.code)):
-                                    wrd.code[j] = ""
-                                print(f"  Cleared all codes in 'و': {wrd.code}")
-                    else:
-                        # Other vowels: modify code and clear current word codes
-                        if len(pwrd.code[k]) > 0:
-                            last_char = pwrd.code[k][-1]
-                            if last_char == "=" or last_char == "x":
-                                pwrd.code[k] = pwrd.code[k][:-1] + "-x"
-                                print(f"  Modified previous word code: '{pwrd.code[k]}'")
-                                # Clear all codes in current word ("و")
-                                for j in range(len(wrd.code)):
-                                    wrd.code[j] = ""
-                                print(f"  Cleared all codes in 'و': {wrd.code}")
-                            elif last_char == "-":
-                                pwrd.code[k] = pwrd.code[k][:-1] + "x"
-                                print(f"  Modified previous word code: '{pwrd.code[k]}'")
-                                # Clear all codes in current word ("و")
-                                for j in range(len(wrd.code)):
-                                    wrd.code[j] = ""
-                                print(f"  Cleared all codes in 'و': {wrd.code}")
-                else:
-                    # Last char is consonant
-                    if length == 2 and is_consonant_plus_consonant(remove_araab(pwrd.word)):
-                        # 2-char consonant+consonant words: set code to "xx" and clear current word codes
-                        pwrd.code[k] = "xx"
-                        print(f"  Set previous word code to 'xx' (2-char consonant+consonant)")
-                        # Clear all codes in current word ("و")
-                        for j in range(len(wrd.code)):
-                            wrd.code[j] = ""
-                        print(f"  Cleared all codes in 'و': {wrd.code}")
-                    else:
-                        # Otherwise: modify code and clear current word codes
-                        if len(pwrd.code[k]) > 0:
-                            last_char = pwrd.code[k][-1]
-                            if last_char == "=" or last_char == "x":
-                                pwrd.code[k] = pwrd.code[k][:-1] + "-x"
-                                print(f"  Modified previous word code: '{pwrd.code[k]}'")
-                                # Clear all codes in current word ("و")
-                                for j in range(len(wrd.code)):
-                                    wrd.code[j] = ""
-                                print(f"  Cleared all codes in 'و': {wrd.code}")
-                            elif last_char == "-":
-                                pwrd.code[k] = pwrd.code[k][:-1] + "x"
-                                print(f"  Modified previous word code: '{pwrd.code[k]}'")
-                                # Clear all codes in current word ("و")
-                                for j in range(len(wrd.code)):
-                                    wrd.code[j] = ""
-                                print(f"  Cleared all codes in 'و': {wrd.code}")
+    # Also show structured format for detailed view
+    structured = explanation_builder.get_explanation(word, format="structured")
+    if structured and isinstance(structured, dict):
+        if structured.get("text"):
+            print(f"  Text: {structured['text']}")
+        if structured.get("events_used") is not None:
+            print(f"  Events used: {structured['events_used']}")
 print()
-
-print("STEP 1.7: WORD CODES AFTER ATAF PROCESSING")
+print("STEP 1.7: WORD CODES AFTER PROSODIC RULES (AL, IZAFAT, ATAF, GRAFTING)")
 print("-" * 80)
 for i, word in enumerate(line_obj.words_list):
     print(f"Word {i} ('{word.word}'): {word.code}")

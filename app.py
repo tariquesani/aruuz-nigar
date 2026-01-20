@@ -8,29 +8,20 @@ and identify matching meters (bahr).
 """
 
 import logging
+import os
+from pathlib import Path
 from flask import Flask, render_template, request
 from aruuz.models import Lines
 from aruuz.scansion import Scansion
+from aruuz.utils.logging_config import setup_logging
 from aruuz.meters import (
     METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS,
     NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, NUM_SPECIAL_METERS
 ) 
 
-# Configure logging to show DEBUG messages from aruuz modules
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-
-# Enable DEBUG logging for aruuz modules
-logging.getLogger('aruuz').setLevel(logging.DEBUG)
-logging.getLogger('aruuz.scansion').setLevel(logging.DEBUG)
-logging.getLogger('aruuz.database').setLevel(logging.DEBUG)
-logging.getLogger('aruuz.database.word_lookup').setLevel(logging.DEBUG)
-
-# Reduce noise from other loggers
-logging.getLogger('werkzeug').setLevel(logging.WARNING)
+# Configure logging
+logs_dir = Path(__file__).parent / 'logs'
+setup_logging(logs_dir)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'dev-key-for-testing'

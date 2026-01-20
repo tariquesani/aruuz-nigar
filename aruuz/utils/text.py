@@ -91,11 +91,13 @@ def handle_noon_followed_by_stop(words: list[str]) -> list[str]:
         
         # Find noon followed by a stop consonant, excluding word-initial "ان"
         found_split = False
+        # Not the best way to do this, but it works for now, A better way would be
+        # to use is_post_vocalic_nasal function from ChatGPT thread.
         for i in range(len(word) - 1):
             if (
                 word[i] in ("ن", "ں")
                 and word[i + 1] in stop_consonants
-                and not (i == 0 and word[i] == "ن")          # block نکما, نمک
+                and not (i == 0 and word[i] == "ن")        # block نکما, نمک
                 and not (i == 1 and word.startswith("ان")) # excludes word-initial "ان"
             ):
 

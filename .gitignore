@@ -54,3 +54,6 @@ data/*.db
 
 # Markdown files for notes and documentation
 *.md
+# Logs
+*.log
+aruuz/scansion/legacy_explanation_builder.py

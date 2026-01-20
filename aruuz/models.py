@@ -9,6 +9,14 @@ from typing import List, Optional
 from aruuz.utils.text import clean_line, clean_word, handle_noon_followed_by_stop
 from aruuz.utils.araab import remove_araab
 
+# Import moved inside _refresh_profile_fields() to break circular dependency
+# from aruuz.scansion.word_analysis import (
+#     contains_noon,
+#     is_muarrab,
+#     locate_araab,
+#     is_vowel_plus_h
+# )
+
 
 @dataclass
 class Words:
@@ -28,6 +36,24 @@ class Words:
         language: List of language classifications
         taqti_word_graft: List of taqti word graft strings
         breakup: List of word breakup strings
+        assignment_method: Primary strategy used for code assignment ("database", "heuristic", "compound_split", "already_assigned")
+        heuristic_scanner_used: Which heuristic function was called ("length_one_scan", "length_two_scan", etc.)
+        heuristic_taqti_used: Whether taqti was available and used
+        compound_split_position: Character position where compound word was split (None if not split)
+        db_lookup_successful: Whether database lookup succeeded
+        fallback_used: Whether fallback strategy was needed
+        scansion_generation_steps: Step-by-step explanation of what led to generation of scansion code for the word, only positive events not negative ones
+        prosodic_transformation_steps: Step-by-step explanation of prosodic adjustments applied to this word after base scansion (Al, Izafat, Ataf, grafting)
+        scan_trace_steps: Detailed technical trace of decisions made inside length_*_scan functions (low-level pattern matching, condition checks, and decision points)
+        
+    Profile Fields (automatically populated from word string):
+        word_no_araab: Word with all diacritical marks removed
+        has_araab: Boolean indicating if word contains any diacritical marks
+        araab_mask: String mapping diacritical marks to character positions
+        contains_internal_noon: Boolean indicating if word contains noon (ن) before last position
+        ends_with_vowel_plus_h: Boolean indicating if word ends with vowel+h pattern (ا،ی،ے،و،ہ،ؤ)
+        starts_with_madd: Boolean indicating if word starts with آ (alif madd)
+        has_aspirate_char: Boolean indicating if word contains ھ (aspirate character)
     """
     word: str = ""
     code: List[str] = field(default_factory=list)
@@ -41,6 +67,22 @@ class Words:
     language: List[str] = field(default_factory=list)
     taqti_word_graft: List[str] = field(default_factory=list)
     breakup: List[str] = field(default_factory=list)
+    assignment_method: Optional[str] = None
+    heuristic_scanner_used: Optional[str] = None
+    heuristic_taqti_used: bool = False
+    compound_split_position: Optional[int] = None
+    db_lookup_successful: bool = False
+    fallback_used: bool = False
+    scansion_generation_steps: List[str] = field(default_factory=list)
+    prosodic_transformation_steps: List[str] = field(default_factory=list)
+    scan_trace_steps: List[str] = field(default_factory=list)
+    word_no_araab: str = field(init=False, default="")
+    has_araab: bool = field(init=False, default=False)
+    araab_mask: str = field(init=False, default="")
+    contains_internal_noon: bool = field(init=False, default=False)
+    ends_with_vowel_plus_h: bool = field(init=False, default=False)
+    starts_with_madd: bool = field(init=False, default=False)
+    has_aspirate_char: bool = field(init=False, default=False)
 
     def __copy__(self):
         """Create a copy of the Words object."""
@@ -56,8 +98,53 @@ class Words:
             modified=self.modified,
             language=self.language.copy(),
             taqti_word_graft=self.taqti_word_graft.copy(),
-            breakup=self.breakup.copy()
+            breakup=self.breakup.copy(),
+            assignment_method=self.assignment_method,
+            heuristic_scanner_used=self.heuristic_scanner_used,
+            heuristic_taqti_used=self.heuristic_taqti_used,
+            compound_split_position=self.compound_split_position,
+            db_lookup_successful=self.db_lookup_successful,
+            fallback_used=self.fallback_used,
+            scansion_generation_steps=self.scansion_generation_steps.copy(),
+            prosodic_transformation_steps=self.prosodic_transformation_steps.copy(),
+            scan_trace_steps=self.scan_trace_steps.copy()
         )
+
+    def __post_init__(self):
+        """Populate cached helper outputs once dataclass initialization completes."""
+        self._refresh_profile_fields()
+
+    def __setattr__(self, name, value):
+        object.__setattr__(self, name, value)
+        if name == "word":
+            self._refresh_profile_fields()
+
+    def _refresh_profile_fields(self):
+        """Keep cached helper outputs in sync with the current word string."""
+        # Lazy import to break circular dependency: models -> scansion.word_analysis -> scansion.__init__ -> scansion.core -> models
+        from aruuz.scansion.word_analysis import (
+            contains_noon,
+            is_muarrab,
+            locate_araab,
+            is_vowel_plus_h
+        )
+        
+        word_value = getattr(self, "word", "") or ""
+        stripped = remove_araab(word_value)
+        object.__setattr__(self, "word_no_araab", stripped)
+        object.__setattr__(self, "length", len(stripped))
+        object.__setattr__(self, "has_araab", bool(word_value) and is_muarrab(word_value))
+        araab_mask = locate_araab(word_value) if word_value else ""
+        object.__setattr__(self, "araab_mask", araab_mask)
+        contains_noon_flag = bool(stripped) and contains_noon(stripped)
+        object.__setattr__(self, "contains_internal_noon", contains_noon_flag)
+        # Check if word ends with vowel+h pattern (safe for empty strings)
+        ends_with_vowel = bool(stripped) and len(stripped) > 0 and is_vowel_plus_h(stripped[-1])
+        object.__setattr__(self, "ends_with_vowel_plus_h", ends_with_vowel)
+        starts_with_madd_flag = bool(stripped) and stripped.startswith("آ")
+        object.__setattr__(self, "starts_with_madd", starts_with_madd_flag)
+        has_aspirate_flag = "ھ" in word_value
+        object.__setattr__(self, "has_aspirate_char", has_aspirate_flag)
 
 
 @dataclass
@@ -231,10 +318,7 @@ class Lines:
                 # Create Words object
                 word = Words()
                 word.word = cleaned_word
-                
-                # Calculate length after removing diacritics
-                # This matches: wrd.length = Araab.removeAraab(wrd.word).Length
-                word.length = len(remove_araab(cleaned_word))
+                # length is automatically calculated in _refresh_profile_fields()
                 
                 # Only add words with length > 0
                 # This matches: if (wrd.length > 0) wordsList.Add(wrd);
