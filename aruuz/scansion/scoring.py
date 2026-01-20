@@ -15,6 +15,27 @@ from .explain_logging import get_explain_logger
 
 from aruuz.meters import METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS, meter_index, afail
 
+# Meter preference justification:
+# These weights are used ONLY to break ties where multiple meters
+# match a line equally well structurally.
+#
+# Rationale:
+# - رمل (especially مثمن محذوف) is statistically and stylistically
+#   dominant in ghazal and nazm with smooth, conversational flow.
+# - ہزج and کامل are common but slightly more rhythmically marked.
+# - منسرح is structurally permissive and often matches incidentally,
+#   but is stylistically less likely unless strongly signaled.
+#
+# Therefore, preference reflects idiomatic likelihood,
+# not structural superiority.
+METER_PREFERENCE = {
+    "رمل مثمن محذوف": 3.0,
+    "رمل مثمن": 2.5,
+    "ہزج مثمن": 2.0,
+    "کامل": 1.5,
+    "منسرح مثمن مطوی مکسوف": 1.0,
+}
+
 
 class MeterResolver:
     """
@@ -200,10 +221,22 @@ class MeterResolver:
         # Sort scores and meter names together (maintain pairing)
         # Create list of tuples, sort by score, then extract
         paired = list(zip(scores, meter_names))
-        paired.sort(key=lambda x: x[0])  # Sort by score (ascending)
-        
-        # Get the meter with highest score (last after sort)
-        final_meter = paired[-1][1] if paired else ""
+
+        max_score = max(scores)
+        candidates = [
+            meter_name
+            for score, meter_name in paired
+            if score == max_score
+        ]
+
+        if len(candidates) == 1:
+            final_meter = candidates[0]
+        else:
+            final_meter = max(
+                candidates,
+                key=lambda m: METER_PREFERENCE.get(m, 0.0)
+            )
+
 
         # max_score = max(scores)
         # candidates = [
