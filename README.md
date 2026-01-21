@@ -135,7 +135,9 @@ Aruuz Nigar is under active development, and bugs or incorrect scansion results 
 If you encounter issues, please report them using [GitHub Issues](https://github.com/tariquesani/aruuz-nigar/issues).
 
 ## Documentation
-COMING SOON!
+The core Python library (`aruuz/`) is extensively documented using module-level docstrings and inline explanations for all public classes and functions. These docstrings describe the intended behavior, inputs, outputs, and design rationale of the scansion engine, meter matching, tree traversal, scoring, and utility modules.
+
+The existing source documentation is suitable for automatic API documentation generation using tools such as Sphinx or similar docstring-based systems. Generated API documentation is not published yet and will be added once the public interfaces stabilize further.
 
 
 ## License
