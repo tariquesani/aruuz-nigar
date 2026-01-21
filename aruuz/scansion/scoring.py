@@ -28,6 +28,31 @@ from aruuz.meters import METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS, me
 #
 # Therefore, preference reflects idiomatic likelihood,
 # not structural superiority.
+# A final list would look like this:
+#
+# METER_PREFERENCE = {
+#     "رمل مثمن محذوف": 3.0,        # Ramal Musamman Mahzuf
+#     "رمل مثمن": 2.5,              # Ramal Musamman
+#     "ہزج مثمن": 2.0,              # Hazaj Musamman
+#     "کامل": 1.5,                  # Kamil (Musamman)
+#     "منسرح مثمن مطوی مکسوف": 1.0, # Mansurah Musamman Mutawi Maksuf
+
+#     # Common classical meters (Ghalib, Mir, etc.)
+#     "خفیف مثمن": 2.3,             # Khafiif Musamman
+#     "رجز مثمن سالم": 2.2,         # Rajaz Musamman Salim
+#     "متقارب مثمن": 1.8,           # Mutaqarib Musamman
+#     "متدارک مثمن": 1.4,           # Mutadarak Musamman
+
+#     # Frequent variants
+#     "بسیط مثمن محذوف": 1.2,       # Baseet Musamman Mahzuf
+#     "طویل مثمن": 1.1,             # Taweel Musamman
+#     "وافر مثمن": 1.0,             # Wafir Musamman
+#     "مضارع مثمن": 0.9,            # Muzari Musamman
+#     "رمل مثمن مکفوف": 0.8,        # Ramal Musamman Makfuf
+#     "ہزج مثمن اخرب": 0.7,         # Hazaj Musamman Akhrab
+# }
+#
+# Simplified version:
 METER_PREFERENCE = {
     "رمل مثمن محذوف": 3.0,
     "رمل مثمن": 2.5,
@@ -180,7 +205,8 @@ class MeterResolver:
         2. Score each meter by summing calculateScore() for all matching lines
         3. Sort scores and meter names together (maintain pairing)
         4. Select meter with highest score
-        5. Return all LineScansionResult objects matching the selected meter
+        5. If multiple meters have same highest score, select based on METER_PREFERENCE
+        6. Return all LineScansionResult objects matching the selected meter
         
         Args:
             results: List of LineScansionResult objects (multiple matches per line)
