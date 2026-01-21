@@ -12,7 +12,10 @@ Aruuz Nigar was created for my understanding of Urdu arūz. While tools such as 
 
 ### For Windows end-users
 
-Download the executable server file from HERE, Unzip it in a folder. Double click on `aruuznigar.exe`. A browser with the Web interface will launch, if it doesn't, open `127.0.0.1:5000` in your browser.
+Download the executable server file from [Coming Soon], Unzip it in a folder. Double click on `aruuznigar.exe`. A browser with the Web interface will launch, if it doesn't, open `127.0.0.1:5000` in your browser.
+
+**Note**: The Windows executable runs a local Flask web server and opens the interface in your browser.
+All processing happens locally on your machine, and no external network access is required.
 
 ### For everyone else
 
@@ -54,7 +57,6 @@ Download the executable server file from HERE, Unzip it in a folder. Double clic
    - RTL (right-to-left) text input for Urdu poetry
    - RTL display of scansion codes
    - Meter matching and identification
-   - Multiple interface views (main, islah, debug tools)
 
 4. **For developers, use as a Python library (Aruuz):**
 
@@ -115,14 +117,26 @@ Word-level scansion intentionally over-generates. Canonical selection happens at
 
 ## Attribution
 
-Based on Aruuz by Sayed Zeeshan Asghar  
+Based on the original [Aruuz](https://github.com/sayedzeeshan/Aruuz) by [Sayed Zeeshan Asghar](https://github.com/sayedzeeshan) (thank you!)
 Original: GPL-2.0 licensed  
 Aruuz Nigar Python port: GPL-3.0 licensed  
-Ported by Dr. Tarique Sani, 2025
+Ported by Dr. Tarique Sani, 2026
 
 ## Status
 
-🚧 **In Development** - Phase 2 (Fixing C# port to be complete)
+**In Development** 
+- Works well for regular meters (bahr)
+- Will work with some caveats for bahr-e-hindi and bahr-e-zamzama
+- Does not support Rubai well
+
+**Bug Reports and Feedback very welcome**
+
+Aruuz Nigar is under active development, and bugs or incorrect scansion results are expected.
+If you encounter issues, please report them using [GitHub Issues](https://github.com/tariquesani/aruuz-nigar/issues).
+
+## Documentation
+COMING SOON!
+
 
 ## License
 
