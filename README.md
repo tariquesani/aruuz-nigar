@@ -1,151 +1,117 @@
 # Aruuz Nigar - Urdu Poetry Scansion Tool
 
-A Python tool and library for scanning Urdu poetry into metres and feet (prosody/taqti analysis).
+## What is Aruuz Nigar?
 
+Aruuz Nigar is an Urdu poetry scansion tool that helps poets and readers understand Urdu arūz by inferring the taqti of individual lines and matching them against known bahrs. It consists of two parts: **Aruuz**, a reusable Python library that performs the scansion and meter analysis, and **Nigar**, a Flask based web frontend that provides a basic interface for end-users.
 
-## Git Branches
+## Why create Aruuz Nigar?
 
-- **`csharp-port`** - A faithful port of the original available C# code.
-- **`heuristics`** - Contains code with heuristics only aruz logic.
+Aruuz Nigar was created for my understanding of Urdu arūz. While tools such as Rekhta's taqti and Aruuz.com are available, Rekhta is proprietary and the publicly available Aruuz.com codebase is more than a decade old, written in C#. Aruuz Nigar aims to provide a modern, open source, developer friendly alternative with a clear semantic core that can run on both desktops and servers.
+
+## How to use Aruuz Nigar?
+
+### For Windows end-users
+
+Download the executable server file from HERE, Unzip it in a folder. Double click on `aruuznigar.exe`. A browser with the Web interface will launch, if it doesn't, open `127.0.0.1:5000` in your browser.
+
+### For everyone else
+
+**Installation:**
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/tariquesani/aruuz-nigar.git
+   cd aruuz-nigar/
+   ```
+
+2. **Setup Virtual Environment**
+
+   **Windows:**
+   ```bash
+   python -m venv venv
+   venv\Scripts\activate
+   pip install --upgrade pip
+   pip install -e .
+   pip install -r requirements.txt
+   ```
+
+   **Linux/Mac:**
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install --upgrade pip
+   pip install -e .
+   pip install -r requirements.txt
+   ```
+
+3. **Run the Flask web application (Nigar):**
+   ```bash
+   python app.py
+   ```
+   Then open your browser to: `http://127.0.0.1:5000`
+
+   The web app provides:
+   - RTL (right-to-left) text input for Urdu poetry
+   - RTL display of scansion codes
+   - Meter matching and identification
+   - Multiple interface views (main, islah, debug tools)
+
+4. **For developers, use as a Python library (Aruuz):**
+
+   ```python
+   from aruuz.scansion import Scansion
+   from aruuz.models import Lines
+
+   scanner = Scansion()
+   line = Lines("نقش فریادی ہے کس کی شوخیِ تحریر کا")
+   scanner.add_line(line)
+   results = scanner.scan_lines()
+   ```
 
 ## Project Structure
 
-- `aruuz/` - Main package
-  - `scansion.py` - Core scansion engine
-  - `meters.py` - Meter definitions
-  - `models.py` - Data models
-  - `utils/` - Utility functions
+- `aruuz/` - Main package (Aruuz library)
+  - `scansion/` - Core scansion engine modules
+    - `core.py` - Main scansion engine
+    - `word_analysis.py` - Word-level analysis
+    - `word_scansion_assigner.py` - Word scansion assignment
+    - `code_assignment.py` - Code assignment logic
+    - `length_scanners.py` - Length scanning functions
+    - `meter_matching.py` - Meter matching algorithms
+    - `prosodic_rules.py` - Prosodic rules and adjustments
+    - `scoring.py` - Scoring mechanisms
+    - `explanation_builder.py` - Explanation generation
   - `tree/` - Pattern matching trees
+    - `code_tree.py` - Code tree implementation
+    - `pattern_tree.py` - Pattern tree matching
+    - `state_machine.py` - State machine for pattern matching
+  - `database/` - Database functionality
+    - `word_lookup.py` - Word lookup from database
+    - `aruuz_nigar.db` - SQLite database
+  - `utils/` - Utility functions
+    - `text.py` - Text processing utilities
+    - `araab.py` - Diacritical marks handling
+    - `logging_config.py` - Logging configuration
+  - `meters.py` - Meter definitions (bahrs)
+  - `models.py` - Data models (Lines, Words, etc.)
+- `app.py` - Flask web application (Nigar frontend)
+- `templates/` - Flask HTML templates
+  - `index.html` - Main interface
+- `static/` - Static web assets (CSS, etc.)
+- `scripts/` - CLI scripts and utilities
+  - `scan_poetry.py` - Poetry scanning script
+  - `scan_word.py` - Word scanning script
 - `tests/` - Test suite
-- `scripts/` - CLI scripts
-- `examples/` - Sample poetry for testing
-
-## Installation 
-
-### Setup Virtual Environment
-
-**Windows:**
-```bash
-python -m venv venv
-venv\bin\activate
-pip install --upgrade pip
-pip install -e .
-```
-
-**Linux/Mac:**
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install -e .
-```
-
-### Activate Virtual Environment
-
-**Windows:**
-```bash
-venv\Scripts\activate
-```
-
-**Linux/Mac:**
-```bash
-source venv/bin/activate
-```
-
-### Deactivate Virtual Environment
-
-```bash
-deactivate
-```
-
-## Usage
-
-### Python Library
-
-```python
-from aruuz import Scansion
-
-scanner = Scansion()
-scanner.add_line("نقش فریادی ہے کس کی شوخیِ تحریر کا")
-results = scanner.scan_lines()
-```
-
-### Web Application (Flask)
-
-A simple web interface is available for testing single words with proper RTL display.
-
-**Install Flask:**
-```bash
-pip install -r requirements.txt
-```
-
-**Run the Flask app:**
-```bash
-python app.py
-```
-
-Then open your browser to: `http://127.0.0.1:5000`
-
-The web app provides:
-- RTL (right-to-left) text input for Urdu words
-- RTL display of scansion codes
-- Simple, clean interface for testing
-
-## Testing
-
-### Install Test Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### Run Tests
-
-```bash
-# Run all tests (verbose by default via pytest.ini)
-pytest
-
-# Run with extra verbose output (shows more details)
-pytest -vv
-
-# Run specific test file
-pytest tests/test_taqti.py
-
-# Run specific test class
-pytest tests/test_taqti.py::TestTaqtiRealWords
-
-# Run specific test method
-pytest tests/test_taqti.py::TestTaqtiLengthTwo::test_starts_with_alif_madd
-
-# View test collection with docstrings (shows what tests will run)
-pytest --collect-only -v
-
-# Run with coverage (if pytest-cov is installed)
-pytest --cov=aruuz tests/
-```
-
-**Viewing Test Docstrings:**
-
-Test docstrings contain detailed descriptions of what each test verifies.
-To see them:
-
-```bash
-# View all tests with their docstrings
-pytest --collect-only -v
-
-# View specific test's docstring
-pytest --collect-only -v tests/test_taqti.py::TestTaqtiLengthTwo::test_starts_with_alif_madd
-```
-
-Docstrings are also visible in:
-- **IDE test runners** (VS Code, PyCharm, etc.) - hover over test names or view test explorer
-- **HTML reports**: `pytest --html=report.html` (requires `pip install pytest-html`)
-- **When tests fail** - docstrings appear in traceback output
+  - `legacy/` - Legacy test files
+  - `test_canonical_sher_to_bahr_mapping.py` - Canonical test mappings
+- `docs/` - Documentation files
+- `setup.py` - Package setup configuration
+- `requirements.txt` - Python dependencies
 
 
-# Word-level scansion intentionally over-generates.
-# Canonical selection happens at line/meter level.
+## Notes
 
+Word-level scansion intentionally over-generates. Canonical selection happens at line/meter level.
 
 ## Attribution
 
@@ -160,5 +126,4 @@ Ported by Dr. Tarique Sani, 2025
 
 ## License
 
-See [LICENSE](./LICENSE) file in parent directory.
-
+GPL V3.0, See [LICENSE](./LICENSE) file in parent directory.
