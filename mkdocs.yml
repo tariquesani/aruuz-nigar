@@ -1,0 +1,22 @@
+site_name: Aruuz Nigar
+site_description: Conceptual and technical documentation for the Aruuz Nigar Urdu poetry scansion engine
+site_url: https://tariquesani.github.io/aruuz-nigar/
+
+theme:
+  name: mkdocs
+  navigation_depth: 4
+
+nav:
+  - Home: index.md
+  - Guides:
+      - Conceptual Overview: guides/overview.md
+      - Scansion Pipeline: guides/pipeline.md
+      - Ambiguity in Aruuz: guides/ambiguity.md
+  - Internals:
+      - Engine Execution Flow: guides/internals/engine-execution-flow.md
+      - Scansion Data Flow: guides/internals/scansion-data-flow.md
+  - API Documentation: api/README.md
+
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences

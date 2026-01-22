@@ -1,0 +1,100 @@
+flowchart TD
+    %% High-level sher input
+    sherInput["Sher text (two lines)"]
+
+    %% Line-level processing
+    subgraph lineStage["Line initialization & tokenization"]
+        linesInit["Lines.__init__() cleans line"]
+        lineClean["clean_line() strips punctuation/ZWJ"]
+        wordSplit["Split on [, ]+ regex"]
+        noonStop["handle_noon_followed_by_stop()"]
+        wordClean["clean_word() per token"]
+    end
+
+    %% Word → code assignment
+    subgraph wordStage["Word → code assignment"]
+        assignStart["WordScansionAssigner.assign_code_to_word()"]
+
+        direction LR
+        dbLookup["WordLookup.find_word() (exceptions/master/variations/plurals)"]
+        dbTaqti["Use taqti → compute_scansion()"]
+        heuristics["compute_scansion() heuristics"]
+        lengthScanners["length_one/two/three/four/five_scan()"]
+        compound["split_compound_word() fallback"]
+    end
+
+    %% Prosodic rules
+    subgraph prosodyStage["Prosodic rules on line"]
+        prosodyApply["ProsodicRules.apply_rules()"]
+        alRule["process_al_prefix()"]
+        izafatRule["process_izafat()"]
+        atafRule["process_ataf()"]
+        graftRule["process_word_grafting() → taqti_word_graft"]
+    end
+
+    %% Tree & matching
+    subgraph treeStage["Code tree & meter matching"]
+        codeTree["CodeTree.build_from_line()"]
+        codeLocations["codeLocation nodes for word.code + graft codes"]
+        meterMatch["CodeTree.find_meter()"]
+        traverse["_traverse() over tree"]
+        isMatch["_is_match() vs meter patterns"]
+        lenCheck["_check_code_length() at leaves"]
+        patternTree["PatternTree (Hindi/Zamzama)"]
+    end
+
+    %% scanPath → line results
+    subgraph resultStage["scanPath → LineScansionResult"]
+        scanResult["MeterMatcher.match_line_to_meters()"]
+        lineResult["LineScansionResult per matched meter"]
+    end
+
+    %% Dominant bahr across both lines
+    subgraph dominantStage["Dominant bahr resolution"]
+        collectMeters["Collect meter_name across both lines"]
+        scoreFeet["MeterResolver.calculate_score() per (meter, feet)"]
+        chooseDominant["MeterResolver.resolve_dominant_meter()"]
+    end
+
+    %% Edges
+    sherInput --> linesInit
+
+    linesInit --> lineClean
+    lineClean --> wordSplit
+    wordSplit --> noonStop
+    noonStop --> wordClean
+    wordClean --> assignStart
+
+    assignStart --> dbLookup
+    dbLookup --> dbTaqti
+    assignStart --> heuristics
+    heuristics --> lengthScanners
+    heuristics --> compound
+
+    dbTaqti --> prosodyApply
+    lengthScanners --> prosodyApply
+    compound --> prosodyApply
+
+    prosodyApply --> alRule
+    prosodyApply --> izafatRule
+    prosodyApply --> atafRule
+    prosodyApply --> graftRule
+    graftRule --> codeTree
+
+    alRule --> codeTree
+    izafatRule --> codeTree
+    atafRule --> codeTree
+
+    codeTree --> codeLocations
+    codeLocations --> meterMatch
+    meterMatch --> traverse
+    traverse --> isMatch
+    traverse --> patternTree
+    isMatch --> lenCheck
+    lenCheck --> scanResult
+    patternTree --> scanResult
+
+    scanResult --> lineResult
+    lineResult --> collectMeters
+    collectMeters --> scoreFeet
+    scoreFeet --> chooseDominant

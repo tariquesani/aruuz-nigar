@@ -20,14 +20,13 @@ All processing happens locally on your machine, and no external network access i
 ### For everyone else
 
 **Installation:**
-
-1. **Clone the repository:**
+   **Clone the repository:**
    ```bash
    git clone https://github.com/tariquesani/aruuz-nigar.git
    cd aruuz-nigar/
    ```
 
-2. **Setup Virtual Environment**
+  **Setup Virtual Environment**
 
    **Windows:**
    ```bash
@@ -39,6 +38,7 @@ All processing happens locally on your machine, and no external network access i
    ```
 
    **Linux/Mac:**
+
    ```bash
    python3 -m venv venv
    source venv/bin/activate
@@ -47,7 +47,8 @@ All processing happens locally on your machine, and no external network access i
    pip install -r requirements.txt
    ```
 
-3. **Run the Flask web application (Nigar):**
+  **Run the Flask web application (Nigar):**
+
    ```bash
    python app.py
    ```
@@ -58,9 +59,10 @@ All processing happens locally on your machine, and no external network access i
    - RTL display of scansion codes
    - Meter matching and identification
 
-4. **For developers, use as a Python library (Aruuz):**
+  **For developers, use as a Python library (Aruuz):**
 
    ```python
+
    from aruuz.scansion import Scansion
    from aruuz.models import Lines
 
@@ -68,6 +70,7 @@ All processing happens locally on your machine, and no external network access i
    line = Lines("نقش فریادی ہے کس کی شوخیِ تحریر کا")
    scanner.add_line(line)
    results = scanner.scan_lines()
+
    ```
 
 ## Project Structure

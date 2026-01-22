@@ -53,7 +53,7 @@ data/*.db
 !data/.gitkeep
 
 # Markdown files for notes and documentation
-*.md
+# *.md
 # Logs
 *.log
 aruuz/scansion/legacy_explanation_builder.py
