@@ -10,7 +10,7 @@ Aruuz Nigar was created for my understanding of Urdu arūz. While tools such as 
 
 ## How to use Aruuz Nigar?
 
-### For Windows end-users
+### Download for Windows end-users
 
 Download the executable server file from [Coming Soon], Unzip it in a folder. Double click on `aruuznigar.exe`. A browser with the Web interface will launch, if it doesn't, open `127.0.0.1:5000` in your browser.
 
