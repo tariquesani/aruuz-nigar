@@ -1,7 +1,7 @@
 ---
-name: Aruuz Nigar issue template
+name: Bahr not correct template
 about: Template for reporting sher discrepancies in Aruuz Nigar
-title: "[BUG] Sher not working"
+title: "[BUG] Sher not showing correct bahr"
 labels: ''
 assignees: tariquesani
 
