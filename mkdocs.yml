@@ -4,7 +4,9 @@ site_url: https://tariquesani.github.io/aruuz-nigar/
 
 theme:
   name: mkdocs
+  custom_dir: overrides
   navigation_depth: 4
+  # nav_style: dark
 
 nav:
   - Home: index.md
@@ -12,11 +14,19 @@ nav:
       - Conceptual Overview: guides/overview.md
       - Scansion Pipeline: guides/pipeline.md
       - Ambiguity in Aruuz: guides/ambiguity.md
-  - Internals:
-      - Engine Execution Flow: guides/internals/engine-execution-flow.md
-      - Scansion Data Flow: guides/internals/scansion-data-flow.md
-  - API Documentation: api/README.md
+      - Internals:
+          - Engine Execution Flow: guides/internals/engine-execution-flow.md
+          - Scansion Data Flow: guides/internals/scansion-data-flow.md
+          - API Documentation: api/README.md
+  - Get the Code: https://github.com/tariquesani/aruuz-nigar
+  - Report Bugs: https://github.com/tariquesani/aruuz-nigar/issues # Opens in new tab 
 
 markdown_extensions:
   - pymdownx.highlight
   - pymdownx.superfences
+  - meta
+
+# plugins:
+#   - open-in-new-tab
+extra_javascript:
+  - js/external-links.js

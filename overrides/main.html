@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block htmltitle %}
+  {% if page.is_homepage %}
+    <title>{{ config.site_name }}: Urdu Poetry Scansion Tool</title>
+  {% else %}
+    <title>{{ page.title }} - {{ config.site_name }}</title>
+  {% endif %}
+{% endblock %}

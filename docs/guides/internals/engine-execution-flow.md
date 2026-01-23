@@ -244,15 +244,5 @@ scanOutput (metrical meaning)
 
 ---
 
-## Why This Matters
-
-This separation allows:
-- Deterministic engine testing
-- Headless CLI or API usage
-- AI-assisted reasoning over scansion logic
-- Future refactors without UI coupling
-
----
-
 **End of Pure Engine Flow Document**
 
