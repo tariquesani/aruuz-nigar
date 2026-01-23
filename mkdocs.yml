@@ -19,8 +19,9 @@ nav:
           - Engine Execution Flow: guides/internals/engine-execution-flow.md
           - Scansion Data Flow: guides/internals/scansion-data-flow.md
           - API Documentation: api/README.md
+  - Download: https://github.com/tariquesani/aruuz-nigar/releases 
   - Get the Code: https://github.com/tariquesani/aruuz-nigar
-  - Report Bugs: https://github.com/tariquesani/aruuz-nigar/issues # Opens in new tab 
+  - Report Bugs: https://github.com/tariquesani/aruuz-nigar/issues 
 
 markdown_extensions:
   - pymdownx.highlight
