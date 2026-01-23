@@ -12,7 +12,7 @@ Aruuz Nigar was created for my understanding of Urdu arūz. While tools such as 
 
 ### Download for Windows end-users
 
-Download the executable server file from [Coming Soon], Unzip it in a folder. Double click on `aruuznigar.exe`. A browser with the Web interface will launch, if it doesn't, open `127.0.0.1:5000` in your browser.
+Download the executable file from [**HERE**](https://github.com/tariquesani/aruuz-nigar/releases){target="_blank"}. Save and double click on `aruuznigar.exe`. A browser with the Web interface will launch, if it doesn't, open `http://127.0.0.1:5000` in your browser. **No install, setup or python needed!**
 
 **Note**: The Windows executable runs a local Flask web server and opens the interface in your browser.
 All processing happens locally on your machine, and no external network access is required.

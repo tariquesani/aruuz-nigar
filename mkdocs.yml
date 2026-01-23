@@ -25,6 +25,7 @@ markdown_extensions:
   - pymdownx.highlight
   - pymdownx.superfences
   - meta
+  - attr_list
 
 # plugins:
 #   - open-in-new-tab
