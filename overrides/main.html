@@ -7,3 +7,11 @@
     <title>{{ page.title }} - {{ config.site_name }}</title>
   {% endif %}
 {% endblock %}
+
+{% block site_name %}
+  <a href="{{ nav.homepage.url|url }}" class="navbar-brand">
+    <!-- added logo image, keep everything else the same -->
+    <img src="{{'img/aruuznigar.svg'|url}}" alt="{{ config.site_name }}" style="height: 40px; margin-right: 0.25rem;">
+    {{ config.site_name }}
+  </a>
+{% endblock %}

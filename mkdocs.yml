@@ -4,6 +4,7 @@ site_url: https://tariquesani.github.io/aruuz-nigar/
 
 theme:
   name: mkdocs
+  logo: img/aruuznigar.svg # SVG logo
   custom_dir: overrides
   navigation_depth: 4
   # nav_style: dark

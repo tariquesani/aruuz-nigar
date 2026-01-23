@@ -175,6 +175,11 @@ footer {
     overflow-y: hidden !important;
 }
 
+/* Navbar Padding Override */
+.navbar {
+    --bs-navbar-padding-y: 0;
+}
+
 /* Navbar Dark Styling - Ensure navbar-dark works with RTL */
 .navbar-dark .navbar-brand,
 .navbar-dark .navbar-nav .nav-link {
