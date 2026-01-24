@@ -338,6 +338,16 @@ class ProsodicRules:
 
         This rule is NON-DESTRUCTIVE:
         it adds alternative codes using 'x' instead of overwriting.
+
+        **NOTE:**
+        This rule currently blocks weakening before a small hardcoded set of auxiliaries
+        (e.g. ہے, تھا) to preserve syllabic weight. In the future, this can be refined by
+        formally distinguishing auxiliary verbs from light particles, allowing more precise
+        control and clearer user-facing explanations without changing the core logic. 
+        Auxiliaries preserve syllabic weight; particles don’t.
+        Here are the hardcoded sets:
+        AUXILIARY_VERBS = {ہے, ہوں, تھا, تھے, رہی, رہا, گئے}
+        LIGHT_PARTICLES = {نہ, ہی, بھی, تو, بھی}
         """
 
         for i in range(len(line.words_list) - 1):
