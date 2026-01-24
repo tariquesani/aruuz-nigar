@@ -148,6 +148,11 @@ def index():
     return render_template('index.html', line_results=line_results, error=error, text_input=text_input, poem_dominant_bahrs=poem_dominant_bahrs)
 
 
+@app.route('/heartbeat', methods=['GET'])
+def heartbeat():
+    """Health check: returns 200 OK when the server is up."""
+    return '', 200
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=5000)
