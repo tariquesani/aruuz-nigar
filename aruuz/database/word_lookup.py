@@ -10,6 +10,10 @@ from typing import Optional
 from aruuz.models import Words
 from aruuz.utils.araab import remove_araab
 from aruuz.database.config import get_db_path
+from aruuz.utils.logging_config import silence_console_logging
+
+# Silence console debug logging for cleaner output when this module is used
+silence_console_logging()
 
 # Set up logger for debug statements
 logger = logging.getLogger(__name__)
