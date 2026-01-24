@@ -6,6 +6,7 @@ and resolving dominant meters.
 """
 
 import math
+from collections import Counter
 from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -199,8 +200,11 @@ class MeterResolver:
     def resolve_dominant_meter(results: List['LineScansionResult']) -> List['LineScansionResult']:
         """
         Consolidate multiple meter matches and return only those matching dominant meter.
-        
+
         Algorithm:
+        0. Count how many lines each meter appears in. If one meter has the highest
+           count and that count is > 1, select it and go to step 6. Otherwise, fall
+           back to score-based selection (steps 1–5).
         1. Collect all unique meter names from results
         2. Score each meter by summing calculateScore() for all matching lines
         3. Sort scores and meter names together (maintain pairing)
@@ -216,69 +220,75 @@ class MeterResolver:
         """
         if not results:
             return []
-        
-        # Collect unique meter names (matching C# logic)
-        meter_names = []
-        for item in results:
-            if item.meter_name:
-                # Check if already in list
-                found = False
-                for existing in meter_names:
-                    if existing == item.meter_name:
-                        found = True
-                        break
-                if not found:
-                    meter_names.append(item.meter_name)
-        
-        if not meter_names:
-            return []
-        
-        # Score each meter
-        explain_logger = get_explain_logger()
-        scores = [0.0] * len(meter_names)
-        for i, meter_name in enumerate(meter_names):
-            for item in results:
-                if item.meter_name == meter_name:
-                    score = MeterResolver.calculate_score(meter_name, item.feet)
-                    scores[i] += score
-            # Log scoring for each meter
-            explain_logger.info(f"DECISION | Dominance scoring | Meter '{meter_name}': score {scores[i]}")
-        
-        # Sort scores and meter names together (maintain pairing)
-        # Create list of tuples, sort by score, then extract
-        paired = list(zip(scores, meter_names))
 
-        max_score = max(scores)
-        candidates = [
-            meter_name
-            for score, meter_name in paired
-            if score == max_score
-        ]
-
-        if len(candidates) == 1:
-            final_meter = candidates[0]
+        # Count-based dominance: prefer the meter that appears in the most lines.
+        # This avoids a meter that scans "perfectly" in only one line (e.g. ہزج) from
+        # overriding the true poem-wide meter (e.g. بحرِ ہندی). Foot-match score is
+        # used only as fallback when no meter appears in more than one line.
+        c = Counter(item.meter_name for item in results if item.meter_name)
+        m = c.most_common(1)
+        if m and m[0][1] > 1:
+            final_meter = m[0][0]
+            explain_logger = get_explain_logger()
+            counts_str = ', '.join(f"{name}={cnt}" for name, cnt in c.most_common())
+            explain_logger.info(f"SELECT | Dominance | Selected '{final_meter}' | By line count: {counts_str}")
         else:
-            final_meter = max(
-                candidates,
-                key=lambda m: METER_PREFERENCE.get(m, 0.0)
-            )
+            final_meter = None
 
+        if final_meter is None:
+            # Fallback: score-based selection (sum of foot-match scores, then METER_PREFERENCE)
+            # Collect unique meter names (matching C# logic)
+            meter_names = []
+            for item in results:
+                if item.meter_name:
+                    # Check if already in list
+                    found = False
+                    for existing in meter_names:
+                        if existing == item.meter_name:
+                            found = True
+                            break
+                    if not found:
+                        meter_names.append(item.meter_name)
 
-        # max_score = max(scores)
-        # candidates = [
-        #     meter_name
-        #     for score, meter_name in zip(scores, meter_names)
-        #     if score == max_score
-        # ]
+            if not meter_names:
+                return []
 
-        # final_meter = candidates[0]  # earliest = first misra
-        
+            # Score each meter
+            explain_logger = get_explain_logger()
+            scores = [0.0] * len(meter_names)
+            for i, meter_name in enumerate(meter_names):
+                for item in results:
+                    if item.meter_name == meter_name:
+                        score = MeterResolver.calculate_score(meter_name, item.feet)
+                        scores[i] += score
+                # Log scoring for each meter
+                explain_logger.info(f"DECISION | Dominance scoring | Meter '{meter_name}': score {scores[i]}")
+
+            # Sort scores and meter names together (maintain pairing)
+            # Create list of tuples, sort by score, then extract
+            paired = list(zip(scores, meter_names))
+
+            max_score = max(scores)
+            candidates = [
+                meter_name
+                for score, meter_name in paired
+                if score == max_score
+            ]
+
+            if len(candidates) == 1:
+                final_meter = candidates[0]
+            else:
+                final_meter = max(
+                    candidates,
+                    key=lambda m: METER_PREFERENCE.get(m, 0.0)
+                )
+
+            # Log final dominance selection with all scores
+            scores_str = ', '.join([f"{meter_name}={score}" for score, meter_name in paired])
+            explain_logger.info(f"SELECT | Dominance | Selected '{final_meter}' | Scores: {scores_str}")
+
         if not final_meter:
             return []
-        
-        # Log final dominance selection with all scores
-        scores_str = ', '.join([f"{meter_name}={score}" for score, meter_name in paired])
-        explain_logger.info(f"SELECT | Dominance | Selected '{final_meter}' | Scores: {scores_str}")
         
         # Filter results: return only LineScansionResult objects matching final_meter
         filtered_results = []
