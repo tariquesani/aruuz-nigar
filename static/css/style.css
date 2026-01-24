@@ -212,7 +212,7 @@ footer {
     width: 72px;
     height: 72px;
     padding: 12px; /* Space between SVG and circle edge */
-    background-color: #212529; /* Same as Bootstrap bg-dark / navbar */
+    background-color: var(--bs-primary); /* Match navbar primary (Cerulean) */
     /* border: 2px solid #fff; */
     border-radius: 50%;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
@@ -259,18 +259,30 @@ footer {
     color: #212529;
 }
 
-/* Heartbeat status icon (power) in navbar */
+/* Heartbeat status icon (power) in navbar – backlit circular indicator */
 #heartbeat-status {
-    font-size: 1.35rem;
-    transition: color 0.3s ease, text-shadow 0.3s ease;
+    font-size: 1.2rem;
+    line-height: 1;
+    color: #adb5bd; /* light gray – offline / fallback */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    box-sizing: border-box;
+    border-radius: 50%;
+    background-color: transparent;
+    transition: color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 #heartbeat-status.heartbeat-ok {
-    color: #22c55e;
-    text-shadow: 0 0 6px rgba(34, 197, 94, 0.8);
+    color: #a7f3d0;
+    background-color: rgba(34, 197, 94, 0.35);
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
 }
 
 #heartbeat-status.heartbeat-fail {
-    color: #991b1b;
-    text-shadow: none;
+    color: #adb5bd;
+    background-color: transparent;
+    box-shadow: none;
 }
