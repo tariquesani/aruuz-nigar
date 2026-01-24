@@ -1,3 +1,4 @@
+{% set app_version = "1.0.0-beta" %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -70,7 +71,7 @@
 
     <footer class="text-center mt-4 text-muted small">
         <p><a href="https://github.com/tariquesani/aruuz-nigar" target="_blank" rel="noopener noreferrer"
-                class="text-muted">Aruuz Nigar</a>: Urdu Poetry Scansion Tool v.1.0.0-beta. Copyright © 2026 <a
+                class="text-muted">Aruuz Nigar</a>: Urdu Poetry Scansion Tool v.{{ app_version }}. Copyright © 2026 <a
                 href="https://github.com/tariquesani" target="_blank" rel="noopener noreferrer" class="text-muted">Dr.
                 Tarique Sani</a>. Licensed under <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank"
                 rel="noopener noreferrer" class="text-muted">GPLv3.0</a>.</p>
@@ -80,7 +81,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         crossorigin="anonymous"></script>
     <script>
-        APP_VERSION = "1.0.0-beta"; 
+        APP_VERSION = "{{ app_version }}"; 
     </script>
 
     {% block extra_scripts %}{% endblock %}
@@ -92,19 +93,26 @@
                 <div class="modal-header">
                     <h5 class="modal-title" id="aboutModalLabel">
                         Aruuz Nigar
-                        <small class="text-muted ms-2">v1.0.0-beta</small>
+                        <small class="text-muted ms-2">v{{ app_version }}</small>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
 
                 <div class="modal-body">
-                    <p class="mb-2">
-                        Urdu poetry prosody analysis tool for scansion and meter identification.
-                        Assists study and composition.
-                    </p>
-                    <p class="mb-0">
-                        Runs locally!
-                    </p>
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="bg-black rounded-3 flex-shrink-0 p-2">
+                            <img src="{{ url_for('static', filename='img/aruuznigar.svg') }}" alt="Aruuz Nigar" height="64" class="d-block">
+                        </div>
+                        <div>
+                            <p class="mb-2">
+                                Urdu poetry prosody analysis tool for scansion and meter identification.
+                                Assists study and composition.
+                            </p>
+                            <p class="mb-0">
+                                Runs locally!
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-footer justify-content-between">
