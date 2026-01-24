@@ -327,3 +327,76 @@ class ProsodicRules:
                             explain_logger = get_explain_logger()
                             graft_codes_str = ', '.join(prev_word.taqti_word_graft)
                             explain_logger.info(f"RULE | Word grafting | Applied to Word {i} ('{wrd.word}') | Created graft codes for Word {i-1}: {graft_codes_str}")
+
+    @staticmethod
+    def process_final_vowel_weakening(line: 'Lines') -> None:
+        """
+        Process final vowel weakening (حذفِ علتِ آخر).
+
+        Allows optional weakening of a word-final long vowel
+        (ے / ی / و) when followed by a light word and no pause.
+
+        This rule is NON-DESTRUCTIVE:
+        it adds alternative codes using 'x' instead of overwriting.
+        """
+
+        for i in range(len(line.words_list) - 1):
+            wrd = line.words_list[i]
+            next_wrd = line.words_list[i + 1]
+
+            # --- basic guards ---
+            if not wrd.code:
+                continue
+
+            stripped = remove_araab(wrd.word)
+            if not stripped:
+                continue
+
+            last_char = stripped[-1]
+
+            # --- only final long vowels ---
+            if last_char not in ['ے', 'ی', 'و']:
+                continue
+
+            # --- do NOT weaken before auxiliaries (length must be preserved) ---
+            if next_wrd.word in ['ہے', 'ہوں', 'تھا', 'تھی', 'تھے']:
+                continue
+
+            # --- do NOT interfere with word grafting (handled elsewhere) ---
+            if next_wrd.word and next_wrd.word[0] in ['ا', 'آ']:
+                continue
+
+            weakening_applied = False
+
+            # --- add flexible alternatives ---
+            for code in list(wrd.code):  # iterate over a copy
+                if not code:
+                    continue
+
+                # already flexible → nothing to do
+                if code.endswith("x"):
+                    continue
+
+                weakened = None
+
+                if code.endswith("=="):
+                    weakened = code[:-2] + "=x"
+                elif code.endswith("="):
+                    weakened = code[:-1] + "x"
+
+                if weakened and weakened not in wrd.code:
+                    wrd.code.append(weakened)
+                    weakening_applied = True
+
+            # --- logging / explanation ---
+            if weakening_applied:
+                wrd.prosodic_transformation_steps.append(
+                    "OPTIONAL_FINAL_VOWEL_WEAKENING_APPLIED"
+                )
+
+                explain_logger = get_explain_logger()
+                explain_logger.info(
+                    f"RULE | Final vowel weakening | "
+                    f"Applied to Word {i} ('{wrd.word}') "
+                    f"before '{next_wrd.word}'"
+                )

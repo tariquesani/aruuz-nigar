@@ -104,11 +104,12 @@ class MeterMatcher:
         for word in line.words_list:
             self.code_assigner.assign_code_to_word(word)
         
-        # Step 1.5-1.8: Apply prosodic rules (Al → Izafat → Ataf → Word Grafting)
+        # Step 1.5-1.8: Apply prosodic rules (Al → Izafat → Ataf → Word Grafting -> Final Vowel Weakening)
         ProsodicRules.process_al_prefix(line)
         ProsodicRules.process_izafat(line)
         ProsodicRules.process_ataf(line)
         ProsodicRules.process_word_grafting(line)
+        ProsodicRules.process_final_vowel_weakening(line)
         
         # Step 2: Use tree-based match_meters() to get matching scanPaths
         # match_meters() handles tree building, pattern matching, and meter filtering
