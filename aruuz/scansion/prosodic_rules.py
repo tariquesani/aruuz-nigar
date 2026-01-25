@@ -410,3 +410,81 @@ class ProsodicRules:
                     f"Applied to Word {i} ('{wrd.word}') "
                     f"before '{next_wrd.word}'"
                 )
+
+    @staticmethod
+    def preprocess_nasal_coda(words: list[str]) -> list[str]:
+        """
+        Prosodic preprocessing rule.
+
+        Split a word when a nasal (ن or ں) acts as a syllable coda
+        and is immediately followed by a stop consonant.
+
+        This models nasal-stop syllable closure as perceived in arūż,
+        before any syllable weight calculation.
+        """
+        vowels = "اآایوےی"
+        stop_consonants = "کگتدپبچج"
+
+        result = []
+
+        for word in words:
+            split_done = False
+
+            for i in range(len(word) - 1):
+                # Only consider nasal characters
+                if word[i] not in ("ن", "ں"):
+                    continue
+
+                # Must be followed by a stop consonant
+                if word[i + 1] not in stop_consonants:
+                    continue
+
+                # --- look left: nasal must follow a vowel nucleus ---
+                j = i - 1
+                while j >= 0:
+                    if word[j] in vowels:
+                        break
+                    else:
+                        # consonant before any vowel → nasal is onset
+                        j = -1
+                        break
+
+                if j < 0:
+                    continue  # no vowel before → onset nasal
+
+                # --- look right: nasal must NOT start a valid syllable onset ---
+
+                # Case 1: next syllable starts with a vowel
+                if i + 1 < len(word) and word[i + 1] in vowels:
+                    continue
+
+                # Case 2: aspirated consonant onset (e.g., دھ، بھ، کھ)
+                if (
+                    i + 2 < len(word)
+                    and word[i + 1] not in vowels
+                    and word[i + 2] == "ھ"
+                    and i + 3 < len(word)
+                    and word[i + 3] in vowels
+                ):
+                    continue
+
+                # Case 3: single consonant onset ONLY if followed by a vowel
+                if (
+                    i + 2 < len(word)
+                    and word[i + 1] not in vowels
+                    and word[i + 2] in vowels
+                ):
+                    continue
+
+                # --- nasal is coda; enforce syllable closure ---
+                result.append(word[:i + 2])
+                if i + 2 < len(word):
+                    result.append(word[i + 2:])
+
+                split_done = True
+                break
+
+            if not split_done:
+                result.append(word)
+
+        return result
