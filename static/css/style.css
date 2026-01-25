@@ -33,6 +33,26 @@ body {
     font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
 }
 
+/* Bahr dropdown (Bootstrap 5.3): overrides so font/color match plain "Bahr: …"; Nastaliq-friendly height */
+.bahr-dropdown .dropdown-toggle {
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
+    color: inherit !important;
+    min-height: 2.75rem;
+    line-height: 1.6;
+}
+.bahr-dropdown .bahr-dropdown-label {
+    color: inherit !important;
+}
+.bahr-dropdown .dropdown-menu {
+    --bs-dropdown-link-color: inherit;
+    --bs-dropdown-link-hover-color: inherit;
+}
+.bahr-dropdown .dropdown-item {
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
+    color: inherit !important;
+    text-align: right;
+}
+
 /* Ensure card-body with RTL/Urdu uses Nastaliq font */
 .card-body[dir="rtl"],
 .card-body[lang="ur"] {

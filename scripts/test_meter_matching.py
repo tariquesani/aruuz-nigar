@@ -42,7 +42,7 @@ from aruuz.meters import METERS, METERS_VARIED, RUBAI_METERS, NUM_METERS, NUM_VA
 from aruuz.utils.araab import remove_araab
 
 # Test text (same as test_tree.py)
-text = "نقش فریادی ہے کس کی شوخیٔ تحریر کا"
+text = "رنجش ہی سہی دل ہی دکھانے کے لیے آ"
 
 
 print("=" * 80)

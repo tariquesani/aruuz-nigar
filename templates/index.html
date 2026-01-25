@@ -34,78 +34,85 @@
             <h5 class="text-center urdu-text mb-4" dir="rtl" lang="ur">{{ line_data.original_line }}</h5>
             
             {% if line_data.results %}
-                {% set dominant_result = (line_data.results | selectattr("is_dominant", "equalto", true) | first) or line_data.results[0] %}
-                
-                {% if dominant_result.word_codes and dominant_result.full_code %}
-                    {% set has_match = dominant_result.meter_name != 'No meter match found' %}
-                    {% if has_match and dominant_result.meter_pattern %}
-                        {% set notation_code = dominant_result.meter_pattern %}
-                    {% elif has_match and dominant_result.feet_list %}
-                        {% set notation_code = (dominant_result.feet_list | map(attribute="code") | join("")) %}
-                        {% if notation_code | length != dominant_result.full_code | length %}
-                            {% set notation_code = dominant_result.full_code %}
+                {% set multi = (line_data.results | length >= 2) %}
+                {% for result in line_data.results %}
+                    {% set has_match = (result.meter_name != 'No meter match found') %}
+                    {% if has_match and result.meter_pattern %}
+                        {% set notation_code = result.meter_pattern %}
+                    {% elif has_match and result.feet_list %}
+                        {% set notation_code = (result.feet_list | map(attribute="code") | join("")) %}
+                        {% if notation_code | length != result.full_code | length %}
+                            {% set notation_code = result.full_code %}
                         {% endif %}
                     {% else %}
-                        {% set notation_code = dominant_result.full_code %}
+                        {% set notation_code = result.full_code %}
                     {% endif %}
-                    
-                    <!-- Table with words, notation, and feet -->
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-sm text-center align-middle mb-0" dir="rtl">
-                            <!-- Word row (skip standalone و when it has empty notation) -->
-                            <tr>
-                                {% for word_data in dominant_result.word_codes %}
-                                    {% if not (word_data.word == "و" and not word_data.code) %}
-                                        <td colspan="{{ word_data.code | length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem;">{{ word_data.word }}</td>
+                    {% set waw_dropped = (result.word_codes | selectattr("word", "equalto", "و") | rejectattr("code") | list | length > 0) %}
+                    <div class="scansion-table-wrapper {{ 'd-none' if (multi and not result.is_default) else '' }}" data-line-index="{{ line_data.line_index }}" data-bahr-index="{{ loop.index0 }}" data-meter-name="{{ result.meter_name }}">
+                        {% if result.word_codes and result.full_code %}
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-sm text-center align-middle mb-0" dir="rtl">
+                                    <tr>
+                                        {% for word_data in result.word_codes %}
+                                            {% if not (word_data.word == "و" and not word_data.code) %}
+                                                <td colspan="{{ word_data.code | length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem;">{{ word_data.word }}</td>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </tr>
+                                    <tr>
+                                        {% for char in notation_code %}
+                                        <td><code class="text-dark" style="font-size: 1.5rem; font-weight: bold;">{{ char }}</code></td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% if has_match and result.feet_list %}
+                                    {% set total_bahr_length = notation_code | length %}
+                                    {% set has_plus = '+' in notation_code %}
+                                    <tr>
+                                        {% for foot in result.feet_list %}
+                                            {% set foot_length = foot.code | length %}
+                                            {% if has_plus and loop.index0 == 1 %}
+                                                {% set foot_length = foot_length + 1 %}
+                                            {% endif %}
+                                            {% set foot_percentage = (foot_length / total_bahr_length * 100) | round(2) %}
+                                            {% set bg_color = "#e9ecef" if loop.index0 % 2 == 0 else "white" %}
+                                            <td colspan="{{ foot_length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem; background-color: {{ bg_color }}; width: {{ foot_percentage }}%;">{{ foot.foot }}</td>
+                                        {% endfor %}
+                                    </tr>
                                     {% endif %}
-                                {% endfor %}
-                            </tr>
-                            <!-- Notation row: show derived code (with x) if no match, or dominant bahr notation (only - and =) if match -->
-                            <tr>
-                                {% for char in notation_code %}
-                                <td><code class="text-dark" style="font-size: 1.5rem; font-weight: bold;">{{ char }}</code></td>
-                                {% endfor %}
-                            </tr>
-                            <!-- Feet row with merged cells (only show if there's a match) -->
-                            {% if has_match and dominant_result.feet_list %}
-                            {% set total_bahr_length = notation_code | length %}
-                            {% set has_plus = '+' in notation_code %}
-                            <tr>
-                                {% for foot in dominant_result.feet_list %}
-                                    {% set foot_length = foot.code | length %}
-                                    {# Increase second foot colspan by 1 if + is present in meter pattern #}
-                                    {% if has_plus and loop.index0 == 1 %}
-                                        {% set foot_length = foot_length + 1 %}
-                                    {% endif %}
-                                    {% set foot_percentage = (foot_length / total_bahr_length * 100) | round(2) %}
-                                    {% set bg_color = "#e9ecef" if loop.index0 % 2 == 0 else "white" %}
-                                    <td colspan="{{ foot_length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem; background-color: {{ bg_color }}; width: {{ foot_percentage }}%;">{{ foot.foot }}</td>
-                                {% endfor %}
-                            </tr>
+                                </table>
+                            </div>
+                            {% if has_match and waw_dropped %}
+                            <p class="text-center mb-0 mt-1 small text-muted">A  'و'  has been dropped by ataf processing.</p>
                             {% endif %}
-                        </table>
-                    </div>
-                    
-                    <!-- Check if any و was dropped due to ataf processing -->
-                    {% set waw_dropped = dominant_result.word_codes | selectattr("word", "equalto", "و") | rejectattr("code") | list | length > 0 %}
-                    
-                    
-                    <!-- Centered bahr name for this line (per-line dominant) -->
-                    {% if has_match %}
-                    <div class="text-center mt-3">
-                        <h6>
-                            <!-- Message for dropped و -->
-                            {% if waw_dropped %}
-                                    A  'و'  has been dropped by ataf processing.
+                            {% if not multi and has_match %}
+                            <div class="text-center mt-3">
+                                <h6>Bahr: <span dir="rtl" lang="ur" class="urdu-text">{{ result.meter_name }}</span></h6>
+                            </div>
                             {% endif %}
-                            Bahr: <span dir="rtl" lang="ur" class="urdu-text">{{ dominant_result.meter_name }}</span>
-                        </h6>
+                        {% else %}
+                        <div class="alert alert-warning">No scansion data available for this line.</div>
+                        {% endif %}
                     </div>
-                    {% endif %}
-                {% else %}
-                    <div class="alert alert-warning">
-                        No scansion data available for this line.
-                    </div>
+                {% endfor %}
+                {% if multi %}
+                {% set default_bahr = (line_data.results | selectattr('is_default') | first) or line_data.results[0] %}
+                <div class="text-center mt-3">
+                    <h6>
+                        <label for="bahr-select-{{ line_data.line_index }}">Bahr: </label>
+                        <div class="dropdown bahr-dropdown d-inline-block" data-line-index="{{ line_data.line_index }}">
+                            <button type="button" id="bahr-select-{{ line_data.line_index }}" class="btn btn-light dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="Select bahr">
+                                <span class="bahr-dropdown-label urdu-text" dir="rtl" lang="ur">{{ default_bahr.meter_name }}</span>
+                            </button>
+                            <ul class="dropdown-menu">
+                                {% for result in line_data.results %}
+                                <li>
+                                    <button type="button" class="dropdown-item bahr-dropdown-option urdu-text {{ 'active' if result.is_default else '' }}" dir="rtl" lang="ur" data-value="{{ loop.index0 }}"{% if result.is_default %} aria-current="true"{% endif %}>{{ result.meter_name }}</button>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </h6>
+                </div>
                 {% endif %}
             {% else %}
                 <div class="alert alert-warning">
@@ -173,6 +180,38 @@
             }
             form.classList.add('was-validated');
         }, false);
+    });
+})();
+</script>
+<script>
+(function () {
+    'use strict';
+    function showHideTables(lineIndex, selectedBahrIndex) {
+        document.querySelectorAll('.scansion-table-wrapper[data-line-index="' + lineIndex + '"]').forEach(function (wrapper) {
+            if (wrapper.getAttribute('data-bahr-index') === selectedBahrIndex) {
+                wrapper.classList.remove('d-none');
+            } else {
+                wrapper.classList.add('d-none');
+            }
+        });
+    }
+    document.addEventListener('click', function (e) {
+        var opt = e.target.closest('.bahr-dropdown .dropdown-item');
+        if (!opt) return;
+        var dropdown = opt.closest('.bahr-dropdown');
+        if (!dropdown) return;
+        var lineIndex = dropdown.getAttribute('data-line-index');
+        var val = opt.getAttribute('data-value');
+        if (val == null) return;
+        var label = dropdown.querySelector('.bahr-dropdown-label');
+        if (label) label.textContent = opt.textContent.trim();
+        dropdown.querySelectorAll('.dropdown-item').forEach(function (o) {
+            o.classList.remove('active');
+            o.removeAttribute('aria-current');
+        });
+        opt.classList.add('active');
+        opt.setAttribute('aria-current', 'true');
+        showHideTables(lineIndex, val);
     });
 })();
 </script>

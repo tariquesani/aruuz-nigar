@@ -87,11 +87,11 @@ def index():
                     for line_obj in line_objects:
                         scanner.add_line(line_obj)
 
-                    # Step 1: Get dominant bahr per line (scan_line + crunch for each line)
-                    per_line_dominants = []
+                    # Step 1: Get all meter matches per line (no per-line resolve_dominant_meter)
+                    per_line_candidates = []
                     for idx, line_obj in enumerate(line_objects):
                         candidates = scanner.match_line_to_meters(line_obj, idx)
-                        per_line_dominants.append(scanner.resolve_dominant_meter(candidates) if candidates else [])
+                        per_line_candidates.append(candidates if candidates else [])
                     
                     # Step 2: Get overall dominant bahr for entire poem (scan_lines across all lines)
                     poem_scan_results = scanner.scan_lines()
@@ -102,28 +102,35 @@ def index():
                     
                     # Step 3: Build line_results structure for template
                     line_results = []
-                    for idx, (line_obj, dominant_results) in enumerate(zip(line_objects, per_line_dominants)):
+                    for idx, (line_obj, candidates) in enumerate(zip(line_objects, per_line_candidates)):
                         line_result = {
                             'line_index': idx,
                             'original_line': line_obj.original_line,
                             'results': []
                         }
                         
-                        if dominant_results:
-                            so = dominant_results[0]  # resolve_dominant_meter() returns list, usually 1 item
-                            feet_list_dict = _build_feet_list_dict(so)
-                            meter_pattern = _get_meter_pattern(so, feet_list_dict)
-                            
-                            line_result['results'].append({
-                                'meter_name': so.meter_name,
-                                'feet': so.feet,
-                                'feet_list': feet_list_dict,
-                                'word_codes': _build_word_codes(so),
-                                'full_code': ''.join(so.word_taqti),
-                                'original_line': so.original_line,
-                                'is_dominant': True,
-                                'meter_pattern': meter_pattern
-                            })
+                        if candidates:
+                            # Deduplicate by meter_name: keep first occurrence of each (one table per bahr-misra)
+                            seen_meter_names = set()
+                            unique_candidates = []
+                            for so in candidates:
+                                if so.meter_name not in seen_meter_names:
+                                    seen_meter_names.add(so.meter_name)
+                                    unique_candidates.append(so)
+                            default_so = next((so for so in unique_candidates if so.meter_name in poem_dominant_bahrs), unique_candidates[0])
+                            for so in unique_candidates:
+                                feet_list_dict = _build_feet_list_dict(so)
+                                meter_pattern = _get_meter_pattern(so, feet_list_dict)
+                                line_result['results'].append({
+                                    'meter_name': so.meter_name,
+                                    'feet': so.feet,
+                                    'feet_list': feet_list_dict,
+                                    'word_codes': _build_word_codes(so),
+                                    'full_code': ''.join(so.word_taqti),
+                                    'original_line': so.original_line,
+                                    'meter_pattern': meter_pattern,
+                                    'is_default': (so is default_so),
+                                })
                         else:
                             # No match: get word codes
                             word_codes = [
@@ -136,7 +143,8 @@ def index():
                                 'word_codes': word_codes,
                                 'full_code': ''.join(wc['code'] for wc in word_codes),
                                 'original_line': line_obj.original_line,
-                                'feet_list': []
+                                'feet_list': [],
+                                'is_default': True,
                             })
                         
                         line_results.append(line_result)
