@@ -106,6 +106,11 @@ def handle_noon_followed_by_stop(words: list[str]) -> list[str]:
                 first_part = word[:i + 2]
                 # Second part: remaining suffix
                 second_part = word[i + 2:]
+                
+                # Do not allow splits that produce vowel-less fragments
+                if second_part and not any(ch in "اآییوے" for ch in second_part):
+                    continue
+
                 result.append(first_part)
                 if second_part:
                     result.append(second_part)
