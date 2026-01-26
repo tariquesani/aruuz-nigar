@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 from .explain_logging import get_explain_logger
 
-from aruuz.meters import METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS, meter_index, afail
+from aruuz.meters import METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS, SPECIAL_METER_NAMES, meter_index, afail
 
 # Meter preference justification:
 # These weights are used ONLY to break ties where multiple meters
@@ -202,9 +202,15 @@ class MeterResolver:
         Consolidate multiple meter matches and return only those matching dominant meter.
 
         Algorithm:
-        0. Count how many lines each meter appears in. If one meter has the highest
-           count and that count is > 1, select it and go to step 6. Otherwise, fall
-           back to score-based selection (steps 1–5).
+        0. Count-based dominance: special meters (SPECIAL_METER_NAMES) are grouped
+           by conceptual bahr (name.split('/', 1)[0]); group score = sum of variant
+           line-match counts. Non-special meters compete individually. If the highest
+           score (individual or group) is > 1, select it (ties: group vs regular →
+           regular; group vs group → بحرِ ہندی; non-special vs non-special →
+           METER_PREFERENCE; within group → first in SPECIAL_METER_NAMES). If the
+           winner is a group, choose the variant with highest individual count (tie:
+           first in SPECIAL_METER_NAMES) as the representative. Go to step 6.
+           Otherwise, fall back to score-based selection (steps 1–5).
         1. Collect all unique meter names from results
         2. Score each meter by summing calculateScore() for all matching lines
         3. Sort scores and meter names together (maintain pairing)
@@ -221,19 +227,59 @@ class MeterResolver:
         if not results:
             return []
 
-        # Count-based dominance: prefer the meter that appears in the most lines.
-        # This avoids a meter that scans "perfectly" in only one line (e.g. ہزج) from
-        # overriding the true poem-wide meter (e.g. بحرِ ہندی). Foot-match score is
-        # used only as fallback when no meter appears in more than one line.
+        # Count-based dominance: prefer the meter (or special-meter group) that appears
+        # in the most lines. Special meters (SPECIAL_METER_NAMES) are grouped by
+        # conceptual bahr (part before '/'); their line-match counts are summed when
+        # competing. Non-special meters compete individually. Foot-match score is used
+        # only as fallback when no candidate has count > 1.
         c = Counter(item.meter_name for item in results if item.meter_name)
-        m = c.most_common(1)
-        if m and m[0][1] > 1:
-            final_meter = m[0][0]
+
+        # Build special-meter groups: conceptual bahr = name.split('/', 1)[0].strip()
+        group_count = {}
+        group_members = {}
+        for m, cnt in c.items():
+            if m in SPECIAL_METER_NAMES:
+                bahr = m.split('/', 1)[0].strip()
+                group_count[bahr] = group_count.get(bahr, 0) + cnt
+                group_members.setdefault(bahr, []).append(m)
+
+        # Candidates: (score, 'individual'|'group', meter_or_bahr)
+        candidates = []
+        for m, cnt in c.items():
+            if m not in SPECIAL_METER_NAMES:
+                candidates.append((cnt, 'individual', m))
+        for bahr, cnt in group_count.items():
+            candidates.append((cnt, 'group', bahr))
+
+        max_score = max((s for s, _, _ in candidates), default=0)
+
+        if max_score <= 1:
+            final_meter = None
+        else:
+            tied = [(s, typ, x) for s, typ, x in candidates if s == max_score]
+            tied_individuals = [x for s, typ, x in tied if typ == 'individual']
+            tied_groups = [x for s, typ, x in tied if typ == 'group']
+
+            if tied_individuals:
+                # Tie: group vs regular → regular wins.
+                if len(tied_individuals) == 1:
+                    final_meter = tied_individuals[0]
+                else:
+                    # Tie among non-special meters → METER_PREFERENCE.
+                    final_meter = max(tied_individuals, key=lambda m: METER_PREFERENCE.get(m, 0.0))
+            else:
+                # Only groups. Tie: group vs group → بحرِ ہندی wins.
+                winner_bahr = (
+                    tied_groups[0] if len(tied_groups) == 1
+                    else ("بحرِ ہندی" if "بحرِ ہندی" in tied_groups else tied_groups[0])
+                )
+                members = group_members[winner_bahr]
+                # Representative: max c[m] in group; tie → first in SPECIAL_METER_NAMES.
+                final_meter = min(members, key=lambda m: (-c[m], SPECIAL_METER_NAMES.index(m)))
+
             explain_logger = get_explain_logger()
             counts_str = ', '.join(f"{name}={cnt}" for name, cnt in c.most_common())
             explain_logger.info(f"SELECT | Dominance | Selected '{final_meter}' | By line count: {counts_str}")
-        else:
-            final_meter = None
 
         if final_meter is None:
             # Fallback: score-based selection (sum of foot-match scores, then METER_PREFERENCE)
