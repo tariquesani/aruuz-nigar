@@ -37,6 +37,8 @@ body {
 .bahr-dropdown .dropdown-toggle {
     font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
     color: inherit !important;
+    background-color: #fff;
+    border: 1px solid #ced4da;
     min-height: 2.75rem;
     line-height: 1.6;
 }
