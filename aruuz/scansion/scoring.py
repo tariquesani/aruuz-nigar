@@ -202,16 +202,14 @@ class MeterResolver:
         Consolidate multiple meter matches and return only those matching dominant meter.
 
         Algorithm:
-        0. Count-based dominance: special meters (SPECIAL_METER_NAMES) are grouped
-           by conceptual bahr (name.split('/', 1)[0]); group score = sum of variant
-           line-match counts. Non-special meters compete individually. If the highest
-           score (individual or group) is > 1, select it (ties: group vs regular →
-           regular; group vs group → بحرِ ہندی; non-special vs non-special →
-           METER_PREFERENCE; within group → first in SPECIAL_METER_NAMES). If the
-           winner is a group, choose the variant with highest individual count (tie:
-           first in SPECIAL_METER_NAMES) as the representative. Go to step 6.
-           Otherwise, fall back to score-based selection (steps 1–5).
-        1. Collect all unique meter names from results
+        0. Perform count-based dominance.
+        - Special meters (listed in SPECIAL_METER_NAMES) are grouped by their
+            conceptual bahr (text before '/'); their counts are summed.
+        - Non-special meters compete individually.
+        - The candidate (group or individual) with the highest count > 1 is selected.
+        - If a group is selected, the representative meter is the group member with
+            the highest individual count.
+        1. If no candidate has count > 1, fall back to score-based selection.
         2. Score each meter by summing calculateScore() for all matching lines
         3. Sort scores and meter names together (maintain pairing)
         4. Select meter with highest score
