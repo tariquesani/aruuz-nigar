@@ -6,12 +6,16 @@ meter matching, and scoring services.
 """
 
 import logging
-from typing import List, Optional, Tuple, TYPE_CHECKING
+from typing import List, Optional, Tuple, Dict, Any, TYPE_CHECKING
 from aruuz.models import Words, Lines, LineScansionResult, LineScansionResultFuzzy
 
 if TYPE_CHECKING:
     from aruuz.models import scanPath
 from aruuz.database.word_lookup import WordLookup
+from aruuz.meters import (
+    METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS,
+    NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, NUM_SPECIAL_METERS
+)
 from .word_scansion_assigner import WordScansionAssigner
 from .meter_matching import MeterMatcher
 from .scoring import MeterResolver
@@ -367,3 +371,219 @@ class Scansion:
             Returns 1 (only first foot matches, second doesn't match at position 1)
         """
         return MeterResolver.ordered_match_count(line_feet, meter_feet)
+    
+    def _get_meter_pattern(self, so: LineScansionResult, feet_list_dict: List[Dict[str, str]]) -> Optional[str]:
+        """
+        Extract meter pattern code from a LineScansionResult.
+        
+        This helper method determines the meter pattern by:
+        1. Checking if the result has a valid meter ID and extracting from METERS arrays
+        2. Falling back to concatenating foot codes if no valid meter ID
+        
+        Args:
+            so: LineScansionResult object containing meter information
+            feet_list_dict: List of dictionaries with 'foot' and 'code' keys
+            
+        Returns:
+            Meter pattern string (e.g., "-===-===") or None if unavailable
+        """
+        if so.meter_name != 'No meter match found' and so.id is not None:
+            try:
+                if 0 <= so.id < NUM_METERS:
+                    return METERS[so.id].replace("/", "")
+                elif so.id < NUM_METERS + NUM_VARIED_METERS:
+                    return METERS_VARIED[so.id - NUM_METERS].replace("/", "")
+                elif so.id < NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS:
+                    return RUBAI_METERS[so.id - NUM_METERS - NUM_VARIED_METERS].replace("/", "")
+                elif so.id <= -2 and feet_list_dict:
+                    return ''.join(foot['code'] for foot in feet_list_dict)
+            except (IndexError, TypeError):
+                pass
+        return ''.join(foot['code'] for foot in feet_list_dict) if feet_list_dict else None
+    
+    def _build_word_codes(self, so: LineScansionResult) -> List[Dict[str, str]]:
+        """
+        Build word codes list from a LineScansionResult.
+        
+        Args:
+            so: LineScansionResult object containing words and word_taqti
+            
+        Returns:
+            List of dictionaries with 'word' and 'code' keys
+        """
+        return [
+            {'word': word.word, 'code': so.word_taqti[i] if i < len(so.word_taqti) else ""}
+            for i, word in enumerate(so.words)
+        ]
+    
+    def _build_feet_list_dict(self, so: LineScansionResult) -> List[Dict[str, str]]:
+        """
+        Build feet list dictionary from a LineScansionResult.
+        
+        Args:
+            so: LineScansionResult object containing feet_list
+            
+        Returns:
+            List of dictionaries with 'foot' and 'code' keys
+        """
+        return [{'foot': foot_obj.foot, 'code': foot_obj.code} for foot_obj in so.feet_list]
+    
+    def get_scansion(self) -> Dict[str, Any]:
+        """
+        Comprehensive scansion method that returns everything needed for display.
+        
+        This is a "kitchen sink" method that processes all added lines, performs
+        meter matching, resolves dominant meters, and returns a complete data
+        structure ready for use in web templates or API responses.
+        
+        The method:
+        1. Gets all meter matches per line (without per-line dominant resolution)
+        2. Determines overall dominant bahrs across the entire poem
+        3. Builds a comprehensive result structure with:
+           - Per-line results with all meter candidates
+           - Word codes, feet breakdowns, and meter patterns
+           - Default selection based on dominant bahrs
+           - Fallback handling for lines with no matches
+        
+        Returns:
+            Dictionary containing:
+            - 'line_results': List of line result dictionaries, each containing:
+              - 'line_index': 0-based index of the line
+              - 'original_line': Original line text
+              - 'results': List of meter match results, each containing:
+                - 'meter_name': Name of the meter (or "No meter match found")
+                - 'feet': Feet breakdown as string
+                - 'feet_list': List of dicts with 'foot' and 'code' keys
+                - 'word_codes': List of dicts with 'word' and 'code' keys
+                - 'full_code': Concatenated scansion code string
+                - 'meter_pattern': Meter pattern code extracted from meter ID or feet
+                - 'is_default': Boolean indicating if this matches dominant bahr
+                - 'meter_id': Internal meter ID (for reference)
+            - 'poem_dominant_bahrs': List of dominant meter names across all lines
+            - 'num_lines': Total number of lines processed
+            - 'fuzzy_mode': Boolean indicating if fuzzy matching was used
+            - 'free_verse_mode': Boolean indicating if free verse mode was enabled
+            - 'error_param': Error parameter used for matching
+        
+        Example:
+            >>> scanner = Scansion()
+            >>> scanner.add_line(Lines("کوئی امید بر نہیں آتی"))
+            >>> result = scanner.get_scansion()
+            >>> print(result['poem_dominant_bahrs'])
+            ['رمل مثمن محذوف']
+            >>> print(result['line_results'][0]['results'][0]['meter_name'])
+            'رمل مثمن محذوف'
+        """
+        # Update MeterMatcher properties in case they changed after initialization
+        self.meter_matcher.error_param = self.error_param
+        self.meter_matcher.fuzzy = self.fuzzy
+        self.meter_matcher.free_verse = self.free_verse
+        
+        # Initialize return structure
+        line_results: List[Dict[str, Any]] = []
+        poem_dominant_bahrs: List[str] = []
+        
+        # Handle empty lines case
+        if self.num_lines == 0:
+            return {
+                'line_results': [],
+                'poem_dominant_bahrs': [],
+                'num_lines': 0,
+                'fuzzy_mode': self.fuzzy,
+                'free_verse_mode': self.free_verse,
+                'error_param': self.error_param
+            }
+        
+        # Step 1: Get all meter matches per line (no per-line resolve_dominant_meter)
+        # This preserves all candidates for each line before overall dominant resolution
+        per_line_candidates: List[List[LineScansionResult]] = []
+        for idx in range(self.num_lines):
+            line = self.lst_lines[idx]
+            candidates = self.match_line_to_meters(line, idx)
+            per_line_candidates.append(candidates if candidates else [])
+        
+        # Step 2: Get overall dominant bahr for entire poem (scan_lines across all lines)
+        # This uses resolve_dominant_meter internally to find the most common meter
+        poem_scan_results = self.scan_lines()
+        poem_dominant_bahrs = list({
+            so.meter_name for so in poem_scan_results
+            if so.is_dominant and so.meter_name and so.meter_name != 'No meter match found'
+        })
+        
+        # Step 3: Build comprehensive line_results structure for template/API
+        for idx in range(self.num_lines):
+            line_obj = self.lst_lines[idx]
+            candidates = per_line_candidates[idx]
+            
+            line_result: Dict[str, Any] = {
+                'line_index': idx,
+                'original_line': line_obj.original_line,
+                'results': []
+            }
+            
+            if candidates:
+                # Deduplicate by meter_name: keep first occurrence of each
+                # This ensures one result per unique meter name per line
+                seen_meter_names = set()
+                unique_candidates: List[LineScansionResult] = []
+                for so in candidates:
+                    if so.meter_name not in seen_meter_names:
+                        seen_meter_names.add(so.meter_name)
+                        unique_candidates.append(so)
+                
+                # Determine default result: prefer one matching dominant bahr, else first candidate
+                default_so = next(
+                    (so for so in unique_candidates if so.meter_name in poem_dominant_bahrs),
+                    unique_candidates[0] if unique_candidates else None
+                )
+                
+                # Build result dictionaries for each unique meter candidate
+                for so in unique_candidates:
+                    feet_list_dict = self._build_feet_list_dict(so)
+                    meter_pattern = self._get_meter_pattern(so, feet_list_dict)
+                    
+                    line_result['results'].append({
+                        'meter_name': so.meter_name,
+                        'feet': so.feet,
+                        'feet_list': feet_list_dict,
+                        'word_codes': self._build_word_codes(so),
+                        'full_code': ''.join(so.word_taqti),
+                        'original_line': so.original_line,
+                        'meter_pattern': meter_pattern,
+                        'is_default': (so is default_so),
+                        'meter_id': so.id,
+                    })
+            else:
+                # No meter match found: still provide word codes for display
+                # This ensures the UI can show scansion codes even without meter matches
+                word_codes = [
+                    {
+                        'word': (w := self.assign_scansion_to_word(word)).word,
+                        'code': w.code[0] if w.code else "-"
+                    }
+                    for word in line_obj.words_list
+                ]
+                
+                line_result['results'].append({
+                    'meter_name': 'No meter match found',
+                    'feet': '',
+                    'word_codes': word_codes,
+                    'full_code': ''.join(wc['code'] for wc in word_codes),
+                    'original_line': line_obj.original_line,
+                    'feet_list': [],
+                    'meter_pattern': None,
+                    'is_default': True,
+                    'meter_id': None,
+                })
+            
+            line_results.append(line_result)
+        
+        # Return comprehensive result structure
+        return {
+            'line_results': line_results,
+            'poem_dominant_bahrs': poem_dominant_bahrs,
+            'num_lines': self.num_lines,
+            'fuzzy_mode': self.fuzzy,
+            'free_verse_mode': self.free_verse,
+            'error_param': self.error_param
+        }
