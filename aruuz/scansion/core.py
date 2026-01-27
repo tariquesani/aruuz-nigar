@@ -19,6 +19,7 @@ from aruuz.meters import (
 from .word_scansion_assigner import WordScansionAssigner
 from .meter_matching import MeterMatcher
 from .scoring import MeterResolver
+from .explanation_builder import ExplanationBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -401,20 +402,38 @@ class Scansion:
                 pass
         return ''.join(foot['code'] for foot in feet_list_dict) if feet_list_dict else None
     
-    def _build_word_codes(self, so: LineScansionResult) -> List[Dict[str, str]]:
+    def _build_word_codes(self, so: LineScansionResult) -> List[Dict[str, Any]]:
         """
-        Build word codes list from a LineScansionResult.
+        Build word codes list from a LineScansionResult, including explanations.
         
         Args:
             so: LineScansionResult object containing words and word_taqti
             
         Returns:
-            List of dictionaries with 'word' and 'code' keys
+            List of dictionaries with 'word', 'code', and 'explanation' keys.
+            Each explanation is generated using ExplanationBuilder.
         """
-        return [
-            {'word': word.word, 'code': so.word_taqti[i] if i < len(so.word_taqti) else ""}
-            for i, word in enumerate(so.words)
-        ]
+        explanation_builder = ExplanationBuilder()
+        word_codes = []
+        
+        for i, word in enumerate(so.words):
+            word_code = {
+                'word': word.word,
+                'code': so.word_taqti[i] if i < len(so.word_taqti) else ""
+            }
+            
+            # Generate explanation for this word
+            try:
+                explanation = explanation_builder.get_explanation(word, format="string")
+                word_code['explanation'] = explanation if explanation else ""
+            except Exception as e:
+                # If explanation generation fails, log and continue without explanation
+                logger.warning(f"Failed to generate explanation for word '{word.word}': {e}")
+                word_code['explanation'] = ""
+            
+            word_codes.append(word_code)
+        
+        return word_codes
     
     def _build_feet_list_dict(self, so: LineScansionResult) -> List[Dict[str, str]]:
         """
@@ -441,7 +460,7 @@ class Scansion:
         2. Determines overall dominant bahrs across the entire poem
         3. Builds a comprehensive result structure with:
            - Per-line results with all meter candidates
-           - Word codes, feet breakdowns, and meter patterns
+           - Word codes with explanations, feet breakdowns, and meter patterns
            - Default selection based on dominant bahrs
            - Fallback handling for lines with no matches
         
@@ -454,7 +473,9 @@ class Scansion:
                 - 'meter_name': Name of the meter (or "No meter match found")
                 - 'feet': Feet breakdown as string
                 - 'feet_list': List of dicts with 'foot' and 'code' keys
-                - 'word_codes': List of dicts with 'word' and 'code' keys
+                - 'word_codes': List of dicts with 'word', 'code', and 'explanation' keys.
+                  Each explanation is a user-friendly string explaining why the word
+                  was scanned with that particular code (generated using ExplanationBuilder)
                 - 'full_code': Concatenated scansion code string
                 - 'meter_pattern': Meter pattern code extracted from meter ID or feet
                 - 'is_default': Boolean indicating if this matches dominant bahr
@@ -556,13 +577,28 @@ class Scansion:
             else:
                 # No meter match found: still provide word codes for display
                 # This ensures the UI can show scansion codes even without meter matches
-                word_codes = [
-                    {
-                        'word': (w := self.assign_scansion_to_word(word)).word,
+                explanation_builder = ExplanationBuilder()
+                word_codes = []
+                
+                for word in line_obj.words_list:
+                    # Assign scansion code to word
+                    w = self.assign_scansion_to_word(word)
+                    
+                    word_code = {
+                        'word': w.word,
                         'code': w.code[0] if w.code else "-"
                     }
-                    for word in line_obj.words_list
-                ]
+                    
+                    # Generate explanation for this word
+                    try:
+                        explanation = explanation_builder.get_explanation(w, format="string")
+                        word_code['explanation'] = explanation if explanation else ""
+                    except Exception as e:
+                        # If explanation generation fails, log and continue without explanation
+                        logger.warning(f"Failed to generate explanation for word '{w.word}': {e}")
+                        word_code['explanation'] = ""
+                    
+                    word_codes.append(word_code)
                 
                 line_result['results'].append({
                     'meter_name': 'No meter match found',
