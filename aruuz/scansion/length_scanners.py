@@ -432,6 +432,7 @@ def length_three_scan(word: str, trace: Optional[List[str]] = None) -> str:
         #                The آ itself is long, and it typically creates a long second syllable.
         if word_no_diacritics[0] == 'آ':
             trace.append(f"L3S| CHECKING_CHARACTER_AT_POSITION: pos=0,character='{word_no_diacritics[0]}'")
+            trace.append("L3S| DETECTED_ALIF_MADD_START: return_code==")
             trace.append("L3S| PATTERN_CHECK_1: starts_with_alif_madd=true")
             code = "=="  # Long-long: Alif Madd (long) + remaining (long)
             trace.append(f"L3S| PATTERN_MATCHED: starts_with_alif_madd_at_pos_0,code={code}")
@@ -590,6 +591,7 @@ def length_four_scan(word: str, trace: Optional[List[str]] = None) -> str:
         #                prefix the result with "=" (long), and delegate the remainder
         #                to length_three_scan. This handles the long prefix pattern.
         if word_no_diacritics[0] == 'آ':
+            trace.append("L4S| DETECTED_ALIF_MADD_START: return_code=...")
             # Remove first character and scan the rest
             remaining = word_no_aspirate[1:] if len(word_no_aspirate) > 1 else ""
             trace.append(f"L4S| SPLIT_AT_POSITION: split_pos=1,delegate_to=L3S,remaining={remaining}")
@@ -919,6 +921,7 @@ def length_five_scan(word: str, trace: Optional[List[str]] = None) -> str:
         #                delegate the remainder to length_four_scan. This handles the
         #                long prefix pattern for 5+ character words.
         if word_no_diacritics[0] == 'آ':
+            trace.append("L5S| DETECTED_ALIF_MADD_START: return_code=...")
             # Remove first 2 characters (آ + next) and scan the rest
             remaining = word_no_aspirate[2:] if len(word_no_aspirate) > 2 else ""
             trace.append(f"L5S| SPLIT_AT_POSITION: split_pos=2,delegate_to=L4S,remaining={remaining}")

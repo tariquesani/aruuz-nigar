@@ -298,6 +298,16 @@ class ExplanationBuilder:
                 "The final syllable is flexible due to a vowel followed by ہ."
             )
 
+        # Fallback: regular non-muarrab word with no decisive features
+        if (not facts["is_muarrab"] 
+            and not facts["has_alif_madd"] 
+            and not facts["has_alif_madd_start"]
+            and not facts["diacritic"]
+            and not facts["has_vowel_plus_h_end"]):
+            self.parts.append(
+                "The word follows the regular vowel-based syllable pattern for non-diacritic words."
+            )
+
         self.parts.append(
             f"This produces the scansion {facts['code']}."
         )
