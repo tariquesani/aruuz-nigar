@@ -45,7 +45,7 @@ def index():
                 if not lines:
                     error = "Please enter at least one line of Urdu poetry"
                 else:
-                    logging.debug("[DEBUG] Flask app: Using Scansion() with integrated database functionality")
+                    # Initialize Scansion object
                     scanner = Scansion()
                     
                     # Add all lines to scanner

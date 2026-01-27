@@ -55,7 +55,10 @@
                                     <tr>
                                         {% for word_data in result.word_codes %}
                                             {% if not (word_data.word == "و" and not word_data.code) %}
-                                                <td colspan="{{ word_data.code | length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem;">{{ word_data.word }}</td>
+                                                <td colspan="{{ word_data.code | length }}" class="urdu-text" dir="rtl" lang="ur" style="font-size:1.1rem;"
+                                                    {% if word_data.explanation %}data-bs-toggle="tooltip" data-bs-title="{{ word_data.explanation }}" data-bs-placement="top"{% endif %}>
+                                                    {{ word_data.word }}
+                                                </td>
                                             {% endif %}
                                         {% endfor %}
                                     </tr>
@@ -186,6 +189,28 @@
 <script>
 (function () {
     'use strict';
+    
+    // Initialize Bootstrap tooltips
+    function initializeTooltips() {
+        // Dispose existing tooltips first to avoid duplicates
+        var existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        existingTooltips.forEach(function (el) {
+            var tooltipInstance = bootstrap.Tooltip.getInstance(el);
+            if (tooltipInstance) {
+                tooltipInstance.dispose();
+            }
+        });
+        
+        // Initialize all tooltips
+        var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        var tooltipList = Array.prototype.slice.call(tooltipTriggerList).map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl, {
+                container: 'body',
+                html: false
+            });
+        });
+    }
+    
     function showHideTables(lineIndex, selectedBahrIndex) {
         document.querySelectorAll('.scansion-table-wrapper[data-line-index="' + lineIndex + '"]').forEach(function (wrapper) {
             if (wrapper.getAttribute('data-bahr-index') === selectedBahrIndex) {
@@ -194,7 +219,10 @@
                 wrapper.classList.add('d-none');
             }
         });
+        // Reinitialize tooltips after showing/hiding tables
+        initializeTooltips();
     }
+    
     document.addEventListener('click', function (e) {
         var opt = e.target.closest('.bahr-dropdown .dropdown-item');
         if (!opt) return;
@@ -213,6 +241,13 @@
         opt.setAttribute('aria-current', 'true');
         showHideTables(lineIndex, val);
     });
+    
+    // Initialize tooltips when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeTooltips);
+    } else {
+        initializeTooltips();
+    }
 })();
 </script>
 {% endblock %}

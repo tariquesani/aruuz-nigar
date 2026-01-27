@@ -308,3 +308,12 @@ footer {
     background-color: transparent;
     box-shadow: none;
 }
+
+/* Reduce top margin of containers in main content to account for floating logo spacing */
+.main-content > .container.my-5 {
+    margin-top: 0 !important; /* Reduced from 3rem (48px) to 0.5rem (8px) */
+}
+
+.main-content > .container.mt-5 {
+    margin-top: 0 !important; /* Also handle mt-5 separately */
+}
