@@ -10,6 +10,7 @@ and identify matching meters (bahr).
 import logging
 import os
 from pathlib import Path
+import sys
 from flask import Flask, render_template, request
 from aruuz.models import Lines
 from aruuz.scansion import Scansion
@@ -19,7 +20,27 @@ from aruuz.utils.logging_config import setup_logging
 logs_dir = Path(__file__).parent / 'logs'
 setup_logging(logs_dir)
 
-app = Flask(__name__)
+def _resolve_project_root() -> Path:
+    """
+    Resolve the project root directory.
+
+    - Normal run: `python/app.py` lives in `python/`, so root is parent of that.
+    - PyInstaller onefile: files are extracted under `sys._MEIPASS`.
+    """
+    if hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)  # type: ignore[attr-defined]
+    return Path(__file__).resolve().parent.parent
+
+
+PROJECT_ROOT = _resolve_project_root()
+WEB_DIR = PROJECT_ROOT / "web"
+
+app = Flask(
+    __name__,
+    template_folder=str(WEB_DIR / "templates"),
+    static_folder=str(WEB_DIR / "static"),
+    static_url_path="/static",
+)
 app.config['SECRET_KEY'] = 'dev-key-for-testing'
 app.config['JSON_AS_ASCII'] = False  # Important for Urdu JSON
 

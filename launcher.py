@@ -14,12 +14,19 @@ else:
 
 print(f"[launcher] BASE_DIR = {BASE_DIR}")
 
+# When running from source, `python/` is the app directory.
+# When running from PyInstaller onefile, `BASE_DIR` is the extraction root.
+if hasattr(sys, "_MEIPASS"):
+    PROJECT_ROOT = BASE_DIR
+else:
+    PROJECT_ROOT = BASE_DIR.parent
+
 # ------------------------------------------------------------
 # Optional safety checks (fail fast if bundle is incomplete)
 # ------------------------------------------------------------
 REQUIRED_DIRS = [
-    BASE_DIR / "templates",
-    BASE_DIR / "static",
+    PROJECT_ROOT / "web" / "templates",
+    PROJECT_ROOT / "web" / "static",
     BASE_DIR / "aruuz",
 ]
 
@@ -48,7 +55,7 @@ def run_flask():
 # Main entry point
 # ------------------------------------------------------------
 if __name__ == "__main__":
-    print("[launcher] Launching AruuzScansion")
+    print("[launcher] Launching Aruuz Nigar")
 
     # Start Flask in background thread
     t = threading.Thread(target=run_flask, daemon=True)
