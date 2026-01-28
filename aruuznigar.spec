@@ -9,8 +9,8 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ("..\\web\\templates", "web\\templates"),
-        ("..\\web\\static", "web\\static"),
+        ("web\\templates", "web\\templates"),
+        ("web\\static", "web\\static"),
         ("aruuz", "aruuz"),
     ],
     hiddenimports=[

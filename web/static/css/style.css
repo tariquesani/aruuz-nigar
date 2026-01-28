@@ -1,0 +1,324 @@
+/* Urdu Scansion Tool - Bootstrap 5.3 + RTL-Aware Styling */
+
+/* Body and Background */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    direction: ltr;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    color: #212529;
+    padding-top: 56px; /* Account for fixed navbar */
+}
+
+@media (min-width: 992px) {
+    body {
+        padding-top: 72px; /* Content starts below the floating logo that extends past navbar */
+    }
+
+    .navbar-brand {
+        position: relative;
+        padding-left: 80px; /* 72px logo + 8px gap so text doesn't sit under logo */
+    }
+
+    .logo-float {
+        position: absolute;
+        left: 0;
+        top: 4px; /* Top of logo aligns with top of navbar; extends below */
+    }
+}
+
+/* Urdu Font Family */
+.urdu-text,
+.urdu-input {
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
+}
+
+/* Bahr dropdown (Bootstrap 5.3): overrides so font/color match plain "Bahr: …"; Nastaliq-friendly height */
+.bahr-dropdown .dropdown-toggle {
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
+    color: inherit !important;
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    min-height: 2.75rem;
+    line-height: 1.6;
+}
+.bahr-dropdown .bahr-dropdown-label {
+    color: inherit !important;
+}
+.bahr-dropdown .dropdown-menu {
+    --bs-dropdown-link-color: inherit;
+    --bs-dropdown-link-hover-color: inherit;
+}
+.bahr-dropdown .dropdown-item {
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
+    color: inherit !important;
+    text-align: right;
+}
+
+/* Ensure card-body with RTL/Urdu uses Nastaliq font */
+.card-body[dir="rtl"],
+.card-body[lang="ur"] {
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif !important;
+}
+
+/* Form Input Styling */
+.urdu-input {
+    font-size: 1.8rem;
+    direction: rtl;
+    text-align: right;
+    line-height: 1.8;
+}
+
+.urdu-input::placeholder {
+    color: #999;
+    opacity: 0.7;
+}
+
+.urdu-input:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Word Value Styling */
+.word-value {
+    font-size: 2rem;
+    font-weight: 500;
+    color: #212529;
+    direction: rtl;
+    text-align: right;
+}
+
+/* Code Value Styling */
+.code-value {
+    font-family: 'Courier New', 'Courier', monospace;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #0d6efd;
+    letter-spacing: 0.15em;
+    direction: rtl;
+    text-align: right;
+}
+
+/* Card Enhancements */
+.card {
+    border: none;
+    border-radius: 15px;
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+}
+
+/* Button Enhancements */
+.btn-primary {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(13, 110, 253, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+/* Badge Styling */
+.badge {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    direction: ltr;
+    text-align: left;
+    white-space: nowrap;
+}
+
+/* Code badges should be RTL */
+.badge[dir="rtl"] {
+    direction: rtl !important;
+    text-align: right !important;
+}
+
+/* Result Items */
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+/* Header Styling - Using Bootstrap default heading color */
+header h1 {
+    color: #212529;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .urdu-input {
+        font-size: 1.5rem;
+    }
+    
+    .word-value {
+        font-size: 1.6rem;
+    }
+    
+    .code-value {
+        font-size: 2rem;
+    }
+    
+    .display-4 {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .urdu-input {
+        font-size: 1.3rem;
+    }
+    
+    .word-value {
+        font-size: 1.4rem;
+    }
+    
+    .code-value {
+        font-size: 1.8rem;
+    }
+    
+    .badge {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.6rem;
+    }
+}
+
+/* RTL-specific adjustments for Bootstrap components */
+/* Bootstrap 5 handles RTL automatically, but we ensure proper text alignment */
+[dir="rtl"] .text-end {
+    text-align: right !important;
+}
+
+[dir="ltr"] .text-end {
+    text-align: right !important;
+}
+
+/* Ensure English labels are LTR */
+.form-label {
+    direction: ltr;
+    text-align: left;
+}
+
+/* Footer styling */
+footer {
+    direction: ltr;
+    text-align: center;
+}
+
+/* Disable ALL scrolling chrome inside table wrappers (RTL-safe) */
+.table-responsive {
+    overflow-x: visible !important;
+    overflow-y: hidden !important;
+}
+
+/* Navbar Padding Override */
+.navbar {
+    --bs-navbar-padding-y: 0;
+    overflow: visible;
+}
+
+/* Floating logo (desktop): positioned absolute so it doesn't increase navbar height;
+   overflows below navbar; black circle, shadow */
+.logo-float {
+    flex-shrink: 0;
+}
+
+.logo-float-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 72px;
+    height: 72px;
+    padding: 12px; /* Space between SVG and circle edge */
+    background-color: var(--bs-primary); /* Match navbar primary (Cerulean) */
+    /* border: 2px solid #fff; */
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    position: relative;
+    z-index: 1050;
+}
+
+.logo-float-circle .logo-float-img {
+    width: 52px;  /* 72 - 2*12 so it fits with 12px padding */
+    height: 52px;
+    object-fit: contain;
+}
+
+/* Navbar Dark Styling - Ensure navbar-dark works with RTL */
+.navbar-dark .navbar-brand,
+.navbar-dark .navbar-nav .nav-link {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.navbar-dark .navbar-brand:hover,
+.navbar-dark .navbar-nav .nav-link:hover {
+    color: rgba(255, 255, 255, 1) !important;
+}
+
+.navbar-dark .navbar-toggler {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.navbar-dark .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.85%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+.navbar-dark .dropdown-menu {
+    background-color: #fff;
+    border-color: rgba(0, 0, 0, 0.15);
+}
+
+.navbar-dark .dropdown-item {
+    color: #212529;
+}
+
+.navbar-dark .dropdown-item:hover {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+/* Heartbeat status icon (power) in navbar – backlit circular indicator */
+#heartbeat-status {
+    font-size: 1.2rem;
+    line-height: 1;
+    color: #adb5bd; /* light gray – offline / fallback */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    box-sizing: border-box;
+    border-radius: 50%;
+    background-color: transparent;
+    transition: color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+#heartbeat-status.heartbeat-ok {
+    color: #a7f3d0;
+    background-color: rgba(34, 197, 94, 0.35);
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+}
+
+#heartbeat-status.heartbeat-fail {
+    color: #adb5bd;
+    background-color: transparent;
+    box-shadow: none;
+}
+
+/* Reduce top margin of containers in main content to account for floating logo spacing */
+.main-content > .container.my-5 {
+    margin-top: 0 !important; /* Reduced from 3rem (48px) to 0.5rem (8px) */
+}
+
+.main-content > .container.mt-5 {
+    margin-top: 0 !important; /* Also handle mt-5 separately */
+}
+
+/* Tooltip Styling - Non-bold text with finer strokes */
+.tooltip .tooltip-inner {
+    font-weight: 300; /* Light weight for finer strokes */
+}

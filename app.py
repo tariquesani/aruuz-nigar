@@ -28,8 +28,10 @@ def _resolve_project_root() -> Path:
     - PyInstaller onefile: files are extracted under `sys._MEIPASS`.
     """
     if hasattr(sys, "_MEIPASS"):
+        # In PyInstaller onefile, we bundle the Python project root directly.
         return Path(sys._MEIPASS)  # type: ignore[attr-defined]
-    return Path(__file__).resolve().parent.parent
+    # In source layout, `python/` is the project root and this file lives in it.
+    return Path(__file__).resolve().parent
 
 
 PROJECT_ROOT = _resolve_project_root()
