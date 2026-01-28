@@ -1,8 +1,19 @@
 """
 Length-Based Scanning Functions
 
-Pure functions for scanning words based on length.
+Pure functions for scanning words/fragments/syllables based on length.
 No classes, no state dependencies.
+
+NOTE:
+These methods assume that the input fragment represents a syllable
+of the given effective length. The logic that follows tests this
+hypothesis against phonetic and orthographic evidence.
+
+If the assumption does not hold, the method delegates to
+shorter-length scans or emit flexible ('x') outcomes. This is
+intentional and mirrors human scansion behavior, where syllable
+length is hypothesized and revised rather than deterministically
+derived.
 """
 
 import logging
