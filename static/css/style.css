@@ -317,3 +317,8 @@ footer {
 .main-content > .container.mt-5 {
     margin-top: 0 !important; /* Also handle mt-5 separately */
 }
+
+/* Tooltip Styling - Non-bold text with finer strokes */
+.tooltip .tooltip-inner {
+    font-weight: 300; /* Light weight for finer strokes */
+}
