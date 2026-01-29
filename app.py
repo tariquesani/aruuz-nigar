@@ -11,7 +11,9 @@ import logging
 import os
 from pathlib import Path
 import sys
-from flask import Flask, render_template, request
+from flask import Flask, jsonify, render_template, request
+
+from web.api import get_api_handlers, is_valid_keyword
 from aruuz.models import Lines
 from aruuz.scansion import Scansion
 from aruuz.utils.logging_config import setup_logging
@@ -45,6 +47,8 @@ app = Flask(
 )
 app.config['SECRET_KEY'] = 'dev-key-for-testing'
 app.config['JSON_AS_ASCII'] = False  # Important for Urdu JSON
+
+API_HANDLERS = get_api_handlers()
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -95,6 +99,21 @@ def index():
 def heartbeat():
     """Health check: returns 200 OK when the server is up."""
     return '', 200
+
+
+@app.route('/api/<keyword>', methods=['GET', 'POST'])
+def api_dispatch(keyword):
+    """Discovery-based API router: /api/<keyword> -> web.api.<keyword>.handle(request)."""
+    if not is_valid_keyword(keyword):
+        return jsonify({"error": "Not found"}), 404
+    handler = API_HANDLERS.get(keyword)
+    if handler is None:
+        return jsonify({"error": "Not found"}), 404
+    result = handler(request)
+    if isinstance(result, tuple) and len(result) == 2:
+        body, status = result
+        return jsonify(body), status
+    return jsonify(result), 200
 
 
 if __name__ == '__main__':
