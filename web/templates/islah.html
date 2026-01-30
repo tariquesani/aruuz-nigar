@@ -40,6 +40,13 @@
                 <span class="syllable" :class="syllable.deviationType || ''" x-text="syllable.char || ''"></span>
             </template>
         </div>
+
+        <!-- Feet row -->
+        <div class="scansion-row feet-row">
+            <template x-for="footData in feetWithBoundaries" :key="footData.start">
+                <div class="foot-cell" :style="`grid-column: span ${footData.span}`" x-text="footData.foot"></div>
+            </template>
+        </div>
     </div>
 
     <div x-show="response !== ''" x-transition>
@@ -128,6 +135,34 @@
                 });
 
                 return syllables;
+            },
+
+            get feetWithBoundaries() {
+                if (!this.result || !this.result.feet || !this.result.full_code) {
+                    return [];
+                }
+
+                const feet = this.result.feet;
+                const deviations = this.result.deviations || [];
+                const insertions = deviations.filter(dev => dev.type === 'insert');
+
+                return feet.map(seg => {
+                    // Base span from start/end in code indices
+                    let span = seg.end - seg.start;
+
+                    // Account for insertions that fall within this foot's range
+                    insertions.forEach(ins => {
+                        if (ins.code_pos >= seg.start && ins.code_pos < seg.end) {
+                            span += 1;
+                        }
+                    });
+
+                    return {
+                        foot: seg.foot,
+                        start: seg.start,
+                        span: span,
+                    };
+                });
             },
 
             async submit() {

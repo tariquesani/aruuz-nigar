@@ -328,7 +328,7 @@ footer {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 2.5rem;   /* fixed syllable width */
-    column-gap: 0.25rem;
+    /* column-gap: 0.25rem; */
     direction: rtl;
     overflow-x: auto;            /* allow horizontal growth */
     white-space: nowrap;
@@ -341,7 +341,7 @@ footer {
     font-family: monospace;
     padding: 0.25rem 0;
     border: 1px solid #ddd;
-    border-radius: 0.25rem;
+    /* border-radius: 0.25rem; */
     unicode-bidi: isolate;
   }
 
@@ -363,23 +363,45 @@ footer {
   }
   
   /* Words row: same grid behavior as syllable row */
-.words-row {
+  .words-row {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 2.5rem; /* must match syllable width */
-    column-gap: 0.25rem;
+    /* column-gap: 0.25rem; */
     direction: rtl;
   }
   
   /* Word cell spanning multiple syllables */
   .word-cell {
-    min-height: 2rem;
+    min-height: 2.5rem;
     border: 1px dashed #ccc;   /* temporary, alignment only */
-    border-radius: 0.25rem;
+    /* border-radius: 0.25rem; */
     text-align: center;
     font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding-bottom: 0.5rem;
+    
   }
   
+  /* Feet row: same grid behavior as syllable/word rows */
+  .feet-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 2.5rem; /* must match syllable width */
+    direction: rtl;
+  }
+
+  /* Foot cell spanning multiple syllables (foot segment) */
+  .foot-cell {
+    min-height: 2.5rem;
+    border: 1px solid #bbb;
+    text-align: center;
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
