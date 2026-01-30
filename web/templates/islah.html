@@ -14,12 +14,14 @@
 
     <form @submit.prevent="submit" class="mb-4">
         <div class="mb-3">
-            <label for="islah-text" class="form-label">Poetry input</label>
+            <label for="islah-text" class="form-label">Enter Urdu Poetry Lines (one per line)</label>
             <textarea
                 id="islah-text"
-                class="form-control font-urdu"
-                rows="6"
-                placeholder="Enter one or more lines of Urdu poetry…"
+                class="form-control form-control-lg urdu-input mb-3"
+                dir="rtl"
+                lang="ur"
+                rows="5"
+                placeholder="Start typing your poetry here..."
                 x-model="text"
                 :disabled="loading"
             ></textarea>
@@ -37,8 +39,12 @@
     <!-- Scansion grid: one row = one grid; each syllable = one column -->
     <div class="my-3" x-show="result && result.full_code" x-transition>
         <div class="scansion-row">
-            <template x-for="(char, i) in (result?.full_code || '').split('')" :key="i">
-                <span class="syllable" x-text="char"></span>
+            <template x-for="(syllable, i) in syllablesWithDeviations" :key="i">
+                <span 
+                    class="syllable"
+                    :class="syllable.deviationType || ''"
+                    x-text="syllable.char || ''"
+                ></span>
             </template>
         </div>
     </div>
@@ -58,6 +64,48 @@ document.addEventListener('alpine:init', () => {
         response: '',
         result: null,
         loading: false,
+
+        get syllablesWithDeviations() {
+            if (!this.result || !this.result.full_code) {
+                return [];
+            }
+
+            const code = this.result.full_code.split('');
+            const deviations = this.result.deviations || [];
+            
+            // Build a map of deviations by code_pos
+            const deviationMap = new Map();
+            deviations.forEach(dev => {
+                if (dev.type === 'substitute' || dev.type === 'delete') {
+                    deviationMap.set(dev.code_pos, dev);
+                }
+            });
+
+            // Build array of syllables with deviation info
+            const syllables = code.map((char, index) => ({
+                char: char,
+                index: index,
+                deviationType: deviationMap.has(index) ? deviationMap.get(index).type : null,
+                expected: deviationMap.has(index) ? deviationMap.get(index).expected : null,
+            }));
+
+            // Insert placeholder entries for insertions (sorted by code_pos descending to maintain order)
+            const insertions = deviations
+                .filter(dev => dev.type === 'insert')
+                .sort((a, b) => b.code_pos - a.code_pos); // Sort descending to insert from end
+
+            insertions.forEach(ins => {
+                // Insert at code_pos (before the syllable at that position)
+                syllables.splice(ins.code_pos, 0, {
+                    char: '',
+                    index: ins.code_pos,
+                    deviationType: 'insert',
+                    expected: ins.expected,
+                });
+            });
+
+            return syllables;
+        },
 
         async submit() {
             this.loading = true;

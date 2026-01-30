@@ -323,20 +323,42 @@ footer {
     font-weight: 300; /* Light weight for finer strokes */
 }
 
-/* --- Scansion grid (one row = one grid; each syllable = one column) --- */
+/* Grid container: fixed-width syllable columns, RTL flow */
 .scansion-row {
     display: grid;
     grid-auto-flow: column;
-    grid-auto-columns: minmax(2rem, auto);
+    grid-auto-columns: 2.5rem;   /* fixed syllable width */
     column-gap: 0.25rem;
     direction: rtl;
-}
-
-
-.syllable {
+    overflow-x: auto;            /* allow horizontal growth */
+    white-space: nowrap;
+  }
+  
+  /* Individual syllable cell */
+  .syllable {
+    width: 2.5rem;
     text-align: center;
     font-family: monospace;
-    padding: 0.25rem 0.5rem;
+    padding: 0.25rem 0;
     border: 1px solid #ddd;
     border-radius: 0.25rem;
-}
+    unicode-bidi: isolate;
+  }
+
+  /* Deviation styling */
+  .syllable.substitute {
+    border-color: #ff9800;
+    border-width: 2px;
+  }
+
+  .syllable.delete {
+    border-color: #dc3545;
+    border-width: 2px;
+  }
+
+  .syllable.insert {
+    border-color: #28a745;
+    border-width: 2px;
+    background-color: #f0f8f0;
+  }
+  

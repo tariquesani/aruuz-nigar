@@ -9,15 +9,15 @@ Used by islah API and run_exact_vs_fuzzy script.
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
-    from aruuz.models import LineScansionResultFuzzy
+    from aruuz.models import LineScansionResult, LineScansionResultFuzzy
 
 from aruuz.utils.aligner import align, match_char
 
 
-def meter_pattern_for_fuzzy_result(so: "LineScansionResultFuzzy") -> Optional[str]:
+def _meter_pattern_from_id(mid: int, meter_name: str) -> Optional[str]:
     """
-    Resolve meter pattern string from a LineScansionResultFuzzy, or None for
-    special meters (e.g. Hindi/Zamzama) or unknown.
+    Resolve meter pattern string from meter id and name.
+    Shared by exact and fuzzy result helpers.
     """
     from aruuz.meters import (
         METERS,
@@ -28,18 +28,33 @@ def meter_pattern_for_fuzzy_result(so: "LineScansionResultFuzzy") -> Optional[st
         NUM_VARIED_METERS,
     )
 
-    mid = so.id
     if 0 <= mid < NUM_METERS:
         return METERS[mid]
     if NUM_METERS <= mid < NUM_METERS + NUM_VARIED_METERS:
         return METERS_VARIED[mid - NUM_METERS]
     if mid == -2:
-        base = (so.meter_name or "").replace(" (رباعی)", "").strip()
+        base = (meter_name or "").replace(" (رباعی)", "").strip()
         for idx, name in enumerate(RUBAI_METER_NAMES):
             if name == base:
                 return RUBAI_METERS[idx]
         return None
     return None  # special meters (id < -2) or unknown
+
+
+def meter_pattern_for_exact_result(so: "LineScansionResult") -> Optional[str]:
+    """
+    Resolve meter pattern string from a LineScansionResult (exact match), or None
+    for special meters (e.g. Hindi/Zamzama) or unknown.
+    """
+    return _meter_pattern_from_id(so.id, so.meter_name)
+
+
+def meter_pattern_for_fuzzy_result(so: "LineScansionResultFuzzy") -> Optional[str]:
+    """
+    Resolve meter pattern string from a LineScansionResultFuzzy, or None for
+    special meters (e.g. Hindi/Zamzama) or unknown.
+    """
+    return _meter_pattern_from_id(so.id, so.meter_name)
 
 
 def four_meter_variations(meter_pattern: str) -> List[str]:

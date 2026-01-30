@@ -19,6 +19,7 @@ from aruuz.utils.meter_align import (
     align_best,
     build_deviations,
     deduce_foot_segments,
+    meter_pattern_for_exact_result,
     meter_pattern_for_fuzzy_result,
     word_boundaries_from_taqti,
 )
@@ -156,6 +157,10 @@ def handle(request):
             payload["bahrs"] = [_bahr_from_exact(so) for so in exact]
             payload["deviations"] = []
             payload["alignment"] = None
+            # Include meter pattern for exact match (first matching meter)
+            pattern = meter_pattern_for_exact_result(exact[0]) if exact else None
+            if pattern is not None:
+                payload["meter_pattern_used"] = pattern
             return payload
 
         fuzzy_results = scanner.scan_line_fuzzy(line, 0)
