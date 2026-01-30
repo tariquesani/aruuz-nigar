@@ -20,8 +20,8 @@ from aruuz.meters import (
     meter_index,
     afail,
     afail_hindi,
-    rukn,
-    rukn_code,
+    code_to_foot_name,
+    name_to_foot_code,
     zamzama_feet,
     hindi_feet
 )
@@ -97,44 +97,44 @@ class TestMeterLookup(unittest.TestCase):
 class TestFootConversion(unittest.TestCase):
     """Test foot name conversion functions."""
 
-    def test_rukn_valid_code(self):
+    def test_code_to_foot_name_valid_code(self):
         """Test converting valid code to foot name."""
         # Test known foot codes
-        self.assertEqual(rukn("==="), "مفعولن")
-        self.assertEqual(rukn("==-"), "مفعول")
-        self.assertEqual(rukn("=="), "فِعْلن")
-        self.assertEqual(rukn("="), "فِع")
+        self.assertEqual(code_to_foot_name("==="), "مفعولن")
+        self.assertEqual(code_to_foot_name("==-"), "مفعول")
+        self.assertEqual(code_to_foot_name("=="), "فِعْلن")
+        self.assertEqual(code_to_foot_name("="), "فِع")
 
-    def test_rukn_flexible_syllable(self):
-        """Test that 'x' is treated as '=' in rukn conversion."""
+    def test_code_to_foot_name_flexible_syllable(self):
+        """Test that 'x' is treated as '=' in foot name conversion."""
         # 'x' should be converted to '=' for matching
-        result = rukn("x")
+        result = code_to_foot_name("x")
         self.assertEqual(result, "فِع")
 
-    def test_rukn_invalid_code(self):
+    def test_code_to_foot_name_invalid_code(self):
         """Test converting invalid code."""
-        result = rukn("invalid")
+        result = code_to_foot_name("invalid")
         self.assertEqual(result, "")
 
-    def test_rukn_code_valid_name(self):
+    def test_name_to_foot_code_valid_name(self):
         """Test converting valid foot name to code."""
-        self.assertEqual(rukn_code("مفعولن"), "===")
-        self.assertEqual(rukn_code("مفعول"), "==-")
-        self.assertEqual(rukn_code("فِعْلن"), "==")
-        self.assertEqual(rukn_code("فِع"), "=")
+        self.assertEqual(name_to_foot_code("مفعولن"), "===")
+        self.assertEqual(name_to_foot_code("مفعول"), "==-")
+        self.assertEqual(name_to_foot_code("فِعْلن"), "==")
+        self.assertEqual(name_to_foot_code("فِع"), "=")
 
-    def test_rukn_code_invalid_name(self):
+    def test_name_to_foot_code_invalid_name(self):
         """Test converting invalid foot name."""
-        result = rukn_code("Invalid foot")
+        result = name_to_foot_code("Invalid foot")
         self.assertEqual(result, "")
 
-    def test_rukn_code_roundtrip(self):
-        """Test that rukn and rukn_code are inverse operations."""
+    def test_code_to_foot_name_roundtrip(self):
+        """Test that code_to_foot_name and name_to_foot_code are inverse operations."""
         for i, foot_name in enumerate(FEET_NAMES):
-            code = rukn_code(foot_name)
+            code = name_to_foot_code(foot_name)
             if code:
                 # Convert back
-                name = rukn(code)
+                name = code_to_foot_name(code)
                 self.assertEqual(name, foot_name, 
                                f"Roundtrip failed for {foot_name} -> {code} -> {name}")
 

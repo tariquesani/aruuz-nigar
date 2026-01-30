@@ -34,16 +34,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from aruuz.models import Lines, LineScansionResult, LineScansionResultFuzzy
 from aruuz.scansion import Scansion
-from aruuz.utils.aligner import align
-from aruuz.meters import (
-    METERS,
-    METERS_VARIED,
-    RUBAI_METERS,
-    RUBAI_METER_NAMES,
-    NUM_METERS,
-    NUM_VARIED_METERS,
-    NUM_RUBAI_METERS,
-)
+from aruuz.utils.meter_align import align_best, meter_pattern_for_fuzzy_result
 
 
 DEFAULT_LINE = "ہزاروں خواہشیں ایسی کہ ہر خواہش پہ دم نکلے"
@@ -78,47 +69,6 @@ ALIGN_INTERPRETATION_NOTE = """
 
 def _print_align_interpretation_note() -> None:
     print(ALIGN_INTERPRETATION_NOTE)
-
-
-def _meter_pattern_for_fuzzy(so: LineScansionResultFuzzy) -> Optional[str]:
-    """Resolve meter pattern string from a fuzzy result, or None (e.g. special meters)."""
-    mid = so.id
-    if 0 <= mid < NUM_METERS:
-        return METERS[mid]
-    if NUM_METERS <= mid < NUM_METERS + NUM_VARIED_METERS:
-        return METERS_VARIED[mid - NUM_METERS]
-    if mid == -2:
-        base = so.meter_name.replace(" (رباعی)", "").strip()
-        for idx, name in enumerate(RUBAI_METER_NAMES):
-            if name == base:
-                return RUBAI_METERS[idx]
-        return None
-    return None  # special meters (id < -2) or unknown
-
-
-def _four_variations(meter: str) -> List[str]:
-    m = meter.replace("/", "")
-    return [
-        m.replace("+", ""),
-        m.replace("+", "") + "~",
-        m.replace("+", "~") + "~",
-        m.replace("+", "~"),
-    ]
-
-
-def _align_best(code: str, meter_pattern: str) -> Tuple[int, List[Dict[str, Any]], List[Tuple[int, int]]]:
-    """Run align on code vs each of the 4 meter variations; return best (dist, edit_ops, leverage)."""
-    best_dist = None
-    best_ops: List[Dict[str, Any]] = []
-    best_lev: List[Tuple[int, int]] = []
-    for v in _four_variations(meter_pattern):
-        d, ops, lev = align(v, code)
-        if best_dist is None or d < best_dist:
-            best_dist = d
-            best_ops = ops
-            best_lev = lev
-    assert best_dist is not None
-    return (best_dist, best_ops, best_lev)
 
 
 def parse_args() -> tuple[str, int]:
@@ -237,9 +187,9 @@ def main() -> None:
         align_map: Dict[int, Tuple[List[Dict[str, Any]], List[Tuple[int, int]]]] = {}
         for i, so in enumerate(show[:top_n]):
             code = "".join(so.word_taqti) if so.word_taqti else ""
-            pat = _meter_pattern_for_fuzzy(so)
+            pat = meter_pattern_for_fuzzy_result(so)
             if pat:
-                _d, ops, lev = _align_best(code, pat)
+                _d, ops, lev = align_best(code, pat)
                 align_map[i] = (ops, lev)
         if align_map:
             _print_align_interpretation_note()

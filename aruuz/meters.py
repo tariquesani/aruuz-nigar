@@ -408,9 +408,9 @@ def afail_hindi(meter_name: str) -> str:
     return ""
 
 
-def rukn(code: str) -> str:
+def code_to_foot_name(code: str) -> str:
     """
-    Convert scansion code to foot name (rukn).
+    Convert scansion code to foot name.
     
     Args:
         code: Scansion code (e.g., "===", "==-")
@@ -423,7 +423,7 @@ def rukn(code: str) -> str:
     return CODE_TO_NAME.get(code, "")
 
 
-def rukn_code(name: str) -> str:
+def name_to_foot_code(name: str) -> str:
     """
     Convert foot name to scansion code.
     
