@@ -111,8 +111,16 @@ def handle(request):
         exact = scanner.match_line_to_meters(line, 0)
 
         # Build full_code and word_taqti from scanned line
-        word_taqti = ["".join(w.code) for w in line.words_list]
-        full_code = "".join(word_taqti)
+        # Use code from scanPath result if available (correct selection from tree traversal),
+        # otherwise use first code from each word's code list (not join all alternatives)
+        if exact and len(exact) > 0:
+            # Use the code from the scanPath result (matches /api/scan behavior)
+            word_taqti = exact[0].word_taqti.copy()
+            full_code = "".join(word_taqti)
+        else:
+            # Fallback: use first code from each word (not join all codes in the list)
+            word_taqti = [w.code[0] if w.code and len(w.code) > 0 else "" for w in line.words_list]
+            full_code = "".join(word_taqti)
         num_syllables = len(full_code)
         num_words = len(line.words_list)
 
