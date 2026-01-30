@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 if TYPE_CHECKING:
     from aruuz.models import LineScansionResultFuzzy
 
-from aruuz.utils.aligner import align
+from aruuz.utils.aligner import align, match_char
 
 
 def meter_pattern_for_fuzzy_result(so: "LineScansionResultFuzzy") -> Optional[str]:
@@ -113,6 +113,51 @@ def build_deviations(
                 "expected": None,
             })
     return deviations
+
+
+def _match_code_prefix(code: str, start: int, pattern: str) -> bool:
+    """
+    True if code[start:start+len(pattern)] matches pattern under x/~ rules.
+    (pattern char vs code char: match_char(pattern[i], code[start+i]).)
+    """
+    n = len(pattern)
+    if start + n > len(code):
+        return False
+    for i in range(n):
+        if not match_char(pattern[i], code[start + i]):
+            return False
+    return True
+
+
+def deduce_foot_segments(code: str) -> List[Dict[str, Any]]:
+    """
+    Segment code into feet by greedy longest-match from the start.
+    Uses known foot patterns and x/~ rules. Returns list of
+    { "foot": foot name, "code": matched slice, "start": int, "end": int }.
+    """
+    from aruuz.meters import FEET, FEET_NAMES
+
+    # Sort by pattern length descending so we try longer feet first
+    foot_list = sorted(zip(FEET, FEET_NAMES), key=lambda x: -len(x[0]))
+    segments: List[Dict[str, Any]] = []
+    start = 0
+    while start < len(code):
+        matched = False
+        for pat, name in foot_list:
+            if _match_code_prefix(code, start, pat):
+                end = start + len(pat)
+                segments.append({
+                    "foot": name,
+                    "code": code[start:end],
+                    "start": start,
+                    "end": end,
+                })
+                start = end
+                matched = True
+                break
+        if not matched:
+            break
+    return segments
 
 
 def word_boundaries_from_taqti(word_taqti: List[str]) -> List[Dict[str, Any]]:
