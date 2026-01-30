@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Islah — Aruuz Nigar{% endblock %}
+
+{% block extra_head %}
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-5" x-data="islahApp()" x-cloak>
+    <h1 class="text-center mb-4">Islah</h1>
+
+    <form @submit.prevent="submit" class="mb-4">
+        <div class="mb-3">
+            <label for="islah-text" class="form-label">Poetry input</label>
+            <textarea
+                id="islah-text"
+                class="form-control font-urdu"
+                rows="6"
+                placeholder="Enter one or more lines of Urdu poetry…"
+                x-model="text"
+                :disabled="loading"
+            ></textarea>
+        </div>
+        <button
+            type="submit"
+            class="btn btn-primary"
+            :disabled="loading"
+        >
+            <span x-show="!loading" x-transition>Submit</span>
+            <span x-show="loading" x-transition>Submitting…</span>
+        </button>
+    </form>
+
+    <!-- Scansion grid: one row = one grid; each syllable = one column -->
+    <div class="my-3" x-show="result && result.full_code" x-transition>
+        <div class="scansion-row">
+            <template x-for="(char, i) in (result?.full_code || '').split('')" :key="i">
+                <span class="syllable" x-text="char"></span>
+            </template>
+        </div>
+    </div>
+
+    <div x-show="response !== ''" x-transition>
+        <label class="form-label">Response</label>
+        <pre class="bg-light border rounded p-3 overflow-auto mb-0" x-text="response"></pre>
+    </div>
+
+</div>
+
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('islahApp', () => ({
+        text: '',
+        response: '',
+        result: null,
+        loading: false,
+
+        async submit() {
+            this.loading = true;
+            this.response = '';
+            this.result = null;
+            try {
+                const res = await fetch('/api/islah', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: this.text }),
+                });
+                this.response = await res.text();
+                if (!res.ok) {
+                    this.response = this.response || `HTTP ${res.status}`;
+                } else {
+                    try {
+                        this.result = JSON.parse(this.response);
+                    } catch (_) {
+                        this.result = null;
+                    }
+                }
+            } catch (err) {
+                this.response = err.message || 'Request failed';
+            } finally {
+                this.loading = false;
+            }
+        },
+    }));
+});
+</script>
+{% endblock %}

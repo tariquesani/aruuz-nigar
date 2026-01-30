@@ -322,3 +322,21 @@ footer {
 .tooltip .tooltip-inner {
     font-weight: 300; /* Light weight for finer strokes */
 }
+
+/* --- Scansion grid (one row = one grid; each syllable = one column) --- */
+.scansion-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(2rem, auto);
+    column-gap: 0.25rem;
+    direction: rtl;
+}
+
+
+.syllable {
+    text-align: center;
+    font-family: monospace;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 0.25rem;
+}
