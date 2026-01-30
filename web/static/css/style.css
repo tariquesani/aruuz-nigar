@@ -362,3 +362,24 @@ footer {
     background-color: #f0f8f0;
   }
   
+  /* Words row: same grid behavior as syllable row */
+.words-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 2.5rem; /* must match syllable width */
+    column-gap: 0.25rem;
+    direction: rtl;
+  }
+  
+  /* Word cell spanning multiple syllables */
+  .word-cell {
+    min-height: 2rem;
+    border: 1px dashed #ccc;   /* temporary, alignment only */
+    border-radius: 0.25rem;
+    text-align: center;
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
