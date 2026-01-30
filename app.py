@@ -95,6 +95,12 @@ def index():
     return render_template('index.html', line_results=line_results, error=error, text_input=text_input, poem_dominant_bahrs=poem_dominant_bahrs)
 
 
+@app.route('/islah', methods=['GET'])
+def islah():
+    """Islah page: placeholder for future correction/suggestions UI."""
+    return render_template('islah.html')
+
+
 @app.route('/heartbeat', methods=['GET'])
 def heartbeat():
     """Health check: returns 200 OK when the server is up."""
