@@ -260,7 +260,16 @@
         var val = opt.getAttribute('data-value');
         if (val == null) return;
         var label = dropdown.querySelector('.bahr-dropdown-label');
-        if (label) label.textContent = opt.textContent.trim();
+        if (label) {
+            label.textContent = opt.textContent.trim();
+            // Update tooltip to match selected bahr option
+            var newTitle = opt.getAttribute('data-bs-title') || '';
+            label.setAttribute('data-bs-title', newTitle);
+            var tooltipInstance = bootstrap.Tooltip.getInstance(label);
+            if (tooltipInstance) {
+                tooltipInstance.update();
+            }
+        }
         dropdown.querySelectorAll('.dropdown-item').forEach(function (o) {
             o.classList.remove('active');
             o.removeAttribute('aria-current');
