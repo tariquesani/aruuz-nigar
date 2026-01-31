@@ -9,9 +9,10 @@ from aruuz.models import Feet
 
 
 class Meter(NamedTuple):
-    """Represents a meter with its pattern and Urdu name."""
+    """Represents a meter with its pattern, Urdu name, and Roman transliteration."""
     pattern: str
     name: str
+    roman: str
 
 
 class Foot(NamedTuple):
@@ -42,150 +43,154 @@ USAGE = [
 
 # Internal unified structure - all meter data
 _METERS_DATA = [
-    Meter(pattern="-===/-===/-===/-===", name="ہزج مثمن سالم"),
-    Meter(pattern="-===/-===/-===/-==", name="ہزج مثمن محذوف"),
-    Meter(pattern="-=-=/-=-=/-=-=/-=-=", name="ہزج مثمن مقبوض"),
-    Meter(pattern="=-=/-===+=-=/-===", name="ہزج مثمن اشتر"),
-    Meter(pattern="-=-=/-===/-=-=/-===", name="ہزج مثمن مقبوض سالم"),
-    Meter(pattern="==-/-==-/-==-/-===", name="ہزج مثمن اخرب مکفوف سالم"),
-    Meter(pattern="==-/-===+==-/-===", name="ہزج مثمن اخرب سالم"),
-    Meter(pattern="==-/-==-/-==-/-==", name="ہزج مثمن اخرب مکفوف محذوف"),
-    Meter(pattern="===/==-/-==-/-==", name="ہزج مثمن اخرب مکفوف محذوف"),
-    Meter(pattern="==-/-===/==-/-==", name="ہزج مثمن اخرب مکفوف محذوف"),
-    Meter(pattern="==-/-==-/-===/==", name="ہزج مثمن اخرب مکفوف محذوف"),
-    Meter(pattern="-===/-===/-===", name="ہزج مسدس سالم"),
-    Meter(pattern="-===/-===/-==", name="ہزج مسدس محذوف"),
-    Meter(pattern="==-/-=-=/-==", name="ہزج مسدس اخرب مقبوض محذوف"),
-    Meter(pattern="===/=-=/-==", name="ہزج مسدس اخرم اشتر محذوف"),
-    Meter(pattern="=-=/-=-=+=-=/-=-=", name="ہزج مربع اشتر مقبوض مضاعف"),
-    Meter(pattern="-===/-==", name="ہزج مربع محذوف"),
-    Meter(pattern="-===/-==+-===/-==", name="ہزج مربع محذوف مضاعف"),
-    Meter(pattern="==-=/==-=/==-=/==-=", name="رجز مثمن سالم"),
-    Meter(pattern="=--=/=--=/=--=/=--=", name="رجز مثمن مطوی"),
-    Meter(pattern="=--=/-=-=+=--=/-=-=", name="رجز مثمن مطوی مخبون"),
-    Meter(pattern="-=-=/=--=+-=-=/=--=", name="رجز مثمن مخبون مطوی"),
-    Meter(pattern="==-=/==-=/==-=", name="رجز مسدس سالم"),
-    Meter(pattern="=--=/=--=/=--=", name="رجز مسدس مطوی"),
-    Meter(pattern="=-==/=-==/=-==/=-==", name="رمل مثمن سالم"),
-    Meter(pattern="=-==/=-==/=-==/=-=", name="رمل مثمن محذوف"),
-    Meter(pattern="=-==/--==/--==/--=", name="رمل مثمن سالم مخبون محذوف"),
-    Meter(pattern="--==/--==/--==/--=", name="رمل مثمن سالم مخبون محذوف"),
-    Meter(pattern="=-==/--==/--==/==", name="رمل مثمن مخبون محذوف مقطوع"),
-    Meter(pattern="--==/--==/--==/==", name="رمل مثمن مخبون محذوف مقطوع"),
-    Meter(pattern="--=-/=-==+--=-/=-==", name="رمل مثمن مشکول"),
-    Meter(pattern="==-/=-==+==-/=-==", name="رمل مثمن مشکول مسکّن"),
-    Meter(pattern="--==/--==/--==/--==", name="رمل مثمن مخبون"),
-    Meter(pattern="=-==/=-==/=-==", name="رمل مسدس سالم"),
-    Meter(pattern="=-==/=-==/=-=", name="رمل مسدس محذوف"),
-    Meter(pattern="=-==/--==/--=", name="رمل مسدس مخبون محذوف"),
-    Meter(pattern="=-==/--==/==", name="رمل مسدس مخبون محذوف مسکن"),
-    Meter(pattern="--==/--==/--=", name="رمل مسدس مخبون محذوف"),
-    Meter(pattern="--==/--==/==", name="رمل مسدس مخبون محذوف مسکن"),
-    Meter(pattern="--==/--==/--==", name="رمل مسدس مخبون"),
-    Meter(pattern="-==/-==/-==/-==", name="متقارب مثمن سالم"),
-    Meter(pattern="-==/-==/-==/-==/-==/-==/-==/-==", name="متقارب مثمن سالم مضاعف"),
-    Meter(pattern="-==/-==/-==/-=", name="متقارب مثمن محذوف"),
-    Meter(pattern="=-/-=-/-=-/-==", name="متقارب مثمن اثرم مقبوض"),
-    Meter(pattern="=-/-=-/-=-/-=", name="متقارب مثمن اثرم مقبوض محذوف"),
-    Meter(pattern="=-/-=-/-=-/-=-/-=-/-=-/-=-/-=", name="متقارب مثمن اثرم مقبوض مضاعف"),
-    Meter(pattern="=-/-=-/-=-/-=-/-=-/-=-/-=-/-==", name="متقارب مثمن اثرم مقبوض محذوف مضاعف"),
-    Meter(pattern="-==/-==/-==", name="متقارب مسدس سالم"),
-    Meter(pattern="-==/-==/-=", name="متقارب مسدس محذوف"),
-    Meter(pattern="==/-==/==/-==", name="متقارب مربع اثلم سالم مضاعف"),
-    Meter(pattern="=-=/=-=/=-=/=-=", name="متدارک مثمن سالم"),
-    Meter(pattern="--=/--=/--=/--=", name="متدارک مثمن مخبون"),
-    Meter(pattern="--=/--=/--=/--=/--=/--=/--=/--=", name="متدارک مثمن مخبون مضاعف"),
-    Meter(pattern="=-=/=-=/=-=/--=", name="متدارک مثمن سالم مقطوع"),
-    Meter(pattern="=-=/=-=/=-=", name="متدارک مسدس سالم"),
-    Meter(pattern="=-=/-=/=-=/-=", name="متدارک مربع مخلع مضاعف"),
-    Meter(pattern="--=-=/--=-=/--=-=/--=-=", name="کامل مثمن سالم"),
-    Meter(pattern="--=-=/--=-=/--=-=", name="کامل مسدس سالم"),
-    Meter(pattern="-=--=/-=--=/-=--=/-=--=", name="وافر مثمن سالم"),
-    Meter(pattern="-=--=/-=--=/-=--=", name="وافر مسدس سالم"),
-    Meter(pattern="-=--=/-=--=/-==", name="وافر مسدس مقطوف"),
-    Meter(pattern="-===/=-==/-===/=-==", name="مضارع مثمن سالم"),
-    Meter(pattern="-==-/=-=-/-==-/=-=", name="مضارع مثمن مکفوف محذوف"),
-    Meter(pattern="==-/=-==/==-/=-==", name="مضارع مثمن اخرب"),
-    Meter(pattern="==-/=-=-/-==-/=-=", name="مضارع مثمن اخرب مکفوف محذوف"),
-    Meter(pattern="==-/=-==/==-/=-=", name="مضارع مثمن اخرب محذوف"),
-    Meter(pattern="==-/=-=-/-===", name="مضارع مسدس اخرب مکفوف"),
-    Meter(pattern="==-=/=-==/==-=/=-==", name="مجتث مثمن سالم"),
-    Meter(pattern="-=-=/--==/-=-=/--==", name="مجتث مثمن مخبون"),
-    Meter(pattern="-=-=/===/-=-=/--==", name="مجتث مثمن مخبون"),
-    Meter(pattern="-=-=/--==/-=-=/===", name="مجتث مثمن مخبون"),
-    Meter(pattern="-=-=/===/-=-=/===", name="مجتث مثمن مخبون"),
-    Meter(pattern="-=-=/--==/-=-=/--=", name="مجتث مثمن مخبون محذوف"),
-    Meter(pattern="-=-=/===/-=-=/--=", name="مجتث مثمن مخبون محذوف"),
-    Meter(pattern="-=-=/--==/-=-=/==", name="مجتث مثمن مخبون محذوف مسکن"),
-    Meter(pattern="-=-=/===/-=-=/==", name="مجتث مثمن مخبون محذوف مسکن"),
-    Meter(pattern="-=-=/--==/-=-=", name="مجتث مسدس مخبون"),
-    Meter(pattern="-=-=/===/-=-=", name="مجتث مسدس مخبون"),
-    Meter(pattern="==-=/===-/==-=/===-", name="منسرح مثمن سالم"),
-    Meter(pattern="=--=/=-=+=--=/=-=", name="منسرح مثمن مطوی مکسوف"),
-    Meter(pattern="=--=/=-=-/=--=/=", name="منسرح مثمن مطوی منحور"),
-    Meter(pattern="=--=/=-=/=--=", name="منسرح مسدس مطوی مکسوف"),
-    Meter(pattern="===-/==-=/===-/==-=", name="مقتضب مثمن سالم"),
-    Meter(pattern="=-=-/=--=/=-=-/=--=", name="مقتضب مثمن مطوی"),
-    Meter(pattern="==-=/==-=/===-", name="سریع مسدس سالم"),
-    Meter(pattern="=--=/=--=/=-=", name="سریع مسدس مطوی مکسوف"),
-    Meter(pattern="==-=/==-=/-==", name="سریع مسدس مخبون مکسوف"),
-    Meter(pattern="=-==/==-=/=-==/==-=", name="خفیف مثمن سالم"),
-    Meter(pattern="=-==/==-=/=-==", name="خفیف مسدس سالم"),
-    Meter(pattern="--==/-=-=/--==", name="خفیف مسدس مخبون"),
-    Meter(pattern="=-==/-=-=/--=", name="خفیف مسدس مخبون محذوف"),
-    Meter(pattern="--==/-=-=/--=", name="خفیف مسدس مخبون محذوف"),
-    Meter(pattern="=-==/-=-=/==", name="خفیف مسدس مخبون محذوف مقطوع"),
-    Meter(pattern="--==/-=-=/==", name="خفیف مسدس مخبون محذوف مقطوع"),
-    Meter(pattern="=-==/-=-=/=", name="خفیف مسدس سالم مخبون محجوف"),
-    Meter(pattern="--==/-=-=/=", name="خفیف مسدس مخبون محجوف"),
-    Meter(pattern="-===/-==/-===", name="طویل مثمن سالم"),
-    Meter(pattern="-==/-===/-==/-=-=", name="طویل مثمن سالم مقبوض"),
-    Meter(pattern="-==/-=-=/-==/-=-=", name="طویل مثمن مقبوض"),
-    Meter(pattern="=-==/=-=/=-==/=-=", name="مدید مثمن سالم"),
-    Meter(pattern="--==/--=/--==/--=", name="مدید مثمن مخبون"),
-    Meter(pattern="--==/==/--==/--=", name="مدید مثمن مخبون"),
-    Meter(pattern="===/--=/--==/--=", name="مدید مثمن مخبون"),
-    Meter(pattern="--==/--=/===/--=", name="مدید مثمن مخبون"),
-    Meter(pattern="--==/--=/--==/==", name="مدید مثمن مخبون"),
-    Meter(pattern="=-==/--=/=-==/--=", name="مدید مثمن سالم مخبون"),
-    Meter(pattern="==-=/=-=/==-=/=-=", name="بسیط مثمن سالم"),
-    Meter(pattern="-=-=/--=/-=-=/--=", name="بسیط مثمن مخبون"),
-    Meter(pattern="-===/-===/=-==", name="قریب مسدس سالم"),
-    Meter(pattern="==-/-==-/=-==", name="قریب مسدس اخرب مکفوف"),
-    Meter(pattern="=-==/=-==/==-=", name="جدید مسدس سالم"),
-    Meter(pattern="--==/--==/-=-=", name="جدید مسدس مخبون"),
-    Meter(pattern="=-==/-===/-===", name="مشاکل مسدس سالم"),
-    Meter(pattern="=-=-/-==-/-==", name="مشاکل مسدس مکفوف محذوف"),
-    Meter(pattern="-=-==/-=-==/-=-==/-=-==", name="جمیل مثمن سالم"),
-    Meter(pattern="=-=/-===", name="ہزج مربع اشتر"),
-    Meter(pattern="=-=/-=-=", name="ہزج مربع اشتر مقبوض"),
-    Meter(pattern="-===/-===", name="ہزج مربع سالم"),
-    Meter(pattern="-=-=/-=-=/-=-=/-=", name="ہزج مثمن مقبوض محذوف"),
-    Meter(pattern="=-==/--==/--==", name="رمل مسدس مخبون"),
-    Meter(pattern="-===/-===", name="ہزج مربع سالم"),
-    Meter(pattern="=-==/=-==", name="رمل مربع سالم"),
-    Meter(pattern="=-==/=-=", name="ہزج مربع محذوف"),
-    Meter(pattern="-==/-==", name="متقارب مربع سالم"),
-    Meter(pattern="--=-=/--=-=", name="کامل مربع سالم"),
-    Meter(pattern="-==/-===", name="طویل مربع سالم"),
-    Meter(pattern="=-==/=-=", name="مدید مربع سالم"),
-    Meter(pattern="-===/-===/-===/-===/-===/-===/-===/-===", name="ہزج مثمن سالم مضاعف"),
-    Meter(pattern="-=-==/-=-==", name="جمیل مربع سالم")
+    Meter(pattern="-===/-===/-===/-===", name="ہزج مثمن سالم", roman="Hazaj Musamman Sālim"),
+    Meter(pattern="-===/-===/-===/-==", name="ہزج مثمن محذوف", roman="Hazaj Musamman Maḥdhūf"),
+    Meter(pattern="-=-=/-=-=/-=-=/-=-=", name="ہزج مثمن مقبوض", roman="Hazaj Musamman Maqbūz"),
+    Meter(pattern="=-=/-===+=-=/-===", name="ہزج مثمن اشتر", roman="Hazaj Musamman Ashtar"),
+    Meter(pattern="-=-=/-===/-=-=/-===", name="ہزج مثمن مقبوض سالم", roman="Hazaj Musamman Maqbūz Sālim"),
+    Meter(pattern="==-/-==-/-==-/-===", name="ہزج مثمن اخرب مکفوف سالم", roman="Hazaj Musamman Akhrab Makfūf Sālim"),
+    Meter(pattern="==-/-===+==-/-===", name="ہزج مثمن اخرب سالم", roman="Hazaj Musamman Akhrab Sālim"),
+    Meter(pattern="==-/-==-/-==-/-==", name="ہزج مثمن اخرب مکفوف محذوف", roman="Hazaj Musamman Akhrab Makfūf Maḥdhūf"),
+    Meter(pattern="===/==-/-==-/-==", name="ہزج مثمن اخرب مکفوف محذوف", roman="Hazaj Musamman Akhrab Makfūf Maḥdhūf"),
+    Meter(pattern="==-/-===/==-/-==", name="ہزج مثمن اخرب مکفوف محذوف", roman="Hazaj Musamman Akhrab Makfūf Maḥdhūf"),
+    Meter(pattern="==-/-==-/-===/==", name="ہزج مثمن اخرب مکفوف محذوف", roman="Hazaj Musamman Akhrab Makfūf Maḥdhūf"),
+    Meter(pattern="-===/-===/-===", name="ہزج مسدس سالم", roman="Hazaj Musaddas Sālim"),
+    Meter(pattern="-===/-===/-==", name="ہزج مسدس محذوف", roman="Hazaj Musaddas Maḥdhūf"),
+    Meter(pattern="==-/-=-=/-==", name="ہزج مسدس اخرب مقبوض محذوف", roman="Hazaj Musaddas Akhrab Maqbūz Maḥdhūf"),
+    Meter(pattern="===/=-=/-==", name="ہزج مسدس اخرم اشتر محذوف", roman="Hazaj Musaddas Akhram Ashtar Maḥdhūf"),
+    Meter(pattern="=-=/-=-=+=-=/-=-=", name="ہزج مربع اشتر مقبوض مضاعف", roman="Hazaj Murabbaʿ Ashtar Maqbūz Muḍāʿaf"),
+    Meter(pattern="-===/-==", name="ہزج مربع محذوف", roman="Hazaj Murabbaʿ Maḥdhūf"),
+    Meter(pattern="-===/-==+-===/-==", name="ہزج مربع محذوف مضاعف", roman="Hazaj Murabbaʿ Maḥdhūf Muḍāʿaf"),
+    Meter(pattern="==-=/==-=/==-=/==-=", name="رجز مثمن سالم", roman="Rajaz Musamman Sālim"),
+    Meter(pattern="=--=/=--=/=--=/=--=", name="رجز مثمن مطوی", roman="Rajaz Musamman Maṭwī"),
+    Meter(pattern="=--=/-=-=+=--=/-=-=", name="رجز مثمن مطوی مخبون", roman="Rajaz Musamman Maṭwī Makhbūn"),
+    Meter(pattern="-=-=/=--=+-=-=/=--=", name="رجز مثمن مخبون مطوی", roman="Rajaz Musamman Makhbūn Maṭwī"),
+    Meter(pattern="==-=/==-=/==-=", name="رجز مسدس سالم", roman="Rajaz Musaddas Sālim"),
+    Meter(pattern="=--=/=--=/=--=", name="رجز مسدس مطوی", roman="Rajaz Musaddas Maṭwī"),
+    Meter(pattern="=-==/=-==/=-==/=-==", name="رمل مثمن سالم", roman="Ramal Musamman Sālim"),
+    Meter(pattern="=-==/=-==/=-==/=-=", name="رمل مثمن محذوف", roman="Ramal Musamman Maḥdhūf"),
+    Meter(pattern="=-==/--==/--==/--=", name="رمل مثمن سالم مخبون محذوف", roman="Ramal Musamman Sālim Makhbūn Maḥdhūf"),
+    Meter(pattern="--==/--==/--==/--=", name="رمل مثمن سالم مخبون محذوف", roman="Ramal Musamman Sālim Makhbūn Maḥdhūf"),
+    Meter(pattern="=-==/--==/--==/==", name="رمل مثمن مخبون محذوف مقطوع", roman="Ramal Musamman Makhbūn Maḥdhūf Maqṭūʿ"),
+    Meter(pattern="--==/--==/--==/==", name="رمل مثمن مخبون محذوف مقطوع", roman="Ramal Musamman Makhbūn Maḥdhūf Maqṭūʿ"),
+    Meter(pattern="--=-/=-==+--=-/=-==", name="رمل مثمن مشکول", roman="Ramal Musamman Mashkūl"),
+    Meter(pattern="==-/=-==+==-/=-==", name="رمل مثمن مشکول مسکّن", roman="Ramal Musamman Mashkūl Muskann"),
+    Meter(pattern="--==/--==/--==/--==", name="رمل مثمن مخبون", roman="Ramal Musamman Makhbūn"),
+    Meter(pattern="=-==/=-==/=-==", name="رمل مسدس سالم", roman="Ramal Musaddas Sālim"),
+    Meter(pattern="=-==/=-==/=-=", name="رمل مسدس محذوف", roman="Ramal Musaddas Maḥdhūf"),
+    Meter(pattern="=-==/--==/--=", name="رمل مسدس مخبون محذوف", roman="Ramal Musaddas Makhbūn Maḥdhūf"),
+    Meter(pattern="=-==/--==/==", name="رمل مسدس مخبون محذوف مسکن", roman="Ramal Musaddas Makhbūn Maḥdhūf Muskann"),
+    Meter(pattern="--==/--==/--=", name="رمل مسدس مخبون محذوف", roman="Ramal Musaddas Makhbūn Maḥdhūf"),
+    Meter(pattern="--==/--==/==", name="رمل مسدس مخبون محذوف مسکن", roman="Ramal Musaddas Makhbūn Maḥdhūf Muskann"),
+    Meter(pattern="--==/--==/--==", name="رمل مسدس مخبون", roman="Ramal Musaddas Makhbūn"),
+    Meter(pattern="-==/-==/-==/-==", name="متقارب مثمن سالم", roman="Mutaqārib Musamman Sālim"),
+    Meter(pattern="-==/-==/-==/-==/-==/-==/-==/-==", name="متقارب مثمن سالم مضاعف", roman="Mutaqārib Musamman Sālim Muḍāʿaf"),
+    Meter(pattern="-==/-==/-==/-=", name="متقارب مثمن محذوف", roman="Mutaqārib Musamman Maḥdhūf"),
+    Meter(pattern="=-/-=-/-=-/-==", name="متقارب مثمن اثرم مقبوض", roman="Mutaqārib Musamman Athram Maqbūz"),
+    Meter(pattern="=-/-=-/-=-/-=", name="متقارب مثمن اثرم مقبوض محذوف", roman="Mutaqārib Musamman Athram Maqbūz Maḥdhūf"),
+    Meter(pattern="=-/-=-/-=-/-=-/-=-/-=-/-=-/-=", name="متقارب مثمن اثرم مقبوض مضاعف", roman="Mutaqārib Musamman Athram Maqbūz Muḍāʿaf"),
+    Meter(pattern="=-/-=-/-=-/-=-/-=-/-=-/-=-/-==", name="متقارب مثمن اثرم مقبوض محذوف مضاعف", roman="Mutaqārib Musamman Athram Maqbūz Maḥdhūf Muḍāʿaf"),
+    Meter(pattern="-==/-==/-==", name="متقارب مسدس سالم", roman="Mutaqārib Musaddas Sālim"),
+    Meter(pattern="-==/-==/-=", name="متقارب مسدس محذوف", roman="Mutaqārib Musaddas Maḥdhūf"),
+    Meter(pattern="==/-==/==/-==", name="متقارب مربع اثلم سالم مضاعف", roman="Mutaqārib Murabbaʿ Athlam Sālim Muḍāʿaf"),
+    Meter(pattern="=-=/=-=/=-=/=-=", name="متدارک مثمن سالم", roman="Mutadārik Musamman Sālim"),
+    Meter(pattern="--=/--=/--=/--=", name="متدارک مثمن مخبون", roman="Mutadārik Musamman Makhbūn"),
+    Meter(pattern="--=/--=/--=/--=/--=/--=/--=/--=", name="متدارک مثمن مخبون مضاعف", roman="Mutadārik Musamman Makhbūn Muḍāʿaf"),
+    Meter(pattern="=-=/=-=/=-=/--=", name="متدارک مثمن سالم مقطوع", roman="Mutadārik Musamman Sālim Maqṭūʿ"),
+    Meter(pattern="=-=/=-=/=-=", name="متدارک مسدس سالم", roman="Mutadārik Musaddas Sālim"),
+    Meter(pattern="=-=/-=/=-=/-=", name="متدارک مربع مخلع مضاعف", roman="Mutadārik Murabbaʿ Makhlaʿ Muḍāʿaf"),
+    Meter(pattern="--=-=/--=-=/--=-=/--=-=", name="کامل مثمن سالم", roman="Kāmil Musamman Sālim"),
+    Meter(pattern="--=-=/--=-=/--=-=", name="کامل مسدس سالم", roman="Kāmil Musaddas Sālim"),
+    Meter(pattern="-=--=/-=--=/-=--=/-=--=", name="وافر مثمن سالم", roman="Wāfir Musamman Sālim"),
+    Meter(pattern="-=--=/-=--=/-=--=", name="وافر مسدس سالم", roman="Wāfir Musaddas Sālim"),
+    Meter(pattern="-=--=/-=--=/-==", name="وافر مسدس مقطوف", roman="Wāfir Musaddas Maqṭūf"),
+    Meter(pattern="-===/=-==/-===/=-==", name="مضارع مثمن سالم", roman="Muḍāriʿ Musamman Sālim"),
+    Meter(pattern="-==-/=-=-/-==-/=-=", name="مضارع مثمن مکفوف محذوف", roman="Muḍāriʿ Musamman Makfūf Maḥdhūf"),
+    Meter(pattern="==-/=-==/==-/=-==", name="مضارع مثمن اخرب", roman="Muḍāriʿ Musamman Akhrab"),
+    Meter(pattern="==-/=-=-/-==-/=-=", name="مضارع مثمن اخرب مکفوف محذوف", roman="Muḍāriʿ Musamman Akhrab Makfūf Maḥdhūf"),
+    Meter(pattern="==-/=-==/==-/=-=", name="مضارع مثمن اخرب محذوف", roman="Muḍāriʿ Musamman Akhrab Maḥdhūf"),
+    Meter(pattern="==-/=-=-/-===", name="مضارع مسدس اخرب مکفوف", roman="Muḍāriʿ Musaddas Akhrab Makfūf"),
+    Meter(pattern="==-=/=-==/==-=/=-==", name="مجتث مثمن سالم", roman="Mujtathth Musamman Sālim"),
+    Meter(pattern="-=-=/--==/-=-=/--==", name="مجتث مثمن مخبون", roman="Mujtathth Musamman Makhbūn"),
+    Meter(pattern="-=-=/===/-=-=/--==", name="مجتث مثمن مخبون", roman="Mujtathth Musamman Makhbūn"),
+    Meter(pattern="-=-=/--==/-=-=/===", name="مجتث مثمن مخبون", roman="Mujtathth Musamman Makhbūn"),
+    Meter(pattern="-=-=/===/-=-=/===", name="مجتث مثمن مخبون", roman="Mujtathth Musamman Makhbūn"),
+    Meter(pattern="-=-=/--==/-=-=/--=", name="مجتث مثمن مخبون محذوف", roman="Mujtathth Musamman Makhbūn Maḥdhūf"),
+    Meter(pattern="-=-=/===/-=-=/--=", name="مجتث مثمن مخبون محذوف", roman="Mujtathth Musamman Makhbūn Maḥdhūf"),
+    Meter(pattern="-=-=/--==/-=-=/==", name="مجتث مثمن مخبون محذوف مسکن", roman="Mujtathth Musamman Makhbūn Maḥdhūf Muskann"),
+    Meter(pattern="-=-=/===/-=-=/==", name="مجتث مثمن مخبون محذوف مسکن", roman="Mujtathth Musamman Makhbūn Maḥdhūf Muskann"),
+    Meter(pattern="-=-=/--==/-=-=", name="مجتث مسدس مخبون", roman="Mujtathth Musaddas Makhbūn"),
+    Meter(pattern="-=-=/===/-=-=", name="مجتث مسدس مخبون", roman="Mujtathth Musaddas Makhbūn"),
+    Meter(pattern="==-=/===-/==-=/===-", name="منسرح مثمن سالم", roman="Munsariḥ Musamman Sālim"),
+    Meter(pattern="=--=/=-=+=--=/=-=", name="منسرح مثمن مطوی مکسوف", roman="Munsariḥ Musamman Maṭwī Maksūf"),
+    Meter(pattern="=--=/=-=-/=--=/=", name="منسرح مثمن مطوی منحور", roman="Munsariḥ Musamman Maṭwī Manḥūr"),
+    Meter(pattern="=--=/=-=/=--=", name="منسرح مسدس مطوی مکسوف", roman="Munsariḥ Musaddas Maṭwī Maksūf"),
+    Meter(pattern="===-/==-=/===-/==-=", name="مقتضب مثمن سالم", roman="Muqtaḍab Musamman Sālim"),
+    Meter(pattern="=-=-/=--=/=-=-/=--=", name="مقتضب مثمن مطوی", roman="Muqtaḍab Musamman Maṭwī"),
+    Meter(pattern="==-=/==-=/===-", name="سریع مسدس سالم", roman="Sarīʿ Musaddas Sālim"),
+    Meter(pattern="=--=/=--=/=-=", name="سریع مسدس مطوی مکسوف", roman="Sarīʿ Musaddas Maṭwī Maksūf"),
+    Meter(pattern="==-=/==-=/-==", name="سریع مسدس مخبون مکسوف", roman="Sarīʿ Musaddas Makhbūn Maksūf"),
+    Meter(pattern="=-==/==-=/=-==/==-=", name="خفیف مثمن سالم", roman="Khafīf Musamman Sālim"),
+    Meter(pattern="=-==/==-=/=-==", name="خفیف مسدس سالم", roman="Khafīf Musaddas Sālim"),
+    Meter(pattern="--==/-=-=/--==", name="خفیف مسدس مخبون", roman="Khafīf Musaddas Makhbūn"),
+    Meter(pattern="=-==/-=-=/--=", name="خفیف مسدس مخبون محذوف", roman="Khafīf Musaddas Makhbūn Maḥdhūf"),
+    Meter(pattern="--==/-=-=/--=", name="خفیف مسدس مخبون محذوف", roman="Khafīf Musaddas Makhbūn Maḥdhūf"),
+    Meter(pattern="=-==/-=-=/==", name="خفیف مسدس مخبون محذوف مقطوع", roman="Khafīf Musaddas Makhbūn Maḥdhūf Maqṭūʿ"),
+    Meter(pattern="--==/-=-=/==", name="خفیف مسدس مخبون محذوف مقطوع", roman="Khafīf Musaddas Makhbūn Maḥdhūf Maqṭūʿ"),
+    Meter(pattern="=-==/-=-=/=", name="خفیف مسدس سالم مخبون محجوف", roman="Khafīf Musaddas Sālim Makhbūn Maḥjūf"),
+    Meter(pattern="--==/-=-=/=", name="خفیف مسدس مخبون محجوف", roman="Khafīf Musaddas Makhbūn Maḥjūf"),
+    Meter(pattern="-===/-==/-===", name="طویل مثمن سالم", roman="Ṭawīl Musamman Sālim"),
+    Meter(pattern="-==/-===/-==/-=-=", name="طویل مثمن سالم مقبوض", roman="Ṭawīl Musamman Sālim Maqbūz"),
+    Meter(pattern="-==/-=-=/-==/-=-=", name="طویل مثمن مقبوض", roman="Ṭawīl Musamman Maqbūz"),
+    Meter(pattern="=-==/=-=/=-==/=-=", name="مدید مثمن سالم", roman="Madīd Musamman Sālim"),
+    Meter(pattern="--==/--=/--==/--=", name="مدید مثمن مخبون", roman="Madīd Musamman Makhbūn"),
+    Meter(pattern="--==/==/--==/--=", name="مدید مثمن مخبون", roman="Madīd Musamman Makhbūn"),
+    Meter(pattern="===/--=/--==/--=", name="مدید مثمن مخبون", roman="Madīd Musamman Makhbūn"),
+    Meter(pattern="--==/--=/===/--=", name="مدید مثمن مخبون", roman="Madīd Musamman Makhbūn"),
+    Meter(pattern="--==/--=/--==/==", name="مدید مثمن مخبون", roman="Madīd Musamman Makhbūn"),
+    Meter(pattern="=-==/--=/=-==/--=", name="مدید مثمن سالم مخبون", roman="Madīd Musamman Sālim Makhbūn"),
+    Meter(pattern="==-=/=-=/==-=/=-=", name="بسیط مثمن سالم", roman="Basīṭ Musamman Sālim"),
+    Meter(pattern="-=-=/--=/-=-=/--=", name="بسیط مثمن مخبون", roman="Basīṭ Musamman Makhbūn"),
+    Meter(pattern="-===/-===/=-==", name="قریب مسدس سالم", roman="Qarīb Musaddas Sālim"),
+    Meter(pattern="==-/-==-/=-==", name="قریب مسدس اخرب مکفوف", roman="Qarīb Musaddas Akhrab Makfūf"),
+    Meter(pattern="=-==/=-==/==-=", name="جدید مسدس سالم", roman="Jadīd Musaddas Sālim"),
+    Meter(pattern="--==/--==/-=-=", name="جدید مسدس مخبون", roman="Jadīd Musaddas Makhbūn"),
+    Meter(pattern="=-==/-===/-===", name="مشاکل مسدس سالم", roman="Mushākil Musaddas Sālim"),
+    Meter(pattern="=-=-/-==-/-==", name="مشاکل مسدس مکفوف محذوف", roman="Mushākil Musaddas Makfūf Maḥdhūf"),
+    Meter(pattern="-=-==/-=-==/-=-==/-=-==", name="جمیل مثمن سالم", roman="Jamīl Musamman Sālim"),
+    Meter(pattern="=-=/-===", name="ہزج مربع اشتر", roman="Hazaj Murabbaʿ Ashtar"),
+    Meter(pattern="=-=/-=-=", name="ہزج مربع اشتر مقبوض", roman="Hazaj Murabbaʿ Ashtar Maqbūz"),
+    Meter(pattern="-===/-===", name="ہزج مربع سالم", roman="Hazaj Murabbaʿ Sālim"),
+    Meter(pattern="-=-=/-=-=", name="ہزج مربع مقبوض", roman="Hazaj Murabbaʿ Maqbūz"),
+    Meter(pattern="-=-=/-=-=/-=-=/-=", name="ہزج مثمن مقبوض محذوف", roman="Hazaj Musamman Maqbūz Maḥdhūf"),
+    Meter(pattern="=-==/--==/--==", name="رمل مسدس مخبون", roman="Ramal Musaddas Makhbūn"),
+    Meter(pattern="-===/-===", name="ہزج مربع سالم", roman="Hazaj Murabbaʿ Sālim"),
+    Meter(pattern="=-==/=-==", name="رمل مربع سالم", roman="Ramal Murabbaʿ Sālim"),
+    Meter(pattern="=-==/=-=", name="ہزج مربع محذوف", roman="Hazaj Murabbaʿ Maḥdhūf"),
+    Meter(pattern="-==/-==", name="متقارب مربع سالم", roman="Mutaqārib Murabbaʿ Sālim"),
+    Meter(pattern="--=-=/--=-=", name="کامل مربع سالم", roman="Kāmil Murabbaʿ Sālim"),
+    Meter(pattern="-==/-===", name="طویل مربع سالم", roman="Ṭawīl Murabbaʿ Sālim"),
+    Meter(pattern="=-==/=-=", name="مدید مربع سالم", roman="Madīd Murabbaʿ Sālim"),
+    Meter(pattern="-===/-===/-===/-===/-===/-===/-===/-===", name="ہزج مثمن سالم مضاعف", roman="Hazaj Musamman Sālim Muḍāʿaf"),
+    Meter(pattern="-=-==/-=-==", name="جمیل مربع سالم", roman="Jamīl Murabbaʿ Sālim")
 ]
 
 # Backward compatibility: derived lists for existing code
+# Roman names (transliteration with diacritics) for the 130 main meters; index i matches METERS[i], METER_NAMES[i].
 METERS = [m.pattern for m in _METERS_DATA]
 METER_NAMES = [m.name for m in _METERS_DATA]
+METER_ROMAN = [m.roman for m in _METERS_DATA]
 NUM_METERS = len(_METERS_DATA)
 
 # Optional: alias for clarity (METERS already contains patterns)
 METER_PATTERNS = METERS
 
 # Validation: ensure counts match and data integrity
-assert len(_METERS_DATA) == 129, f"Expected 129 meters, found {len(_METERS_DATA)}"
+assert len(_METERS_DATA) == 130, f"Expected 130 meters, found {len(_METERS_DATA)}"
 assert len(METERS) == NUM_METERS, "METERS length mismatch"
 assert len(METER_NAMES) == NUM_METERS, "METER_NAMES length mismatch"
-assert NUM_METERS == 129, "NUM_METERS should be 129"
+assert len(METER_ROMAN) == NUM_METERS, "METER_ROMAN length mismatch"
+assert NUM_METERS == 130, "NUM_METERS should be 130"
 
 # Varied meters (for future use)
 METERS_VARIED = [
@@ -337,10 +342,10 @@ assert len(NAME_TO_CODE) == len(_FEET_DATA), "NAME_TO_CODE dictionary size misma
 def meter_index(meter_name: str) -> List[int]:
     """
     Find indices of meters matching the given meter name.
-    
+
     Args:
         meter_name: Name of the meter in Urdu
-        
+
     Returns:
         List of indices where the meter name matches
     """
@@ -349,6 +354,19 @@ def meter_index(meter_name: str) -> List[int]:
         if meter.name == meter_name:
             indices.append(i)
     return indices
+
+
+def meter_roman(index: int) -> str:
+    """
+    Return the Roman (transliterated) name for the meter at the given index.
+
+    Args:
+        index: Meter index in [0, NUM_METERS - 1], same as METERS / METER_NAMES.
+
+    Returns:
+        Roman name with diacritics (e.g. "Hazaj Murabbaʿ Maqbūz").
+    """
+    return _METERS_DATA[index].roman
 
 
 def afail(meter: str) -> str:

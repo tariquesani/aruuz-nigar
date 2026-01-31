@@ -16,7 +16,7 @@ from .explain_logging import get_explain_logger
 from aruuz.tree.code_tree import CodeTree
 from aruuz.meters import (
     METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS,
-    METER_NAMES, METERS_VARIED_NAMES, RUBAI_METER_NAMES, SPECIAL_METER_NAMES,
+    METER_NAMES, METER_ROMAN, METERS_VARIED_NAMES, RUBAI_METER_NAMES, SPECIAL_METER_NAMES,
     NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, NUM_SPECIAL_METERS,
     afail, afail_list, meter_index, afail_hindi, zamzama_feet, hindi_feet
 )
@@ -155,6 +155,7 @@ class MeterMatcher:
                     # Regular meter
                     meter_pattern = METERS[meter_idx]
                     so.meter_name = METER_NAMES[meter_idx]
+                    so.meter_roman = METER_ROMAN[meter_idx]
                     so.feet = afail(meter_pattern)
                     so.feet_list = afail_list(meter_pattern)
                     so.id = meter_idx
@@ -162,6 +163,7 @@ class MeterMatcher:
                     # Varied meter
                     meter_pattern = METERS_VARIED[meter_idx - NUM_METERS]
                     so.meter_name = METERS_VARIED_NAMES[meter_idx - NUM_METERS]
+                    so.meter_roman = ""
                     so.feet = afail(meter_pattern)
                     so.feet_list = afail_list(meter_pattern)
                     so.id = meter_idx
@@ -169,6 +171,7 @@ class MeterMatcher:
                     # Rubai meter
                     meter_pattern = RUBAI_METERS[meter_idx - NUM_METERS - NUM_VARIED_METERS]
                     so.meter_name = RUBAI_METER_NAMES[meter_idx - NUM_METERS - NUM_VARIED_METERS] + " (رباعی)"
+                    so.meter_roman = ""
                     so.feet = afail(meter_pattern)
                     so.feet_list = afail_list(meter_pattern)
                     so.id = -2
@@ -177,6 +180,7 @@ class MeterMatcher:
                     special_idx = meter_idx - NUM_METERS - NUM_VARIED_METERS - NUM_RUBAI_METERS
                     if special_idx < len(SPECIAL_METER_NAMES):
                         so.meter_name = SPECIAL_METER_NAMES[special_idx]
+                        so.meter_roman = ""
                         # Get scansion code from scanPath and generate feet dynamically
                         if special_idx > 7:
                             # Zamzama meters (indices 8-10)
@@ -348,18 +352,21 @@ class MeterMatcher:
                     # Regular meter
                     meter_pattern = METERS[meter_idx]
                     so.meter_name = METER_NAMES[meter_idx]
+                    so.meter_roman = METER_ROMAN[meter_idx]
                     so.feet = afail(meter_pattern)
                     so.id = meter_idx
                 elif meter_idx < NUM_METERS + NUM_VARIED_METERS:
                     # Varied meter
                     meter_pattern = METERS_VARIED[meter_idx - NUM_METERS]
                     so.meter_name = METERS_VARIED_NAMES[meter_idx - NUM_METERS]
+                    so.meter_roman = ""
                     so.feet = afail(meter_pattern)
                     so.id = meter_idx
                 elif meter_idx < NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS:
                     # Rubai meter
                     meter_pattern = RUBAI_METERS[meter_idx - NUM_METERS - NUM_VARIED_METERS]
                     so.meter_name = RUBAI_METER_NAMES[meter_idx - NUM_METERS - NUM_VARIED_METERS] + " (رباعی)"
+                    so.meter_roman = ""
                     so.feet = afail(meter_pattern)
                     so.id = -2
                 elif meter_idx < NUM_METERS + NUM_VARIED_METERS + NUM_RUBAI_METERS + NUM_SPECIAL_METERS:
@@ -367,6 +374,7 @@ class MeterMatcher:
                     special_idx = meter_idx - NUM_METERS - NUM_VARIED_METERS - NUM_RUBAI_METERS
                     if special_idx < len(SPECIAL_METER_NAMES):
                         so.meter_name = SPECIAL_METER_NAMES[special_idx]
+                        so.meter_roman = ""
                         # Get scansion code from scanPath and generate feet dynamically
                         if special_idx > 7:
                             # Zamzama meters (indices 8-10)

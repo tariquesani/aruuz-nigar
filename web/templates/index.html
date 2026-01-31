@@ -89,7 +89,7 @@
                             {% endif %}
                             {% if not multi and has_match %}
                             <div class="text-center mt-3">
-                                <h6>Bahr: <span dir="rtl" lang="ur" class="urdu-text">{{ result.meter_name }}</span></h6>
+                                <h6>Bahr: <span dir="rtl" lang="ur" class="urdu-text" {% if result.meter_roman %}data-bs-toggle="tooltip" data-bs-title="{{ result.meter_roman }}" data-bs-placement="top"{% endif %}>{{ result.meter_name }}</span></h6>
                             </div>
                             {% endif %}
                         {% else %}
@@ -102,14 +102,14 @@
                 <div class="text-center mt-3">
                     <h6>
                         <label for="bahr-select-{{ line_data.line_index }}">Bahr: </label>
-                        <div class="dropdown bahr-dropdown d-inline-block" data-line-index="{{ line_data.line_index }}">
-                            <button type="button" id="bahr-select-{{ line_data.line_index }}" class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="Select bahr">
-                                <span class="bahr-dropdown-label urdu-text" dir="rtl" lang="ur">{{ default_bahr.meter_name }}</span>
-                            </button>
-                            <ul class="dropdown-menu">
+                                <div class="dropdown bahr-dropdown d-inline-block" data-line-index="{{ line_data.line_index }}">
+                                    <button type="button" id="bahr-select-{{ line_data.line_index }}" class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="Select bahr">
+                                        <span class="bahr-dropdown-label urdu-text" dir="rtl" lang="ur" {% if default_bahr.meter_roman %}data-bs-toggle="tooltip" data-bs-title="{{ default_bahr.meter_roman }}" data-bs-placement="top"{% endif %}>{{ default_bahr.meter_name }}</span>
+                                    </button>
+                                    <ul class="dropdown-menu">
                                 {% for result in line_data.results %}
                                 <li>
-                                    <button type="button" class="dropdown-item bahr-dropdown-option urdu-text {{ 'active' if result.is_default else '' }}" dir="rtl" lang="ur" data-value="{{ loop.index0 }}"{% if result.is_default %} aria-current="true"{% endif %}>{{ result.meter_name }}</button>
+                                    <button type="button" class="dropdown-item bahr-dropdown-option urdu-text {{ 'active' if result.is_default else '' }}" dir="rtl" lang="ur" data-value="{{ loop.index0 }}"{% if result.is_default %} aria-current="true"{% endif %}{% if result.meter_roman %} data-bs-toggle="tooltip" data-bs-title="{{ result.meter_roman }}" data-bs-placement="top"{% endif %}>{{ result.meter_name }}</button>
                                 </li>
                                 {% endfor %}
                             </ul>
@@ -130,8 +130,8 @@
     {% if poem_dominant_bahrs %}
     <div class="card mt-4">
         <div class="card-body">
-            <h5 class="text-center urdu-text mb-0" >
-                Poem Bahr: <span dir="rtl" lang="ur">{{ poem_dominant_bahrs | join(", ") }}</span>
+            <h5 class="text-center urdu-text mb-0">
+                Poem Bahr: <span dir="rtl" lang="ur" {% if poem_dominant_bahrs_roman %}data-bs-toggle="tooltip" data-bs-title="{{ poem_dominant_bahrs_roman | join(', ') }}" data-bs-placement="top"{% endif %}>{{ poem_dominant_bahrs | join(", ") }}</span>
             </h5>
         </div>
     </div>

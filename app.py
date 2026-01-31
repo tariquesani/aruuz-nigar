@@ -58,7 +58,8 @@ def index():
     error = None
     text_input = ""
     poem_dominant_bahrs = []
-    
+    poem_dominant_bahrs_roman = []
+
     if request.method == 'POST':
         text_input = request.form.get('text', '').strip()
         
@@ -87,12 +88,14 @@ def index():
                     # Extract results for template
                     line_results = scansion_result['line_results']
                     poem_dominant_bahrs = scansion_result['poem_dominant_bahrs']
+                    poem_dominant_bahrs_roman = scansion_result.get('poem_dominant_bahrs_roman', [])
                     
             except Exception as e:
                 error = f"Error processing lines: {str(e)}"
-                poem_dominant_bahrs = []  # Set empty if error occurred
-    
-    return render_template('index.html', line_results=line_results, error=error, text_input=text_input, poem_dominant_bahrs=poem_dominant_bahrs)
+                poem_dominant_bahrs = []
+                poem_dominant_bahrs_roman = []
+
+    return render_template('index.html', line_results=line_results, error=error, text_input=text_input, poem_dominant_bahrs=poem_dominant_bahrs, poem_dominant_bahrs_roman=poem_dominant_bahrs_roman)
 
 
 @app.route('/islah', methods=['GET'])

@@ -49,6 +49,7 @@ def _meter_from_exact(so) -> Dict[str, Any]:
     full_code = "".join(so.word_taqti) if so.word_taqti else ""
     return {
         "meter_name": so.meter_name,
+        "meter_roman": getattr(so, "meter_roman", "") or "",
         "meter_id": so.id,
         "feet": so.feet,
         "full_code": full_code,
@@ -59,6 +60,7 @@ def _inferred_meter_from_fuzzy(so) -> Dict[str, Any]:
     """Build inferred_meter dict from best LineScansionResultFuzzy."""
     return {
         "meter_name": so.meter_name,
+        "meter_roman": getattr(so, "meter_roman", "") or "",
         "meter_id": so.id,
         "feet": so.feet,
         "score": so.score,
@@ -160,8 +162,11 @@ def handle(request):
 
         if not syllables_ok:
             return {
-                "level": "syllables",
-                "explanation": "Insufficient input for scansion (need at least one word or two syllables).",
+                "analysis_level": "syllables",
+                "summary": {
+                    "text": "Insufficient input for scansion (need at least one word or two syllables).",
+                    "conforms_exactly": False,
+                },
                 "original_line": line_text,
                 "full_code": full_code,
                 "syllables": [],
@@ -171,7 +176,7 @@ def handle(request):
 
         level = "meter" if meter_ok else "feet" if feet_ok else "syllables"
         payload: Dict[str, Any] = {
-            "level": level,
+            "analysis_level": level,
             "original_line": line_text,
             **_build_syllables_payload(full_code, word_taqti),
         }
@@ -179,32 +184,37 @@ def handle(request):
         payload["word_codes"] = word_codes
 
         if feet_ok:
-            payload["feet"] = foot_segments
+            payload["feet_list"] = foot_segments
 
         if not meter_ok:
-            payload["explanation"] = (
-                "Syllables and feet only; add more text (≥3 feet) or multiple lines for meter."
-            )
+            payload["summary"] = {
+                "text": "Syllables and feet only; add more text (≥3 feet) or multiple lines for meter.",
+                "conforms_exactly": False,
+            }
             return payload
 
         # Meter level: exact then fuzzy + align
         if exact:
-            payload["conforms_exactly"] = True
-            payload["explanation"] = "Line conforms exactly to one or more classical meters."
-            payload["meters"] = [_meter_from_exact(so) for so in exact]
+            payload["summary"] = {
+                "text": "Line conforms exactly to one or more classical meters.",
+                "conforms_exactly": True,
+            }
+            payload["results"] = [_meter_from_exact(so) for so in exact]
             payload["deviations"] = []
             payload["alignment"] = None
             # Include meter pattern for exact match (first matching meter)
             pattern = meter_pattern_for_exact_result(exact[0]) if exact else None
             if pattern is not None:
-                payload["meter_pattern_used"] = pattern
+                payload["meter_pattern"] = pattern.replace("/", "")
             return payload
 
         fuzzy_results = scanner.scan_line_fuzzy(line, 0)
         if not fuzzy_results:
-            payload["conforms_exactly"] = False
-            payload["explanation"] = "No exact meter match and no fuzzy match could be inferred."
-            payload["meters"] = []
+            payload["summary"] = {
+                "text": "No exact meter match and no fuzzy match could be inferred.",
+                "conforms_exactly": False,
+            }
+            payload["results"] = []
             payload["inferred_meter"] = None
             payload["deviations"] = []
             payload["alignment"] = None
@@ -212,23 +222,26 @@ def handle(request):
 
         best = min(fuzzy_results, key=lambda so: so.score)
         pattern = meter_pattern_for_fuzzy_result(best)
-        payload["conforms_exactly"] = False
 
         if not pattern:
-            payload["explanation"] = "Closest match is a special meter; syllabic alignment not available."
-            payload["meters"] = []
+            payload["summary"] = {
+                "text": "Closest match is a special meter; syllabic alignment not available.",
+                "conforms_exactly": False,
+            }
+            payload["results"] = []
             payload["inferred_meter"] = _inferred_meter_from_fuzzy(best)
             payload["deviations"] = []
             payload["alignment"] = None
             return payload
 
         distance, edit_ops, leverage = align_best(full_code, pattern)
-        payload["explanation"] = (
-            f"No exact meter match; inferred closest: {best.meter_name} (edit distance {distance})."
-        )
-        payload["meters"] = []
+        payload["summary"] = {
+            "text": f"No exact meter match; inferred closest: {best.meter_name} (edit distance {distance}).",
+            "conforms_exactly": False,
+        }
+        payload["results"] = []
         payload["inferred_meter"] = _inferred_meter_from_fuzzy(best)
-        payload["meter_pattern_used"] = pattern
+        payload["meter_pattern"] = pattern.replace("/", "")
         payload["alignment"] = {
             "distance": distance,
             "edit_ops": edit_ops,

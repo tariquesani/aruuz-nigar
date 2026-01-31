@@ -138,11 +138,11 @@
             },
 
             get feetWithBoundaries() {
-                if (!this.result || !this.result.feet || !this.result.full_code) {
+                if (!this.result || !this.result.feet_list || !this.result.full_code) {
                     return [];
                 }
 
-                const feet = this.result.feet;
+                const feet = this.result.feet_list;
                 const deviations = this.result.deviations || [];
                 const insertions = deviations.filter(dev => dev.type === 'insert');
 
