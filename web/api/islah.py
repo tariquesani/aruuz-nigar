@@ -44,26 +44,50 @@ def _get_text_from_request(req):
     return ((raw or "").strip(), None)
 
 
+def _build_feet_segments(full_code: str, feet_list: List[Any]) -> List[Dict[str, Any]]:
+    """Build feet_list (foot, code, start, end) from full_code and a list of foot objects."""
+    segments: List[Dict[str, Any]] = []
+    start = 0
+    for f in feet_list or []:
+        length = len(getattr(f, "code", "") or "")
+        end = start + length
+        segments.append(
+            {
+                "foot": getattr(f, "foot", ""),
+                "code": full_code[start:end],
+                "start": start,
+                "end": end,
+            }
+        )
+        start = end
+    return segments
+
+
 def _meter_from_exact(so) -> Dict[str, Any]:
     """Build a single meter dict from a LineScansionResult."""
     full_code = "".join(so.word_taqti) if so.word_taqti else ""
+    feet_list = getattr(so, "feet_list", []) or []
     return {
         "meter_name": so.meter_name,
         "meter_roman": getattr(so, "meter_roman", "") or "",
         "meter_id": so.id,
         "feet": so.feet,
         "full_code": full_code,
+        "feet_list": _build_feet_segments(full_code, feet_list),
     }
 
 
 def _inferred_meter_from_fuzzy(so) -> Dict[str, Any]:
     """Build inferred_meter dict from best LineScansionResultFuzzy."""
+    full_code = "".join(so.word_taqti) if so.word_taqti else ""
+    feet_list = getattr(so, "feet_list", []) or []
     return {
         "meter_name": so.meter_name,
         "meter_roman": getattr(so, "meter_roman", "") or "",
         "meter_id": so.id,
         "feet": so.feet,
         "score": so.score,
+        "feet_list": _build_feet_segments(full_code, feet_list),
     }
 
 
@@ -199,7 +223,7 @@ def handle(request):
                 "text": "Line conforms exactly to one or more classical meters.",
                 "conforms_exactly": True,
             }
-            payload["results"] = [_meter_from_exact(so) for so in exact]
+            payload["meters"] = [_meter_from_exact(so) for so in exact]
             payload["deviations"] = []
             payload["alignment"] = None
             # Include meter pattern for exact match (first matching meter)
@@ -214,7 +238,7 @@ def handle(request):
                 "text": "No exact meter match and no fuzzy match could be inferred.",
                 "conforms_exactly": False,
             }
-            payload["results"] = []
+            payload["meters"] = []
             payload["inferred_meter"] = None
             payload["deviations"] = []
             payload["alignment"] = None
@@ -228,7 +252,7 @@ def handle(request):
                 "text": "Closest match is a special meter; syllabic alignment not available.",
                 "conforms_exactly": False,
             }
-            payload["results"] = []
+            payload["meters"] = []
             payload["inferred_meter"] = _inferred_meter_from_fuzzy(best)
             payload["deviations"] = []
             payload["alignment"] = None
@@ -239,7 +263,7 @@ def handle(request):
             "text": f"No exact meter match; inferred closest: {best.meter_name} (edit distance {distance}).",
             "conforms_exactly": False,
         }
-        payload["results"] = []
+        payload["meters"] = []
         payload["inferred_meter"] = _inferred_meter_from_fuzzy(best)
         payload["meter_pattern"] = pattern.replace("/", "")
         payload["alignment"] = {
