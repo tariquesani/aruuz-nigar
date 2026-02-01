@@ -21,39 +21,45 @@
             <span class="ms-3"><code class="text-dark">X</code> flexible (short or long)</span>
         </small>
     </div>
-    <!-- One block per line: original line, grid, bahr (+ deviations when inferred) -->
-    <template x-for="(lineData, idx) in lineResults" :key="idx">
+    <!-- One block per line: hidden during batch update to prevent flicker -->
+    <div :style="updatingResults ? 'opacity: 0; pointer-events: none; transition: opacity 0.15s ease' : 'opacity: 1; transition: opacity 0.15s ease'">
+    <template x-for="(lineData, idx) in lineResults" :key="'line-' + idx">
         <div class="my-5">
             <!-- Loading -->
             <div class="text-center py-3 text-muted" x-show="lineData.loading" x-text="'Scanning line ' + (idx + 1) + '…'"></div>
             <!-- Error -->
             <div class="alert alert-danger py-2" x-show="lineData.error && !lineData.loading" x-text="'Line ' + (idx + 1) + ': ' + lineData.error"></div>
-            <!-- Result: original line + grid + bahr -->
-            <div x-show="lineData.result && getDisplayCode(lineData.result)">
-                <h5 class="text-center urdu-text mb-4" dir="rtl" lang="ur" x-text="lineData.result.original_line || lineData.lineText || ''"></h5>
-                <div class="scansion-grid-wrapper">
+            <!-- Result: compute from lineData.result only; Alpine re-renders only when result changes -->
+            <div x-show="lineData.result" :class="{'opacity-50': lineData.loading}">
+                <h5 class="text-center urdu-text mb-4" dir="rtl" lang="ur" x-text="lineData.result?.original_line || lineData.lineText || ''"></h5>
+                <div class="scansion-grid-wrapper" x-data="{
+                    get words() { return getWordsWithBoundaries(lineData.result) || []; },
+                    get syllables() { return getSyllablesWithDeviations(lineData.result) || []; },
+                    get feet() { return getFeetWithBoundaries(lineData.result) || []; }
+                }">
                     <div class="scansion-row words-row">
-                        <template x-for="wordData in getWordsWithBoundaries(lineData.result)" :key="wordData.word_index">
+                        <template x-for="wordData in words" :key="'line-' + idx + '-word-' + wordData.word_index">
                             <div class="word-cell" :style="'grid-column: span ' + wordData.span" x-text="wordData.word"></div>
                         </template>
                     </div>
                     <div class="scansion-row">
-                        <template x-for="(syllable, i) in getSyllablesWithDeviations(lineData.result)" :key="i">
+                        <template x-for="(syllable, i) in syllables" :key="'line-' + idx + '-syll-' + i">
                             <span class="syllable" :class="syllable.deviationType || ''" x-text="syllable.char || ''"></span>
                         </template>
                     </div>
                     <div class="scansion-row feet-row">
-                        <template x-for="(footData, footIndex) in getFeetWithBoundaries(lineData.result)" :key="footData.start">
+                        <template x-for="(footData, footIndex) in feet" :key="'line-' + idx + '-foot-' + footData.start">
                             <div class="foot-cell" :class="{ 'foot-cell-alt': footIndex % 2 === 1 }" :style="'grid-column: span ' + footData.span" x-text="footData.foot"></div>
                         </template>
                     </div>
                 </div>
                 <div class="text-center mt-3" x-show="getBahrLabel(lineData.result) && getBahrName(lineData.result)">
-                    <h6><span x-text="getBahrLabel(lineData.result)"></span><span dir="rtl" lang="ur" class="urdu-text" :data-bs-title="getBahrTooltip(lineData.result)" :data-bs-toggle="getBahrTooltip(lineData.result) ? 'tooltip' : null" data-bs-placement="top" x-text="getBahrName(lineData.result)"></span><span class="small text-muted" x-show="getDeviationsExplanationLine(lineData.result)" x-text="getDeviationsExplanationLine(lineData.result) ? '. ' + getDeviationsExplanationLine(lineData.result) : ''"></span></h6>
+                    <h6><span x-text="getBahrLabel(lineData.result)"></span><span dir="rtl" lang="ur" class="urdu-text" :data-bs-title="getBahrTooltip(lineData.result) || ''" :data-bs-toggle="getBahrTooltip(lineData.result) ? 'tooltip' : null" data-bs-placement="top" x-text="getBahrName(lineData.result)"></span><span class="small text-muted" x-show="getDeviationsExplanationLine(lineData.result)" x-text="getDeviationsExplanationLine(lineData.result) ? '. ' + getDeviationsExplanationLine(lineData.result) : ''"></span></h6>
                 </div>
             </div>
         </div>
     </template>
+    </div>
 
     <form @submit.prevent="submit" class="mb-4">
         <div class="mb-3">
@@ -62,8 +68,8 @@
                 placeholder="Start typing your poetry here..." x-model="text" :disabled="loading"
                 @keydown.space="setTimeout(() => silentUpdate(), 0)"></textarea>
         </div>
-        <button type="submit" class="btn btn-primary" :disabled="loading">
-            <span x-show="!loading">Submit</span>
+        <button type="submit" class="btn btn-primary btn-lg w-100 py-2" :disabled="loading">
+            <span x-show="!loading">Rescan Lines</span>
             <span x-show="loading">Submitting…</span>
         </button>
     </form>
@@ -79,6 +85,7 @@
             lineResults: [],
             previousLines: [],
             loading: false,
+            updatingResults: false,
             debounceTimer: null,
 
             init() {
@@ -213,17 +220,10 @@
                     if (i >= this.previousLines.length || currentLines[i] !== this.previousLines[i]) needFetch.push(i);
                 }
 
-                const newLineResults = currentLines.map((lineText, i) => {
-                    if (needFetch.includes(i)) {
-                        return { lineIndex: i, lineText, result: null, error: null, loading: true };
-                    }
-                    return (this.lineResults[i] && this.lineResults[i].lineText === lineText)
-                        ? this.lineResults[i]
-                        : { lineIndex: i, lineText, result: null, error: null, loading: false };
-                });
-
-                this.lineResults = newLineResults;
+                this.updatingResults = true;
                 if (explicit) this.loading = true;
+
+                const fetchedByIndex = {};
 
                 try {
                     for (const i of needFetch) {
@@ -235,29 +235,46 @@
                             });
                             const raw = await res.text();
                             if (!res.ok) {
-                                this.lineResults = this.lineResults.map((entry, idx) =>
-                                    idx === i ? { ...entry, result: null, error: raw || `HTTP ${res.status}`, loading: false } : entry
-                                );
+                                fetchedByIndex[i] = { result: null, error: raw || `HTTP ${res.status}` };
                             } else {
                                 try {
-                                    const result = JSON.parse(raw);
-                                    this.lineResults = this.lineResults.map((entry, idx) =>
-                                        idx === i ? { ...entry, result, error: null, loading: false } : entry
-                                    );
+                                    fetchedByIndex[i] = { result: JSON.parse(raw), error: null };
                                 } catch (_) {
-                                    this.lineResults = this.lineResults.map((entry, idx) =>
-                                        idx === i ? { ...entry, result: null, error: 'Invalid JSON', loading: false } : entry
-                                    );
+                                    fetchedByIndex[i] = { result: null, error: 'Invalid JSON' };
                                 }
                             }
                         } catch (err) {
-                            this.lineResults = this.lineResults.map((entry, idx) =>
-                                idx === i ? { ...entry, result: null, error: err.message || 'Request failed', loading: false } : entry
-                            );
+                            fetchedByIndex[i] = { result: null, error: err.message || 'Request failed' };
                         }
                     }
+
+                    const newLineResults = [];
+                    for (let i = 0; i < currentLines.length; i++) {
+                        if (needFetch.includes(i)) {
+                            const f = fetchedByIndex[i] || { result: null, error: null };
+                            newLineResults.push({
+                                lineIndex: i,
+                                lineText: currentLines[i],
+                                result: f.result,
+                                error: f.error,
+                                loading: false,
+                            });
+                        } else if (this.lineResults[i] && this.lineResults[i].lineText === currentLines[i]) {
+                            newLineResults.push(this.lineResults[i]);
+                        } else {
+                            newLineResults.push({
+                                lineIndex: i,
+                                lineText: currentLines[i],
+                                result: null,
+                                error: null,
+                                loading: false,
+                            });
+                        }
+                    }
+                    this.lineResults = newLineResults;
                     this.previousLines = currentLines.slice();
                 } finally {
+                    this.updatingResults = false;
                     if (explicit) this.loading = false;
                     if (explicit) this.$nextTick(() => textarea?.focus());
                 }
