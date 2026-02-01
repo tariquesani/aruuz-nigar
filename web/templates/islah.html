@@ -29,7 +29,7 @@
             <div class="text-center py-3 text-muted" x-show="lineData.loading" x-text="'Scanning line ' + (idx + 1) + '…'"></div>
             <!-- Error -->
             <div class="alert alert-danger py-2" x-show="lineData.error && !lineData.loading" x-text="'Line ' + (idx + 1) + ': ' + lineData.error"></div>
-            <!-- Result: compute from lineData.result only; Alpine re-renders only when result changes -->
+            <!-- Result: memoized getters return stable array refs for same result, reducing re-renders -->
             <div x-show="lineData.result" :class="{'opacity-50': lineData.loading}">
                 <h5 class="text-center urdu-text mb-4" dir="rtl" lang="ur" x-text="lineData.result?.original_line || lineData.lineText || ''"></h5>
                 <div class="scansion-grid-wrapper" x-data="{
@@ -87,8 +87,14 @@
             loading: false,
             updatingResults: false,
             debounceTimer: null,
+            _wordsCache: null,
+            _syllablesCache: null,
+            _feetCache: null,
 
             init() {
+                this._wordsCache = new WeakMap();
+                this._syllablesCache = new WeakMap();
+                this._feetCache = new WeakMap();
                 this.$watch('text', (value) => {
                     if (this.debounceTimer) clearTimeout(this.debounceTimer);
                     if (value.trim()) {
@@ -110,22 +116,28 @@
 
             getWordsWithBoundaries(result) {
                 if (!result || !result.word_boundaries || !result.original_line) return [];
+                const cached = this._wordsCache.get(result);
+                if (cached !== undefined) return cached;
                 const words = result.original_line.trim().split(/\s+/).filter(w => w.length > 0);
                 const boundaries = result.word_boundaries;
                 const deviations = result.deviations || [];
                 const insertions = deviations.filter(dev => dev.type === 'insert');
-                return boundaries.map(wb => {
+                const value = boundaries.map(wb => {
                     let span = wb.code_end - wb.code_start;
                     insertions.forEach(ins => {
                         if (ins.code_pos >= wb.code_start && ins.code_pos < wb.code_end) span += 1;
                     });
                     return { word_index: wb.word_index, word: words[wb.word_index] || '', span };
                 });
+                this._wordsCache.set(result, value);
+                return value;
             },
 
             getSyllablesWithDeviations(result) {
                 const codeStr = this.getDisplayCode(result);
                 if (!result || !codeStr) return [];
+                const cached = this._syllablesCache.get(result);
+                if (cached !== undefined) return cached;
                 const code = codeStr.split('');
                 const deviations = result.deviations || [];
                 const deviationMap = new Map();
@@ -142,21 +154,26 @@
                 insertions.forEach(ins => {
                     syllables.splice(ins.code_pos, 0, { char: '', index: ins.code_pos, deviationType: 'insert', expected: ins.expected });
                 });
+                this._syllablesCache.set(result, syllables);
                 return syllables;
             },
 
             getFeetWithBoundaries(result) {
                 if (!result || !result.feet_list || !result.full_code) return [];
+                const cached = this._feetCache.get(result);
+                if (cached !== undefined) return cached;
                 const feet = result.feet_list;
                 const deviations = result.deviations || [];
                 const insertions = deviations.filter(dev => dev.type === 'insert');
-                return feet.map(seg => {
+                const value = feet.map(seg => {
                     let span = seg.end - seg.start;
                     insertions.forEach(ins => {
                         if (ins.code_pos >= seg.start && ins.code_pos < seg.end) span += 1;
                     });
                     return { foot: seg.foot, start: seg.start, span };
                 });
+                this._feetCache.set(result, value);
+                return value;
             },
 
             getBahrLabel(result) {
