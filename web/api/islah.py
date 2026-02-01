@@ -182,7 +182,7 @@ def handle(request):
 
         num_feet = len(foot_segments)
         feet_ok = num_syllables >= 4 and num_feet >= 1
-        meter_ok = num_feet >= 3 or has_multiple_lines
+        meter_ok = num_feet >= 2 or has_multiple_lines
 
         if not syllables_ok:
             return {
