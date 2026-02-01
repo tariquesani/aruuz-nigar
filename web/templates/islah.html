@@ -18,23 +18,24 @@
         <div class="mb-3">
             <label for="islah-text" class="form-label">Enter Urdu Poetry Lines (one per line)</label>
             <textarea id="islah-text" class="form-control form-control-lg urdu-input mb-3" dir="rtl" lang="ur" rows="5"
-                placeholder="Start typing your poetry here..." x-model="text" :disabled="loading"></textarea>
+                placeholder="Start typing your poetry here..." x-model="text" :disabled="loading"
+                @keydown.space="setTimeout(() => silentUpdate(), 0)"></textarea>
         </div>
         <button type="submit" class="btn btn-primary" :disabled="loading">
-            <span x-show="!loading" x-transition>Submit</span>
-            <span x-show="loading" x-transition>Submitting…</span>
+            <span x-show="!loading">Submit</span>
+            <span x-show="loading">Submitting…</span>
         </button>
     </form>
 
-    <!-- Scansion grid: one row = one grid; each syllable = one column -->
-    <div class="my-3" x-show="result && result.full_code" x-transition>
+    <!-- Scansion grid: syllables, words, feet rows each have one grid; each syllable = one column -->
+    <div class="my-3" x-show="result && displayCode">
         <!-- Words row -->
         <div class="scansion-row words-row">
             <template x-for="wordData in wordsWithBoundaries" :key="wordData.word_index">
                 <div class="word-cell" :style="`grid-column: span ${wordData.span}`" x-text="wordData.word"></div>
             </template>
         </div>
-
+        <!-- Syllables row -->
         <div class="scansion-row">
             <template x-for="(syllable, i) in syllablesWithDeviations" :key="i">
                 <span class="syllable" :class="syllable.deviationType || ''" x-text="syllable.char || ''"></span>
@@ -49,7 +50,7 @@
         </div>
     </div>
 
-    <div x-show="response !== ''" x-transition>
+    <div x-show="response !== ''">
         <label class="form-label">Response</label>
         <pre class="bg-light border rounded p-3 overflow-auto mb-0" x-text="response"></pre>
     </div>
@@ -64,6 +65,27 @@
             response: '',
             result: null,
             loading: false,
+            debounceTimer: null,
+
+            init() {
+                this.$watch('text', (value) => {
+                    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+                    if (value.trim()) {
+                        this.debounceTimer = setTimeout(() => {
+                            this.debounceTimer = null;
+                            if (!this.loading) this.silentUpdate();
+                        }, 3000);
+                    }
+                });
+            },
+
+            get displayCode() {
+                if (!this.result) return '';
+                const useMeterPattern = this.result.analysis_level === 'meter' &&
+                    (this.result.summary?.conforms_exactly === true || !!this.result.inferred_meter) &&
+                    this.result.meter_pattern;
+                return useMeterPattern ? this.result.meter_pattern : (this.result.full_code || '');
+            },
 
             get wordsWithBoundaries() {
                 if (!this.result || !this.result.word_boundaries || !this.result.original_line) {
@@ -96,11 +118,12 @@
             },
 
             get syllablesWithDeviations() {
-                if (!this.result || !this.result.full_code) {
+                const codeStr = this.displayCode;
+                if (!this.result || !codeStr) {
                     return [];
                 }
 
-                const code = this.result.full_code.split('');
+                const code = codeStr.split('');
                 const deviations = this.result.deviations || [];
 
                 // Build a map of deviations by code_pos
@@ -166,29 +189,44 @@
             },
 
             async submit() {
-                this.loading = true;
-                this.response = '';
-                this.result = null;
+                return this.doFetch(true);
+            },
+
+            async silentUpdate() {
+                return this.doFetch(false);
+            },
+
+            async doFetch(explicit) {
+                if (this.debounceTimer) {
+                    clearTimeout(this.debounceTimer);
+                    this.debounceTimer = null;
+                }
+                const textarea = document.getElementById('islah-text');
+                if (explicit) this.loading = true;
                 try {
                     const res = await fetch('/api/islah', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ text: this.text }),
                     });
-                    this.response = await res.text();
+                    const raw = await res.text();
                     if (!res.ok) {
-                        this.response = this.response || `HTTP ${res.status}`;
+                        this.response = raw || `HTTP ${res.status}`;
+                        this.result = null;
                     } else {
                         try {
-                            this.result = JSON.parse(this.response);
+                            this.result = JSON.parse(raw);
+                            this.response = raw;
                         } catch (_) {
                             this.result = null;
+                            this.response = raw;
                         }
                     }
                 } catch (err) {
                     this.response = err.message || 'Request failed';
                 } finally {
-                    this.loading = false;
+                    if (explicit) this.loading = false;
+                    if (explicit) this.$nextTick(() => textarea?.focus());
                 }
             },
         }));
