@@ -21,36 +21,39 @@
             <span class="ms-3"><code class="text-dark">X</code> flexible (short or long)</span>
         </small>
     </div>
-    <!-- Scansion grid: original line above, then words/syllables/feet rows -->
-    <div class="my-3" x-show="result && displayCode">
-        <!-- Original line above grid (same as index.html) -->
-        <h5 class="text-center urdu-text mb-4" dir="rtl" lang="ur" x-text="result && result.original_line ? result.original_line : ''"></h5>
-        <!-- Centered grid: words, syllables, feet -->
-        <div class="scansion-grid-wrapper">
-            <!-- Words row -->
-            <div class="scansion-row words-row">
-                <template x-for="wordData in wordsWithBoundaries" :key="wordData.word_index">
-                    <div class="word-cell" :style="`grid-column: span ${wordData.span}`" x-text="wordData.word"></div>
-                </template>
-            </div>
-            <!-- Syllables row -->
-            <div class="scansion-row">
-                <template x-for="(syllable, i) in syllablesWithDeviations" :key="i">
-                    <span class="syllable" :class="syllable.deviationType || ''" x-text="syllable.char || ''"></span>
-                </template>
-            </div>
-            <!-- Feet row -->
-            <div class="scansion-row feet-row">
-                <template x-for="(footData, footIndex) in feetWithBoundaries" :key="footData.start">
-                    <div class="foot-cell" :class="{ 'foot-cell-alt': footIndex % 2 === 1 }" :style="`grid-column: span ${footData.span}`" x-text="footData.foot"></div>
-                </template>
+    <!-- One block per line: original line, grid, bahr (+ deviations when inferred) -->
+    <template x-for="(lineData, idx) in lineResults" :key="idx">
+        <div class="my-5">
+            <!-- Loading -->
+            <div class="text-center py-3 text-muted" x-show="lineData.loading" x-text="'Scanning line ' + (idx + 1) + '…'"></div>
+            <!-- Error -->
+            <div class="alert alert-danger py-2" x-show="lineData.error && !lineData.loading" x-text="'Line ' + (idx + 1) + ': ' + lineData.error"></div>
+            <!-- Result: original line + grid + bahr -->
+            <div x-show="lineData.result && getDisplayCode(lineData.result)">
+                <h5 class="text-center urdu-text mb-4" dir="rtl" lang="ur" x-text="lineData.result.original_line || lineData.lineText || ''"></h5>
+                <div class="scansion-grid-wrapper">
+                    <div class="scansion-row words-row">
+                        <template x-for="wordData in getWordsWithBoundaries(lineData.result)" :key="wordData.word_index">
+                            <div class="word-cell" :style="'grid-column: span ' + wordData.span" x-text="wordData.word"></div>
+                        </template>
+                    </div>
+                    <div class="scansion-row">
+                        <template x-for="(syllable, i) in getSyllablesWithDeviations(lineData.result)" :key="i">
+                            <span class="syllable" :class="syllable.deviationType || ''" x-text="syllable.char || ''"></span>
+                        </template>
+                    </div>
+                    <div class="scansion-row feet-row">
+                        <template x-for="(footData, footIndex) in getFeetWithBoundaries(lineData.result)" :key="footData.start">
+                            <div class="foot-cell" :class="{ 'foot-cell-alt': footIndex % 2 === 1 }" :style="'grid-column: span ' + footData.span" x-text="footData.foot"></div>
+                        </template>
+                    </div>
+                </div>
+                <div class="text-center mt-3" x-show="getBahrLabel(lineData.result) && getBahrName(lineData.result)">
+                    <h6><span x-text="getBahrLabel(lineData.result)"></span><span dir="rtl" lang="ur" class="urdu-text" :data-bs-title="getBahrTooltip(lineData.result)" :data-bs-toggle="getBahrTooltip(lineData.result) ? 'tooltip' : null" data-bs-placement="top" x-text="getBahrName(lineData.result)"></span><span class="small text-muted" x-show="getDeviationsExplanationLine(lineData.result)" x-text="getDeviationsExplanationLine(lineData.result) ? '. ' + getDeviationsExplanationLine(lineData.result) : ''"></span></h6>
+                </div>
             </div>
         </div>
-        <!-- Bahr line below grid: Exact match: / Almost matches: + meter name (+ deviation messages on same line when inferred) -->
-        <div class="text-center mt-3" x-show="bahrLabel && bahrName">
-            <h6><span x-text="bahrLabel"></span><span dir="rtl" lang="ur" class="urdu-text" :data-bs-title="bahrTooltip" :data-bs-toggle="bahrTooltip ? 'tooltip' : null" data-bs-placement="top" x-text="bahrName"></span><span class="small text-muted" x-show="deviationsExplanationLine" x-text="deviationsExplanationLine ? '. ' + deviationsExplanationLine : ''"></span></h6>
-        </div>
-    </div>
+    </template>
 
     <form @submit.prevent="submit" class="mb-4">
         <div class="mb-3">
@@ -66,11 +69,6 @@
     </form>
 
 
-    <div x-show="response !== ''">
-        <label class="form-label">Response</label>
-        <pre class="bg-light border rounded p-3 overflow-auto mb-0" x-text="response"></pre>
-    </div>
-
 </div>
 
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
@@ -78,8 +76,8 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('islahApp', () => ({
             text: '',
-            response: '',
-            result: null,
+            lineResults: [],
+            previousLines: [],
             loading: false,
             debounceTimer: null,
 
@@ -95,200 +93,170 @@
                 });
             },
 
-            get displayCode() {
-                if (!this.result) return '';
-                const useMeterPattern = this.result.analysis_level === 'meter' &&
-                    (this.result.summary?.conforms_exactly === true || !!this.result.inferred_meter) &&
-                    this.result.meter_pattern;
-                return useMeterPattern ? this.result.meter_pattern : (this.result.full_code || '');
+            getDisplayCode(result) {
+                if (!result) return '';
+                const useMeterPattern = result.analysis_level === 'meter' &&
+                    (result.summary?.conforms_exactly === true || !!result.inferred_meter) &&
+                    result.meter_pattern;
+                return useMeterPattern ? result.meter_pattern : (result.full_code || '');
             },
 
-            get wordsWithBoundaries() {
-                if (!this.result || !this.result.word_boundaries || !this.result.original_line) {
-                    return [];
-                }
-
-                // Split original line into words (handle Urdu text - split on spaces)
-                const words = this.result.original_line.trim().split(/\s+/).filter(w => w.length > 0);
-                const boundaries = this.result.word_boundaries;
-
-                // Account for insertions when calculating span
-                const deviations = this.result.deviations || [];
+            getWordsWithBoundaries(result) {
+                if (!result || !result.word_boundaries || !result.original_line) return [];
+                const words = result.original_line.trim().split(/\s+/).filter(w => w.length > 0);
+                const boundaries = result.word_boundaries;
+                const deviations = result.deviations || [];
                 const insertions = deviations.filter(dev => dev.type === 'insert');
-
                 return boundaries.map(wb => {
-                    // Calculate span accounting for insertions within this word's range
                     let span = wb.code_end - wb.code_start;
                     insertions.forEach(ins => {
-                        if (ins.code_pos >= wb.code_start && ins.code_pos < wb.code_end) {
-                            span += 1; // Each insertion adds one column
-                        }
+                        if (ins.code_pos >= wb.code_start && ins.code_pos < wb.code_end) span += 1;
                     });
-
-                    return {
-                        word_index: wb.word_index,
-                        word: words[wb.word_index] || '',
-                        span: span,
-                    };
+                    return { word_index: wb.word_index, word: words[wb.word_index] || '', span };
                 });
             },
 
-            get syllablesWithDeviations() {
-                const codeStr = this.displayCode;
-                if (!this.result || !codeStr) {
-                    return [];
-                }
-
+            getSyllablesWithDeviations(result) {
+                const codeStr = this.getDisplayCode(result);
+                if (!result || !codeStr) return [];
                 const code = codeStr.split('');
-                const deviations = this.result.deviations || [];
-
-                // Build a map of deviations by code_pos
+                const deviations = result.deviations || [];
                 const deviationMap = new Map();
                 deviations.forEach(dev => {
-                    if (dev.type === 'substitute' || dev.type === 'delete') {
-                        deviationMap.set(dev.code_pos, dev);
-                    }
+                    if (dev.type === 'substitute' || dev.type === 'delete') deviationMap.set(dev.code_pos, dev);
                 });
-
-                // Build array of syllables with deviation info
                 const syllables = code.map((char, index) => ({
-                    char: char,
-                    index: index,
+                    char,
+                    index,
                     deviationType: deviationMap.has(index) ? deviationMap.get(index).type : null,
                     expected: deviationMap.has(index) ? deviationMap.get(index).expected : null,
                 }));
-
-                // Insert placeholder entries for insertions (sorted by code_pos descending to maintain order)
-                const insertions = deviations
-                    .filter(dev => dev.type === 'insert')
-                    .sort((a, b) => b.code_pos - a.code_pos); // Sort descending to insert from end
-
+                const insertions = deviations.filter(dev => dev.type === 'insert').sort((a, b) => b.code_pos - a.code_pos);
                 insertions.forEach(ins => {
-                    // Insert at code_pos (before the syllable at that position)
-                    syllables.splice(ins.code_pos, 0, {
-                        char: '',
-                        index: ins.code_pos,
-                        deviationType: 'insert',
-                        expected: ins.expected,
-                    });
+                    syllables.splice(ins.code_pos, 0, { char: '', index: ins.code_pos, deviationType: 'insert', expected: ins.expected });
                 });
-
                 return syllables;
             },
 
-            get feetWithBoundaries() {
-                if (!this.result || !this.result.feet_list || !this.result.full_code) {
-                    return [];
-                }
-
-                const feet = this.result.feet_list;
-                const deviations = this.result.deviations || [];
+            getFeetWithBoundaries(result) {
+                if (!result || !result.feet_list || !result.full_code) return [];
+                const feet = result.feet_list;
+                const deviations = result.deviations || [];
                 const insertions = deviations.filter(dev => dev.type === 'insert');
-
                 return feet.map(seg => {
-                    // Base span from start/end in code indices
                     let span = seg.end - seg.start;
-
-                    // Account for insertions that fall within this foot's range
                     insertions.forEach(ins => {
-                        if (ins.code_pos >= seg.start && ins.code_pos < seg.end) {
-                            span += 1;
-                        }
+                        if (ins.code_pos >= seg.start && ins.code_pos < seg.end) span += 1;
                     });
-
-                    return {
-                        foot: seg.foot,
-                        start: seg.start,
-                        span: span,
-                    };
+                    return { foot: seg.foot, start: seg.start, span };
                 });
             },
 
-            get bahrLabel() {
-                if (!this.result || this.result.analysis_level !== 'meter') return '';
-                if (this.result.summary && this.result.summary.conforms_exactly === true) return 'Exact match: ';
-                if (this.result.inferred_meter && this.result.inferred_meter.meter_name) return 'Almost matches: ';
+            getBahrLabel(result) {
+                if (!result || result.analysis_level !== 'meter') return '';
+                if (result.summary && result.summary.conforms_exactly === true) return 'Exact match: ';
+                if (result.inferred_meter && result.inferred_meter.meter_name) return 'Almost matches: ';
                 return '';
             },
 
-            get bahrName() {
-                if (!this.result || this.result.analysis_level !== 'meter') return '';
-                if (this.result.summary && this.result.summary.conforms_exactly === true && this.result.meters && this.result.meters[0]) {
-                    return this.result.meters[0].meter_name || '';
-                }
-                if (this.result.inferred_meter && this.result.inferred_meter.meter_name) {
-                    return this.result.inferred_meter.meter_name;
-                }
+            getBahrName(result) {
+                if (!result || result.analysis_level !== 'meter') return '';
+                if (result.summary && result.summary.conforms_exactly === true && result.meters && result.meters[0])
+                    return result.meters[0].meter_name || '';
+                if (result.inferred_meter && result.inferred_meter.meter_name) return result.inferred_meter.meter_name;
                 return '';
             },
 
-            get bahrTooltip() {
-                if (!this.result) return '';
-                if (this.result.inferred_meter && this.result.inferred_meter.meter_roman) return this.result.inferred_meter.meter_roman;
-                if (this.result.meters && this.result.meters[0] && this.result.meters[0].meter_roman) return this.result.meters[0].meter_roman;
+            getBahrTooltip(result) {
+                if (!result) return '';
+                if (result.inferred_meter && result.inferred_meter.meter_roman) return result.inferred_meter.meter_roman;
+                if (result.meters && result.meters[0] && result.meters[0].meter_roman) return result.meters[0].meter_roman;
                 return '';
             },
 
-            get deviationsExplanation() {
-                if (!this.result || !this.result.inferred_meter || !this.result.deviations || !this.result.deviations.length) {
-                    return [];
-                }
-                return this.result.deviations.map(dev => {
+            getDeviationsExplanation(result) {
+                if (!result || !result.inferred_meter || !result.deviations || !result.deviations.length) return [];
+                return result.deviations.map(dev => {
                     const pos = dev.code_pos;
-                    if (dev.type === 'substitute') {
-                        return `Substitute ${dev.current ?? ''} with ${dev.expected ?? ''} at position ${pos}.`;
-                    }
-                    if (dev.type === 'insert') {
-                        return `Insert ${dev.expected ?? ''} at position ${pos}.`;
-                    }
-                    if (dev.type === 'delete') {
-                        return `Delete ${dev.current ?? ''} at position ${pos}.`;
-                    }
+                    if (dev.type === 'substitute') return `Substitute ${dev.current ?? ''} with ${dev.expected ?? ''} at position ${pos}.`;
+                    if (dev.type === 'insert') return `Insert ${dev.expected ?? ''} at position ${pos}.`;
+                    if (dev.type === 'delete') return `Delete ${dev.current ?? ''} at position ${pos}.`;
                     return '';
                 }).filter(Boolean);
             },
 
-            get deviationsExplanationLine() {
-                const lines = this.deviationsExplanation;
+            getDeviationsExplanationLine(result) {
+                const lines = this.getDeviationsExplanation(result);
                 return lines.length ? lines.join(' ') : '';
             },
 
-            async submit() {
-                return this.doFetch(true);
-            },
+            async submit() { return this.runLines(true); },
+            async silentUpdate() { return this.runLines(false); },
 
-            async silentUpdate() {
-                return this.doFetch(false);
-            },
-
-            async doFetch(explicit) {
+            async runLines(explicit) {
                 if (this.debounceTimer) {
                     clearTimeout(this.debounceTimer);
                     this.debounceTimer = null;
                 }
                 const textarea = document.getElementById('islah-text');
+                const currentLines = this.text.split('\n').map(l => l.trim()).filter(Boolean);
+
+                if (currentLines.length === 0) {
+                    this.lineResults = [];
+                    this.previousLines = [];
+                    if (explicit) this.$nextTick(() => textarea?.focus());
+                    return;
+                }
+
+                const needFetch = [];
+                for (let i = 0; i < currentLines.length; i++) {
+                    if (i >= this.previousLines.length || currentLines[i] !== this.previousLines[i]) needFetch.push(i);
+                }
+
+                const newLineResults = currentLines.map((lineText, i) => {
+                    if (needFetch.includes(i)) {
+                        return { lineIndex: i, lineText, result: null, error: null, loading: true };
+                    }
+                    return (this.lineResults[i] && this.lineResults[i].lineText === lineText)
+                        ? this.lineResults[i]
+                        : { lineIndex: i, lineText, result: null, error: null, loading: false };
+                });
+
+                this.lineResults = newLineResults;
                 if (explicit) this.loading = true;
+
                 try {
-                    const res = await fetch('/api/islah', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: this.text }),
-                    });
-                    const raw = await res.text();
-                    if (!res.ok) {
-                        this.response = raw || `HTTP ${res.status}`;
-                        this.result = null;
-                    } else {
+                    for (const i of needFetch) {
                         try {
-                            this.result = JSON.parse(raw);
-                            this.response = raw;
-                        } catch (_) {
-                            this.result = null;
-                            this.response = raw;
+                            const res = await fetch('/api/islah', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ text: currentLines[i] }),
+                            });
+                            const raw = await res.text();
+                            if (!res.ok) {
+                                this.lineResults = this.lineResults.map((entry, idx) =>
+                                    idx === i ? { ...entry, result: null, error: raw || `HTTP ${res.status}`, loading: false } : entry
+                                );
+                            } else {
+                                try {
+                                    const result = JSON.parse(raw);
+                                    this.lineResults = this.lineResults.map((entry, idx) =>
+                                        idx === i ? { ...entry, result, error: null, loading: false } : entry
+                                    );
+                                } catch (_) {
+                                    this.lineResults = this.lineResults.map((entry, idx) =>
+                                        idx === i ? { ...entry, result: null, error: 'Invalid JSON', loading: false } : entry
+                                    );
+                                }
+                            }
+                        } catch (err) {
+                            this.lineResults = this.lineResults.map((entry, idx) =>
+                                idx === i ? { ...entry, result: null, error: err.message || 'Request failed', loading: false } : entry
+                            );
                         }
                     }
-                } catch (err) {
-                    this.response = err.message || 'Request failed';
+                    this.previousLines = currentLines.slice();
                 } finally {
                     if (explicit) this.loading = false;
                     if (explicit) this.$nextTick(() => textarea?.focus());
