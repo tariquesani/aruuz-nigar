@@ -323,6 +323,14 @@ footer {
     font-weight: 300; /* Light weight for finer strokes */
 }
 
+/* Centered wrapper for scansion grid (words, syllables, feet rows); no scrollbar */
+.scansion-grid-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: visible;
+}
+
 /* Grid container: fixed-width syllable columns, RTL flow */
 .scansion-row {
     display: grid;
@@ -330,18 +338,21 @@ footer {
     grid-auto-columns: 2.5rem;   /* fixed syllable width */
     /* column-gap: 0.25rem; */
     direction: rtl;
-    overflow-x: auto;            /* allow horizontal growth */
+    overflow: visible;            /* no scrollbars on rows; wrapper scrolls */
     white-space: nowrap;
   }
   
-  /* Individual syllable cell */
+  /* Individual syllable cell (match index.html code cell: large, bold) */
   .syllable {
     width: 2.5rem;
+    min-width: 2.5rem;
     text-align: center;
     font-family: monospace;
-    padding: 0.25rem 0;
-    border: 1px solid #ddd;
-    /* border-radius: 0.25rem; */
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #212529;
+    padding: 0.35rem 0;
+    border: 1px solid #dee2e6;
     unicode-bidi: isolate;
   }
 
@@ -371,18 +382,18 @@ footer {
     direction: rtl;
   }
   
-  /* Word cell spanning multiple syllables */
+  /* Word cell spanning multiple syllables (match index.html: no visible border, 1.1rem) */
   .word-cell {
     min-height: 2.5rem;
-    border: 1px dashed #ccc;   /* temporary, alignment only */
-    /* border-radius: 0.25rem; */
+    border: 1px solid #dee2e6;
+    border-bottom: none;
     text-align: center;
     font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
+    font-size: 1.1rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding-bottom: 0.5rem;
-    
+    padding: 0.4rem 0.25rem 0.5rem;
   }
   
   /* Feet row: same grid behavior as syllable/word rows */
@@ -393,15 +404,20 @@ footer {
     direction: rtl;
   }
 
-  /* Foot cell spanning multiple syllables (foot segment) */
+  /* Foot cell spanning multiple syllables (match index.html: alternating bg, 1.1rem) */
   .foot-cell {
     min-height: 2.5rem;
-    border: 1px solid #bbb;
+    border: 1px solid #dee2e6;
     text-align: center;
     font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
+    font-size: 1.1rem;
+    background-color: #e9ecef;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding-top: 0.25rem;
-    padding-bottom: 0.25rem;
+    padding: 0.4rem 0.25rem;
+  }
+
+  .foot-cell-alt {
+    background-color: white;
   }

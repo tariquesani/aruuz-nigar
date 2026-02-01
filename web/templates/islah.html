@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Islah — Aruuz Nigar{% endblock %}
+{% block title %}Urdu Poetry Islah Tool — Aruuz Nigar{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -12,7 +12,45 @@
 
 {% block content %}
 <div class="container my-5" x-data="islahApp()" x-cloak>
-    <h1 class="text-center mb-4">Islah</h1>
+    <h1 class="text-center mb-4">Aruuz Nigar: Urdu Poetry Islah Tool</h1>
+    <div class="alert alert-light border mb-2 py-1" role="alert">
+        <small class="text-muted">
+            <strong>Legend:</strong>
+            <span class="ms-2"><code class="text-dark">–</code> short syllable</span>
+            <span class="ms-3"><code class="text-dark">=</code> long syllable</span>
+            <span class="ms-3"><code class="text-dark">X</code> flexible (short or long)</span>
+        </small>
+    </div>
+    <!-- Scansion grid: original line above, then words/syllables/feet rows -->
+    <div class="my-3" x-show="result && displayCode">
+        <!-- Original line above grid (same as index.html) -->
+        <h5 class="text-center urdu-text mb-4" dir="rtl" lang="ur" x-text="result && result.original_line ? result.original_line : ''"></h5>
+        <!-- Centered grid: words, syllables, feet -->
+        <div class="scansion-grid-wrapper">
+            <!-- Words row -->
+            <div class="scansion-row words-row">
+                <template x-for="wordData in wordsWithBoundaries" :key="wordData.word_index">
+                    <div class="word-cell" :style="`grid-column: span ${wordData.span}`" x-text="wordData.word"></div>
+                </template>
+            </div>
+            <!-- Syllables row -->
+            <div class="scansion-row">
+                <template x-for="(syllable, i) in syllablesWithDeviations" :key="i">
+                    <span class="syllable" :class="syllable.deviationType || ''" x-text="syllable.char || ''"></span>
+                </template>
+            </div>
+            <!-- Feet row -->
+            <div class="scansion-row feet-row">
+                <template x-for="(footData, footIndex) in feetWithBoundaries" :key="footData.start">
+                    <div class="foot-cell" :class="{ 'foot-cell-alt': footIndex % 2 === 1 }" :style="`grid-column: span ${footData.span}`" x-text="footData.foot"></div>
+                </template>
+            </div>
+        </div>
+        <!-- Bahr line below grid: Exact match: / Almost matches: + meter name (+ deviation messages on same line when inferred) -->
+        <div class="text-center mt-3" x-show="bahrLabel && bahrName">
+            <h6><span x-text="bahrLabel"></span><span dir="rtl" lang="ur" class="urdu-text" :data-bs-title="bahrTooltip" :data-bs-toggle="bahrTooltip ? 'tooltip' : null" data-bs-placement="top" x-text="bahrName"></span><span class="small text-muted" x-show="deviationsExplanationLine" x-text="deviationsExplanationLine ? '. ' + deviationsExplanationLine : ''"></span></h6>
+        </div>
+    </div>
 
     <form @submit.prevent="submit" class="mb-4">
         <div class="mb-3">
@@ -27,28 +65,6 @@
         </button>
     </form>
 
-    <!-- Scansion grid: syllables, words, feet rows each have one grid; each syllable = one column -->
-    <div class="my-3" x-show="result && displayCode">
-        <!-- Words row -->
-        <div class="scansion-row words-row">
-            <template x-for="wordData in wordsWithBoundaries" :key="wordData.word_index">
-                <div class="word-cell" :style="`grid-column: span ${wordData.span}`" x-text="wordData.word"></div>
-            </template>
-        </div>
-        <!-- Syllables row -->
-        <div class="scansion-row">
-            <template x-for="(syllable, i) in syllablesWithDeviations" :key="i">
-                <span class="syllable" :class="syllable.deviationType || ''" x-text="syllable.char || ''"></span>
-            </template>
-        </div>
-
-        <!-- Feet row -->
-        <div class="scansion-row feet-row">
-            <template x-for="footData in feetWithBoundaries" :key="footData.start">
-                <div class="foot-cell" :style="`grid-column: span ${footData.span}`" x-text="footData.foot"></div>
-            </template>
-        </div>
-    </div>
 
     <div x-show="response !== ''">
         <label class="form-label">Response</label>
@@ -99,7 +115,7 @@
                 // Account for insertions when calculating span
                 const deviations = this.result.deviations || [];
                 const insertions = deviations.filter(dev => dev.type === 'insert');
-                
+
                 return boundaries.map(wb => {
                     // Calculate span accounting for insertions within this word's range
                     let span = wb.code_end - wb.code_start;
@@ -108,7 +124,7 @@
                             span += 1; // Each insertion adds one column
                         }
                     });
-                    
+
                     return {
                         word_index: wb.word_index,
                         word: words[wb.word_index] || '',
@@ -186,6 +202,55 @@
                         span: span,
                     };
                 });
+            },
+
+            get bahrLabel() {
+                if (!this.result || this.result.analysis_level !== 'meter') return '';
+                if (this.result.summary && this.result.summary.conforms_exactly === true) return 'Exact match: ';
+                if (this.result.inferred_meter && this.result.inferred_meter.meter_name) return 'Almost matches: ';
+                return '';
+            },
+
+            get bahrName() {
+                if (!this.result || this.result.analysis_level !== 'meter') return '';
+                if (this.result.summary && this.result.summary.conforms_exactly === true && this.result.meters && this.result.meters[0]) {
+                    return this.result.meters[0].meter_name || '';
+                }
+                if (this.result.inferred_meter && this.result.inferred_meter.meter_name) {
+                    return this.result.inferred_meter.meter_name;
+                }
+                return '';
+            },
+
+            get bahrTooltip() {
+                if (!this.result) return '';
+                if (this.result.inferred_meter && this.result.inferred_meter.meter_roman) return this.result.inferred_meter.meter_roman;
+                if (this.result.meters && this.result.meters[0] && this.result.meters[0].meter_roman) return this.result.meters[0].meter_roman;
+                return '';
+            },
+
+            get deviationsExplanation() {
+                if (!this.result || !this.result.inferred_meter || !this.result.deviations || !this.result.deviations.length) {
+                    return [];
+                }
+                return this.result.deviations.map(dev => {
+                    const pos = dev.code_pos;
+                    if (dev.type === 'substitute') {
+                        return `Substitute ${dev.current ?? ''} with ${dev.expected ?? ''} at position ${pos}.`;
+                    }
+                    if (dev.type === 'insert') {
+                        return `Insert ${dev.expected ?? ''} at position ${pos}.`;
+                    }
+                    if (dev.type === 'delete') {
+                        return `Delete ${dev.current ?? ''} at position ${pos}.`;
+                    }
+                    return '';
+                }).filter(Boolean);
+            },
+
+            get deviationsExplanationLine() {
+                const lines = this.deviationsExplanation;
+                return lines.length ? lines.join(' ') : '';
             },
 
             async submit() {
