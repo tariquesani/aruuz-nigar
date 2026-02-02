@@ -61,19 +61,32 @@
     </template>
     </div>
 
-    <form @submit.prevent="submit" class="mb-4">
-        <div class="mb-3">
-            <label for="islah-text" class="form-label">Enter Urdu Poetry Lines (one per line)</label>
-            <textarea id="islah-text" class="form-control form-control-lg urdu-input mb-3" dir="rtl" lang="ur" rows="5"
-                placeholder="Start typing your poetry here..." x-model="text" :disabled="loading"
-                @keydown.space="setTimeout(() => silentUpdate(), 0)"></textarea>
+    <!-- Poem Bahr: same style as index.html, shown when 6+ lines -->
+    <div class="card mt-4" x-show="lineResults.length >= 6">
+        <div class="card-body">
+            <div class="text-muted small text-center mb-0" x-show="poemDominantLoading" x-text="'Determining poem bahr…'"></div>
+            <h5 class="text-center urdu-text mb-0" x-show="poemDominant && poemDominant.meter_name && !poemDominantLoading">
+                Poem Bahr: <span dir="rtl" lang="ur" class="urdu-text" :data-bs-title="poemDominant && poemDominant.meter_roman ? poemDominant.meter_roman : ''" :data-bs-toggle="(poemDominant && poemDominant.meter_roman) ? 'tooltip' : null" data-bs-placement="top" x-text="poemDominant ? (poemDominant.meter_name || '') : ''"></span>
+            </h5>
+            <div class="text-muted small text-center mb-0" x-show="lineResults.length >= 6 && !poemDominantLoading && (!poemDominant || !poemDominant.meter_name)" x-text="'No dominant meter could be determined.'"></div>
         </div>
-        <button type="submit" class="btn btn-primary btn-lg w-100 py-2" :disabled="loading">
-            <span x-show="!loading">Rescan Lines</span>
-            <span x-show="loading">Submitting…</span>
-        </button>
-    </form>
+    </div>
 
+    <!-- Input Card: same structure as index.html -->
+    <div class="card mb-3 mt-4">
+        <div class="card-body py-3">
+            <form @submit.prevent="submit">
+                <label for="islah-text" class="form-label">Enter Urdu Poetry Lines (one per line)</label>
+                <textarea id="islah-text" class="form-control form-control-lg urdu-input mb-3" dir="rtl" lang="ur" rows="5"
+                    placeholder="Start typing your poetry here..." x-model="text" :disabled="loading"
+                    @keydown.space="setTimeout(() => silentUpdate(), 0)"></textarea>
+                <button type="submit" class="btn btn-primary btn-lg w-100 py-2" :disabled="loading">
+                    <span x-show="!loading">Rescan Lines</span>
+                    <span x-show="loading">Submitting…</span>
+                </button>
+            </form>
+        </div>
+    </div>
 
 </div>
 
@@ -87,6 +100,8 @@
             loading: false,
             updatingResults: false,
             debounceTimer: null,
+            poemDominant: null,
+            poemDominantLoading: false,
             _wordsCache: null,
             _syllablesCache: null,
             _feetCache: null,
@@ -214,6 +229,49 @@
                 return lines.length ? lines.join(' ') : '';
             },
 
+            /** Get { meter_name, feet } from a line result for /api/meter/dominant, or null. */
+            getMeterPayloadForLine(result) {
+                if (!result) return null;
+                if (result.meters && result.meters[0]) {
+                    const m = result.meters[0];
+                    if (m.meter_name && m.feet) return { meter_name: m.meter_name, feet: m.feet };
+                }
+                if (result.inferred_meter && result.inferred_meter.meter_name && result.inferred_meter.feet)
+                    return { meter_name: result.inferred_meter.meter_name, feet: result.inferred_meter.feet };
+                return null;
+            },
+
+            async fetchDominantMeter() {
+                if (this.lineResults.length < 6) {
+                    this.poemDominant = null;
+                    return;
+                }
+                const results = [];
+                for (const lineData of this.lineResults) {
+                    const payload = this.getMeterPayloadForLine(lineData.result);
+                    if (payload) results.push(payload);
+                }
+                if (results.length === 0) {
+                    this.poemDominant = {};
+                    return;
+                }
+                this.poemDominantLoading = true;
+                this.poemDominant = null;
+                try {
+                    const res = await fetch('/api/meter/dominant', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ results }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    this.poemDominant = res.ok ? data : {};
+                } catch (_) {
+                    this.poemDominant = {};
+                } finally {
+                    this.poemDominantLoading = false;
+                }
+            },
+
             async submit() { return this.runLines(true); },
             async silentUpdate() { return this.runLines(false); },
 
@@ -228,6 +286,7 @@
                 if (currentLines.length === 0) {
                     this.lineResults = [];
                     this.previousLines = [];
+                    this.poemDominant = null;
                     if (explicit) this.$nextTick(() => textarea?.focus());
                     return;
                 }
@@ -290,6 +349,8 @@
                     }
                     this.lineResults = newLineResults;
                     this.previousLines = currentLines.slice();
+                    if (this.lineResults.length >= 6) this.fetchDominantMeter();
+                    else this.poemDominant = null;
                 } finally {
                     this.updatingResults = false;
                     if (explicit) this.loading = false;
