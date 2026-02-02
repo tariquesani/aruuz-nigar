@@ -57,3 +57,46 @@ data/*.db
 # Logs
 *.log
 aruuz/scansion/legacy_explanation_builder.py
+
+# All files in the MkDocs site 
+site/**  # MkDocs site
+site/404.html
+site/index.html
+site/sitemap.xml
+site/sitemap.xml.gz
+site/api/index.html
+site/css/base.css
+site/css/bootstrap.min.css
+site/css/bootstrap.min.css.map
+site/css/brands.min.css
+site/css/fontawesome.min.css
+site/css/solid.min.css
+site/css/v4-font-face.min.css
+site/guides/ambiguity/index.html
+site/guides/internals/scansion-data-flow.mmd
+site/guides/internals/engine-execution-flow/index.html
+site/guides/internals/scansion-data-flow/index.html
+site/guides/overview/index.html
+site/guides/pipeline/index.html
+site/img/favicon.ico
+site/img/grid.png
+site/js/base.js
+site/js/bootstrap.bundle.min.js
+site/js/bootstrap.bundle.min.js.map
+site/js/darkmode.js
+site/search/lunr.js
+site/search/main.js
+site/search/search_index.json
+site/search/worker.js
+site/webfonts/fa-brands-400.ttf
+site/webfonts/fa-brands-400.woff2
+site/webfonts/fa-regular-400.ttf
+site/webfonts/fa-regular-400.woff2
+site/webfonts/fa-solid-900.ttf
+site/webfonts/fa-solid-900.woff2
+site/webfonts/fa-v4compatibility.ttf
+site/webfonts/fa-v4compatibility.woff2
+site/js/external-links.js
+site/img/aruuznigar.svg
+CHANGELOG.md
+scripts/generate_changelog.py
