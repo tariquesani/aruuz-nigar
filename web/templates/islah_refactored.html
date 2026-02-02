@@ -176,6 +176,15 @@
 
             init() {
                 this.cache = new ResultCache();
+                this.initBahrTooltips = () => {
+                    const root = this.$el;
+                    if (!root || typeof bootstrap === 'undefined') return;
+                    root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                        const existing = bootstrap.Tooltip.getInstance(el);
+                        if (existing) existing.dispose();
+                        if (el.getAttribute('data-bs-title')) new bootstrap.Tooltip(el);
+                    });
+                };
                 this.$watch('text', (value) => {
                     if (this.debounceTimer) clearTimeout(this.debounceTimer);
                     if (value.trim()) {
@@ -281,7 +290,7 @@
             getDeviationsExplanation(result) {
                 if (!result || !result.inferred_meter || !result.deviations || !result.deviations.length) return [];
                 return result.deviations.map(dev => {
-                    const pos = dev.code_pos;
+                    const pos = dev.code_pos + 1;
                     if (dev.type === 'substitute') return `Substitute ${dev.current ?? ''} with ${dev.expected ?? ''} at position ${pos}.`;
                     if (dev.type === 'insert') return `Insert ${dev.expected ?? ''} at position ${pos}.`;
                     if (dev.type === 'delete') return `Delete ${dev.current ?? ''} at position ${pos}.`;
@@ -326,6 +335,7 @@
                     this.poemDominant = {};
                 } finally {
                     this.poemDominantLoading = false;
+                    this.$nextTick(() => this.initBahrTooltips());
                 }
             },
 
@@ -401,6 +411,7 @@
                 } finally {
                     this.updatingResults = false;
                     if (explicit) this.loading = false;
+                    this.$nextTick(() => this.initBahrTooltips());
                     if (explicit) this.$nextTick(() => textarea?.focus());
                 }
             },
