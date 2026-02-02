@@ -252,6 +252,7 @@ class Scansion:
                 so.words = fr.words
                 so.word_taqti = fr.word_taqti
                 so.meter_name = fr.meter_name
+                so.meter_roman = fr.meter_roman
                 so.feet = fr.feet
                 so.id = fr.id
                 so.is_dominant = True  # Fuzzy results are already filtered by resolve_dominant_meter_fuzzy
@@ -471,6 +472,7 @@ class Scansion:
               - 'original_line': Original line text
               - 'results': List of meter match results, each containing:
                 - 'meter_name': Name of the meter (or "No meter match found")
+                - 'meter_roman': Roman transliteration of the meter name (with diacritics), or empty if not available
                 - 'feet': Feet breakdown as string
                 - 'feet_list': List of dicts with 'foot' and 'code' keys
                 - 'word_codes': List of dicts with 'word', 'code', and 'explanation' keys.
@@ -509,6 +511,7 @@ class Scansion:
             return {
                 'line_results': [],
                 'poem_dominant_bahrs': [],
+                'poem_dominant_bahrs_roman': [],
                 'num_lines': 0,
                 'fuzzy_mode': self.fuzzy,
                 'free_verse_mode': self.free_verse,
@@ -530,6 +533,12 @@ class Scansion:
             so.meter_name for so in poem_scan_results
             if so.is_dominant and so.meter_name and so.meter_name != 'No meter match found'
         })
+        # Roman transliterations for dominant bahrs (same order as poem_dominant_bahrs)
+        name_to_roman: Dict[str, str] = {}
+        for so in poem_scan_results:
+            if so.meter_name and so.meter_name not in name_to_roman:
+                name_to_roman[so.meter_name] = getattr(so, 'meter_roman', '') or ''
+        poem_dominant_bahrs_roman = [name_to_roman.get(n, '') for n in poem_dominant_bahrs]
         
         # Step 3: Build comprehensive line_results structure for template/API
         for idx in range(self.num_lines):
@@ -565,6 +574,7 @@ class Scansion:
                     
                     line_result['results'].append({
                         'meter_name': so.meter_name,
+                        'meter_roman': so.meter_roman,
                         'feet': so.feet,
                         'feet_list': feet_list_dict,
                         'word_codes': self._build_word_codes(so),
@@ -602,6 +612,7 @@ class Scansion:
                 
                 line_result['results'].append({
                     'meter_name': 'No meter match found',
+                    'meter_roman': '',
                     'feet': '',
                     'word_codes': word_codes,
                     'full_code': ''.join(wc['code'] for wc in word_codes),
@@ -618,6 +629,7 @@ class Scansion:
         return {
             'line_results': line_results,
             'poem_dominant_bahrs': poem_dominant_bahrs,
+            'poem_dominant_bahrs_roman': poem_dominant_bahrs_roman,
             'num_lines': self.num_lines,
             'fuzzy_mode': self.fuzzy,
             'free_verse_mode': self.free_verse,

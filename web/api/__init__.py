@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-API package: discovery-based routing for /api/<keyword> endpoints.
+API package: discovery-based routing for /api endpoints.
 
-Each module (e.g. scan.py) defines handle(request) -> dict | tuple[dict, int].
+/api/<path> maps to <path_with_slashes_replaced_by_underscores>.py
+(e.g. /api/scan -> scan.py, /api/meter/dominant -> meter_dominant.py).
+
+Each module defines handle(request) -> dict | tuple[dict, int].
 """
 
 import importlib
@@ -26,10 +29,10 @@ def _is_valid_keyword(keyword: str) -> bool:
 def get_api_handlers() -> dict[str, Callable]:
     """
     Discover API modules in web/api/*.py (excluding __init__.py), load each,
-    and return a map keyword -> handle.
+    and return a map handler_key -> handle.
 
-    Keyword = file stem (e.g. scan.py -> scan). Only stems matching
-    [a-zA-Z][a-zA-Z0-9_]* are used. Result is cached.
+    Handler key = file stem (e.g. scan.py -> "scan", meter_dominant.py -> "meter_dominant").
+    Only stems matching [a-zA-Z][a-zA-Z0-9_]* are used. Result is cached.
     """
     global _handlers_cache
     if _handlers_cache is not None:

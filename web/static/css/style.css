@@ -322,3 +322,102 @@ footer {
 .tooltip .tooltip-inner {
     font-weight: 300; /* Light weight for finer strokes */
 }
+
+/* Centered wrapper for scansion grid (words, syllables, feet rows); no scrollbar */
+.scansion-grid-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: visible;
+}
+
+/* Grid container: fixed-width syllable columns, RTL flow */
+.scansion-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 2.5rem;   /* fixed syllable width */
+    /* column-gap: 0.25rem; */
+    direction: rtl;
+    overflow: visible;            /* no scrollbars on rows; wrapper scrolls */
+    white-space: nowrap;
+  }
+  
+  /* Individual syllable cell (match index.html code cell: large, bold) */
+  .syllable {
+    width: 2.5rem;
+    min-width: 2.5rem;
+    text-align: center;
+    font-family: monospace;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #212529;
+    padding: 0.35rem 0;
+    border: 1px solid #dee2e6;
+    unicode-bidi: isolate;
+  }
+
+  /* Deviation styling */
+  .syllable.substitute {
+    border-color: #ff9800;
+    border-width: 2px;
+  }
+
+  .syllable.delete {
+    border-color: #dc3545;
+    border-width: 2px;
+  }
+
+  .syllable.insert {
+    border-color: #28a745;
+    border-width: 2px;
+    background-color: #f0f8f0;
+  }
+  
+  /* Words row: same grid behavior as syllable row */
+  .words-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 2.5rem; /* must match syllable width */
+    /* column-gap: 0.25rem; */
+    direction: rtl;
+  }
+  
+  /* Word cell spanning multiple syllables (match index.html: no visible border, 1.1rem) */
+  .word-cell {
+    min-height: 2.5rem;
+    border: 1px solid #dee2e6;
+    border-bottom: none;
+    text-align: center;
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 0.25rem 0.5rem;
+  }
+  
+  /* Feet row: same grid behavior as syllable/word rows */
+  .feet-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 2.5rem; /* must match syllable width */
+    direction: rtl;
+  }
+
+  /* Foot cell spanning multiple syllables (match index.html: alternating bg, 1.1rem) */
+  .foot-cell {
+    min-height: 2.5rem;
+    border: 1px solid #dee2e6;
+    text-align: center;
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
+    font-size: 1.1rem;
+    background-color: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 0.25rem;
+  }
+
+  .foot-cell-alt {
+    background-color: white;
+  }

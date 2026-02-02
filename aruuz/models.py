@@ -209,6 +209,7 @@ class LineScansionResult:
         word_muarrab: List of muarrab forms for each word
         feet: Feet breakdown as string
         meter_name: Name of the identified meter
+        meter_roman: Roman transliteration of the meter name (with diacritics), if available
         id: Internal ID for this scan output
         identifier: External identifier (e.g., poetry ID)
         poet: Poet name (optional)
@@ -225,6 +226,7 @@ class LineScansionResult:
     word_muarrab: List[str] = field(default_factory=list)
     feet: str = ""
     meter_name: str = ""
+    meter_roman: str = ""
     id: int = 0
     identifier: int = -1
     poet: str = ""
@@ -248,6 +250,7 @@ class LineScansionResultFuzzy:
         original_taqti: List of original taqti codes
         feet: Feet breakdown
         meter_name: Name of the identified meter
+        meter_roman: Roman transliteration of the meter name (with diacritics), if available
         meter_syllables: List of meter syllable patterns
         code_syllables: List of code syllable patterns
         score: Matching score
@@ -262,6 +265,7 @@ class LineScansionResultFuzzy:
     original_taqti: List[str] = field(default_factory=list)
     feet: str = ""
     meter_name: str = ""
+    meter_roman: str = ""
     meter_syllables: List[str] = field(default_factory=list)
     code_syllables: List[str] = field(default_factory=list)
     score: int = 10

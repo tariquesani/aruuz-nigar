@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+
+{% block title %}Urdu Poetry Islah Tool — Aruuz Nigar{% endblock %}
+
+{% block extra_head %}
+<style>
+    [x-cloak] {
+        display: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-5" x-data="islahApp()" x-cloak>
+    <h1 class="text-center mb-4">Aruuz Nigar: Urdu Poetry Islah Tool</h1>
+    <div class="alert alert-light border mb-2 py-1" role="alert">
+        <small class="text-muted">
+            <strong>Legend:</strong>
+            <span class="ms-2"><code class="text-dark">–</code> short syllable</span>
+            <span class="ms-3"><code class="text-dark">=</code> long syllable</span>
+            <span class="ms-3"><code class="text-dark">X</code> flexible (short or long)</span>
+        </small>
+    </div>
+    <!-- One block per line: hidden during batch update to prevent flicker -->
+    <div :style="updatingResults ? 'opacity: 0; pointer-events: none; transition: opacity 0.15s ease' : 'opacity: 1; transition: opacity 0.15s ease'">
+    <template x-for="(lineData, idx) in lineResults" :key="'line-' + idx">
+        <div class="my-5">
+            <!-- Loading -->
+            <div class="text-center py-3 text-muted" x-show="lineData.loading" x-text="'Scanning line ' + (idx + 1) + '…'"></div>
+            <!-- Error -->
+            <div class="alert alert-danger py-2" x-show="lineData.error && !lineData.loading" x-text="'Line ' + (idx + 1) + ': ' + lineData.error"></div>
+            <!-- Result: memoized getters return stable array refs for same result, reducing re-renders -->
+            <div x-show="lineData.result" :class="{'opacity-50': lineData.loading}">
+                <h5 class="text-center urdu-text mb-4" dir="rtl" lang="ur" x-text="lineData.result?.original_line || lineData.lineText || ''"></h5>
+                <div class="scansion-grid-wrapper" x-data="{
+                    get words() { return getWordsWithBoundaries(lineData.result) || []; },
+                    get syllables() { return getSyllablesWithDeviations(lineData.result) || []; },
+                    get feet() { return getFeetWithBoundaries(lineData.result) || []; }
+                }">
+                    <div class="scansion-row words-row">
+                        <template x-for="wordData in words" :key="'line-' + idx + '-word-' + wordData.word_index">
+                            <div class="word-cell" :style="'grid-column: span ' + wordData.span" x-text="wordData.word"></div>
+                        </template>
+                    </div>
+                    <div class="scansion-row">
+                        <template x-for="(syllable, i) in syllables" :key="'line-' + idx + '-syll-' + i">
+                            <span class="syllable" :class="syllable.deviationType || ''" x-text="syllable.char || ''"></span>
+                        </template>
+                    </div>
+                    <div class="scansion-row feet-row">
+                        <template x-for="(footData, footIndex) in feet" :key="'line-' + idx + '-foot-' + footData.start">
+                            <div class="foot-cell" :class="{ 'foot-cell-alt': footIndex % 2 === 1 }" :style="'grid-column: span ' + footData.span" x-text="footData.foot"></div>
+                        </template>
+                    </div>
+                </div>
+                <div class="text-center mt-3" x-show="getBahrLabel(lineData.result) && getBahrName(lineData.result)">
+                    <h6><span x-text="getBahrLabel(lineData.result)"></span><span dir="rtl" lang="ur" class="urdu-text" :data-bs-title="getBahrTooltip(lineData.result) || ''" :data-bs-toggle="getBahrTooltip(lineData.result) ? 'tooltip' : null" data-bs-placement="top" x-text="getBahrName(lineData.result)"></span><span class="small text-muted" x-show="getDeviationsExplanationLine(lineData.result)" x-text="getDeviationsExplanationLine(lineData.result) ? '. ' + getDeviationsExplanationLine(lineData.result) : ''"></span></h6>
+                </div>
+            </div>
+        </div>
+    </template>
+    </div>
+
+    <!-- Poem Bahr: same style as index.html, shown when 6+ lines -->
+    <div class="card mt-4" x-show="lineResults.length >= 6">
+        <div class="card-body">
+            <div class="text-muted small text-center mb-0" x-show="poemDominantLoading" x-text="'Determining poem bahr…'"></div>
+            <h5 class="text-center urdu-text mb-0" x-show="poemDominant && poemDominant.meter_name && !poemDominantLoading">
+                Poem Bahr: <span dir="rtl" lang="ur" class="urdu-text" :data-bs-title="poemDominant && poemDominant.meter_roman ? poemDominant.meter_roman : ''" :data-bs-toggle="(poemDominant && poemDominant.meter_roman) ? 'tooltip' : null" data-bs-placement="top" x-text="poemDominant ? (poemDominant.meter_name || '') : ''"></span>
+            </h5>
+            <div class="text-muted small text-center mb-0" x-show="lineResults.length >= 6 && !poemDominantLoading && (!poemDominant || !poemDominant.meter_name)" x-text="'No dominant meter could be determined.'"></div>
+        </div>
+    </div>
+
+    <!-- Input Card: same structure as index.html -->
+    <div class="card mb-3 mt-4">
+        <div class="card-body py-3">
+            <form @submit.prevent="submit">
+                <label for="islah-text" class="form-label">Enter Urdu Poetry Lines (one per line)</label>
+                <textarea id="islah-text" class="form-control form-control-lg urdu-input mb-3" dir="rtl" lang="ur" rows="5"
+                    placeholder="Start typing your poetry here..." x-model="text" :disabled="loading"
+                    @keydown.space="setTimeout(() => silentUpdate(), 0)"></textarea>
+                <button type="submit" class="btn btn-primary btn-lg w-100 py-2" :disabled="loading">
+                    <span x-show="!loading">Rescan Lines</span>
+                    <span x-show="loading">Submitting…</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('islahApp', () => ({
+            text: '',
+            lineResults: [],
+            previousLines: [],
+            loading: false,
+            updatingResults: false,
+            debounceTimer: null,
+            poemDominant: null,
+            poemDominantLoading: false,
+            _wordsCache: null,
+            _syllablesCache: null,
+            _feetCache: null,
+
+            init() {
+                this._wordsCache = new WeakMap();
+                this._syllablesCache = new WeakMap();
+                this._feetCache = new WeakMap();
+                this.initBahrTooltips = () => {
+                    const root = this.$el;
+                    if (!root || typeof bootstrap === 'undefined') return;
+                    root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                        const existing = bootstrap.Tooltip.getInstance(el);
+                        if (existing) existing.dispose();
+                        if (el.getAttribute('data-bs-title')) new bootstrap.Tooltip(el);
+                    });
+                };
+                this.$watch('text', (value) => {
+                    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+                    if (value.trim()) {
+                        this.debounceTimer = setTimeout(() => {
+                            this.debounceTimer = null;
+                            if (!this.loading) this.silentUpdate();
+                        }, 3000);
+                    }
+                });
+            },
+
+            getDisplayCode(result) {
+                if (!result) return '';
+                const useMeterPattern = result.analysis_level === 'meter' &&
+                    (result.summary?.conforms_exactly === true || !!result.inferred_meter) &&
+                    result.meter_pattern;
+                return useMeterPattern ? result.meter_pattern : (result.full_code || '');
+            },
+
+            getWordsWithBoundaries(result) {
+                if (!result || !result.word_boundaries || !result.original_line) return [];
+                const cached = this._wordsCache.get(result);
+                if (cached !== undefined) return cached;
+                const words = result.original_line.trim().split(/\s+/).filter(w => w.length > 0);
+                const boundaries = result.word_boundaries;
+                const deviations = result.deviations || [];
+                const insertions = deviations.filter(dev => dev.type === 'insert');
+                const value = boundaries.map(wb => {
+                    let span = wb.code_end - wb.code_start;
+                    insertions.forEach(ins => {
+                        if (ins.code_pos >= wb.code_start && ins.code_pos < wb.code_end) span += 1;
+                    });
+                    return { word_index: wb.word_index, word: words[wb.word_index] || '', span };
+                });
+                this._wordsCache.set(result, value);
+                return value;
+            },
+
+            getSyllablesWithDeviations(result) {
+                const codeStr = this.getDisplayCode(result);
+                if (!result || !codeStr) return [];
+                const cached = this._syllablesCache.get(result);
+                if (cached !== undefined) return cached;
+                const code = codeStr.split('');
+                const deviations = result.deviations || [];
+                const deviationMap = new Map();
+                deviations.forEach(dev => {
+                    if (dev.type === 'substitute' || dev.type === 'delete') deviationMap.set(dev.code_pos, dev);
+                });
+                const syllables = code.map((char, index) => ({
+                    char,
+                    index,
+                    deviationType: deviationMap.has(index) ? deviationMap.get(index).type : null,
+                    expected: deviationMap.has(index) ? deviationMap.get(index).expected : null,
+                }));
+                const insertions = deviations.filter(dev => dev.type === 'insert').sort((a, b) => b.code_pos - a.code_pos);
+                insertions.forEach(ins => {
+                    syllables.splice(ins.code_pos, 0, { char: '', index: ins.code_pos, deviationType: 'insert', expected: ins.expected });
+                });
+                this._syllablesCache.set(result, syllables);
+                return syllables;
+            },
+
+            getFeetWithBoundaries(result) {
+                if (!result || !result.feet_list || !result.full_code) return [];
+                const cached = this._feetCache.get(result);
+                if (cached !== undefined) return cached;
+                const feet = result.feet_list;
+                const deviations = result.deviations || [];
+                const insertions = deviations.filter(dev => dev.type === 'insert');
+                const value = feet.map(seg => {
+                    let span = seg.end - seg.start;
+                    insertions.forEach(ins => {
+                        if (ins.code_pos >= seg.start && ins.code_pos < seg.end) span += 1;
+                    });
+                    return { foot: seg.foot, start: seg.start, span };
+                });
+                this._feetCache.set(result, value);
+                return value;
+            },
+
+            getBahrLabel(result) {
+                if (!result || result.analysis_level !== 'meter') return '';
+                if (result.summary && result.summary.conforms_exactly === true) return 'Exact match: ';
+                if (result.inferred_meter && result.inferred_meter.meter_name) return 'Almost matches: ';
+                return '';
+            },
+
+            getBahrName(result) {
+                if (!result || result.analysis_level !== 'meter') return '';
+                if (result.summary && result.summary.conforms_exactly === true && result.meters && result.meters[0])
+                    return result.meters[0].meter_name || '';
+                if (result.inferred_meter && result.inferred_meter.meter_name) return result.inferred_meter.meter_name;
+                return '';
+            },
+
+            getBahrTooltip(result) {
+                if (!result) return '';
+                if (result.inferred_meter && result.inferred_meter.meter_roman) return result.inferred_meter.meter_roman;
+                if (result.meters && result.meters[0] && result.meters[0].meter_roman) return result.meters[0].meter_roman;
+                return '';
+            },
+
+            getDeviationsExplanation(result) {
+                if (!result || !result.inferred_meter || !result.deviations || !result.deviations.length) return [];
+                return result.deviations.map(dev => {
+                    const pos = dev.code_pos + 1;
+                    if (dev.type === 'substitute') return `Substitute ${dev.current ?? ''} with ${dev.expected ?? ''} at position ${pos}.`;
+                    if (dev.type === 'insert') return `Insert ${dev.expected ?? ''} at position ${pos}.`;
+                    if (dev.type === 'delete') return `Delete ${dev.current ?? ''} at position ${pos}.`;
+                    return '';
+                }).filter(Boolean);
+            },
+
+            getDeviationsExplanationLine(result) {
+                const lines = this.getDeviationsExplanation(result);
+                return lines.length ? lines.join(' ') : '';
+            },
+
+            /** Get { meter_name, feet } from a line result for /api/meter/dominant, or null. */
+            getMeterPayloadForLine(result) {
+                if (!result) return null;
+                if (result.meters && result.meters[0]) {
+                    const m = result.meters[0];
+                    if (m.meter_name && m.feet) return { meter_name: m.meter_name, feet: m.feet };
+                }
+                if (result.inferred_meter && result.inferred_meter.meter_name && result.inferred_meter.feet)
+                    return { meter_name: result.inferred_meter.meter_name, feet: result.inferred_meter.feet };
+                return null;
+            },
+
+            async fetchDominantMeter() {
+                if (this.lineResults.length < 6) {
+                    this.poemDominant = null;
+                    return;
+                }
+                const results = [];
+                for (const lineData of this.lineResults) {
+                    const payload = this.getMeterPayloadForLine(lineData.result);
+                    if (payload) results.push(payload);
+                }
+                if (results.length === 0) {
+                    this.poemDominant = {};
+                    return;
+                }
+                this.poemDominantLoading = true;
+                this.poemDominant = null;
+                try {
+                    const res = await fetch('/api/meter/dominant', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ results }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    this.poemDominant = res.ok ? data : {};
+                } catch (_) {
+                    this.poemDominant = {};
+                } finally {
+                    this.poemDominantLoading = false;
+                    this.$nextTick(() => this.initBahrTooltips());
+                }
+            },
+
+            async submit() { return this.runLines(true); },
+            async silentUpdate() { return this.runLines(false); },
+
+            async runLines(explicit) {
+                if (this.debounceTimer) {
+                    clearTimeout(this.debounceTimer);
+                    this.debounceTimer = null;
+                }
+                const textarea = document.getElementById('islah-text');
+                const currentLines = this.text.split('\n').map(l => l.trim()).filter(Boolean);
+
+                if (currentLines.length === 0) {
+                    this.lineResults = [];
+                    this.previousLines = [];
+                    this.poemDominant = null;
+                    if (explicit) this.$nextTick(() => textarea?.focus());
+                    return;
+                }
+
+                const needFetch = [];
+                for (let i = 0; i < currentLines.length; i++) {
+                    if (i >= this.previousLines.length || currentLines[i] !== this.previousLines[i]) needFetch.push(i);
+                }
+
+                this.updatingResults = true;
+                if (explicit) this.loading = true;
+
+                const fetchedByIndex = {};
+
+                try {
+                    for (const i of needFetch) {
+                        try {
+                            const res = await fetch('/api/islah', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ text: currentLines[i] }),
+                            });
+                            const raw = await res.text();
+                            if (!res.ok) {
+                                fetchedByIndex[i] = { result: null, error: raw || `HTTP ${res.status}` };
+                            } else {
+                                try {
+                                    fetchedByIndex[i] = { result: JSON.parse(raw), error: null };
+                                } catch (_) {
+                                    fetchedByIndex[i] = { result: null, error: 'Invalid JSON' };
+                                }
+                            }
+                        } catch (err) {
+                            fetchedByIndex[i] = { result: null, error: err.message || 'Request failed' };
+                        }
+                    }
+
+                    const newLineResults = [];
+                    for (let i = 0; i < currentLines.length; i++) {
+                        if (needFetch.includes(i)) {
+                            const f = fetchedByIndex[i] || { result: null, error: null };
+                            newLineResults.push({
+                                lineIndex: i,
+                                lineText: currentLines[i],
+                                result: f.result,
+                                error: f.error,
+                                loading: false,
+                            });
+                        } else if (this.lineResults[i] && this.lineResults[i].lineText === currentLines[i]) {
+                            newLineResults.push(this.lineResults[i]);
+                        } else {
+                            newLineResults.push({
+                                lineIndex: i,
+                                lineText: currentLines[i],
+                                result: null,
+                                error: null,
+                                loading: false,
+                            });
+                        }
+                    }
+                    this.lineResults = newLineResults;
+                    this.previousLines = currentLines.slice();
+                    if (this.lineResults.length >= 6) this.fetchDominantMeter();
+                    else this.poemDominant = null;
+                } finally {
+                    this.updatingResults = false;
+                    if (explicit) this.loading = false;
+                    this.$nextTick(() => this.initBahrTooltips());
+                    if (explicit) this.$nextTick(() => textarea?.focus());
+                }
+            },
+        }));
+    });
+</script>
+{% endblock %}

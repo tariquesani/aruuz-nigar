@@ -58,7 +58,8 @@ def index():
     error = None
     text_input = ""
     poem_dominant_bahrs = []
-    
+    poem_dominant_bahrs_roman = []
+
     if request.method == 'POST':
         text_input = request.form.get('text', '').strip()
         
@@ -87,12 +88,21 @@ def index():
                     # Extract results for template
                     line_results = scansion_result['line_results']
                     poem_dominant_bahrs = scansion_result['poem_dominant_bahrs']
+                    poem_dominant_bahrs_roman = scansion_result.get('poem_dominant_bahrs_roman', [])
                     
             except Exception as e:
                 error = f"Error processing lines: {str(e)}"
-                poem_dominant_bahrs = []  # Set empty if error occurred
-    
-    return render_template('index.html', line_results=line_results, error=error, text_input=text_input, poem_dominant_bahrs=poem_dominant_bahrs)
+                poem_dominant_bahrs = []
+                poem_dominant_bahrs_roman = []
+
+    return render_template('index.html', line_results=line_results, error=error, text_input=text_input, poem_dominant_bahrs=poem_dominant_bahrs, poem_dominant_bahrs_roman=poem_dominant_bahrs_roman)
+
+
+@app.route('/islah', methods=['GET'])
+def islah():
+    """Islah page: placeholder for correction/suggestions UI."""
+    return render_template('islah_refactored.html')
+    # return render_template('islah.html')
 
 
 @app.route('/heartbeat', methods=['GET'])
@@ -101,12 +111,19 @@ def heartbeat():
     return '', 200
 
 
-@app.route('/api/<keyword>', methods=['GET', 'POST'])
-def api_dispatch(keyword):
-    """Discovery-based API router: /api/<keyword> -> web.api.<keyword>.handle(request)."""
-    if not is_valid_keyword(keyword):
+@app.route('/api/<path:path_suffix>', methods=['GET', 'POST'])
+def api_dispatch(path_suffix: str):
+    """
+    Discovery-based API router: /api/<segments> -> web.api.<segments_with_underscores>.handle(request).
+    Each '/' in the path is converted to '_' for the module name (e.g. /api/meter/dominant -> meter_dominant.py).
+    """
+    segments = [s for s in path_suffix.split('/') if s]
+    if not segments:
         return jsonify({"error": "Not found"}), 404
-    handler = API_HANDLERS.get(keyword)
+    if not all(is_valid_keyword(seg) for seg in segments):
+        return jsonify({"error": "Not found"}), 404
+    handler_key = '_'.join(segments)
+    handler = API_HANDLERS.get(handler_key)
     if handler is None:
         return jsonify({"error": "Not found"}), 404
     result = handler(request)

@@ -19,6 +19,7 @@ from aruuz.utils.meter_align import (
     align_best,
     build_deviations,
     deduce_foot_segments,
+    meter_pattern_for_exact_result,
     meter_pattern_for_fuzzy_result,
     word_boundaries_from_taqti,
 )
@@ -43,24 +44,50 @@ def _get_text_from_request(req):
     return ((raw or "").strip(), None)
 
 
-def _bahr_from_exact(so) -> Dict[str, Any]:
-    """Build a single bahr dict from a LineScansionResult."""
+def _build_feet_segments(full_code: str, feet_list: List[Any]) -> List[Dict[str, Any]]:
+    """Build feet_list (foot, code, start, end) from full_code and a list of foot objects."""
+    segments: List[Dict[str, Any]] = []
+    start = 0
+    for f in feet_list or []:
+        length = len(getattr(f, "code", "") or "")
+        end = start + length
+        segments.append(
+            {
+                "foot": getattr(f, "foot", ""),
+                "code": full_code[start:end],
+                "start": start,
+                "end": end,
+            }
+        )
+        start = end
+    return segments
+
+
+def _meter_from_exact(so) -> Dict[str, Any]:
+    """Build a single meter dict from a LineScansionResult."""
     full_code = "".join(so.word_taqti) if so.word_taqti else ""
+    feet_list = getattr(so, "feet_list", []) or []
     return {
         "meter_name": so.meter_name,
+        "meter_roman": getattr(so, "meter_roman", "") or "",
         "meter_id": so.id,
         "feet": so.feet,
         "full_code": full_code,
+        "feet_list": _build_feet_segments(full_code, feet_list),
     }
 
 
-def _inferred_bahr_from_fuzzy(so) -> Dict[str, Any]:
-    """Build inferred_bahr dict from best LineScansionResultFuzzy."""
+def _inferred_meter_from_fuzzy(so) -> Dict[str, Any]:
+    """Build inferred_meter dict from best LineScansionResultFuzzy."""
+    full_code = "".join(so.word_taqti) if so.word_taqti else ""
+    feet_list = getattr(so, "feet_list", []) or []
     return {
         "meter_name": so.meter_name,
+        "meter_roman": getattr(so, "meter_roman", "") or "",
         "meter_id": so.id,
         "feet": so.feet,
         "score": so.score,
+        "feet_list": _build_feet_segments(full_code, feet_list),
     }
 
 
@@ -70,7 +97,6 @@ def _build_syllables_payload(full_code: str, word_taqti: List[str]) -> Dict[str,
     syllables = [{"index": i, "code": c} for i, c in enumerate(full_code)]
     return {
         "full_code": full_code,
-        "word_taqti": word_taqti,
         "syllables": syllables,
         "word_boundaries": word_boundaries,
     }
@@ -82,7 +108,7 @@ def handle(request):
 
     - Syllables: ≥1 word OR ≥2 syllables → syllables, code
     - Feet:      ≥4 syllables AND ≥1 foot → feet (foot grouping)
-    - Meter:     ≥3 feet OR multiple lines → Bahr + deviations
+    - Meter:     ≥3 feet OR multiple lines → meter + deviations
     """
     if request.method != "POST":
         return ({"error": "Method not allowed"}, 405)
@@ -110,83 +136,136 @@ def handle(request):
         exact = scanner.match_line_to_meters(line, 0)
 
         # Build full_code and word_taqti from scanned line
-        word_taqti = ["".join(w.code) for w in line.words_list]
-        full_code = "".join(word_taqti)
+        # Use code from scanPath result if available (correct selection from tree traversal),
+        # otherwise use first code from each word's code list (not join all alternatives)
+        if exact and len(exact) > 0:
+            # Use the code from the scanPath result (matches /api/scan behavior)
+            word_taqti = exact[0].word_taqti.copy()
+            full_code = "".join(word_taqti)
+        else:
+            # Fallback: use first code from each word (not join all codes in the list)
+            word_taqti = [w.code[0] if w.code and len(w.code) > 0 else "" for w in line.words_list]
+            full_code = "".join(word_taqti)
         num_syllables = len(full_code)
         num_words = len(line.words_list)
 
+        # Build per-word code mapping for response
+        word_codes = []
+        for idx, w in enumerate(line.words_list):
+            code = word_taqti[idx] if idx < len(word_taqti) else ""
+            word_codes.append({"word": w.word, "code": code})
+
         # Level triggers
         syllables_ok = num_words >= 1 or num_syllables >= 2
-        foot_segments = deduce_foot_segments(full_code) if full_code else []
+
+        # Prefer meter-aware feet (like /api/scan) if we have an exact match.
+        foot_segments: List[Dict[str, Any]] = []
+        if full_code:
+            if exact:
+                primary = exact[0]
+                start = 0
+                for f in primary.feet_list:
+                    length = len(getattr(f, "code", "") or "")
+                    end = start + length
+                    foot_segments.append(
+                        {
+                            "foot": getattr(f, "foot", ""),
+                            "code": full_code[start:end],
+                            "start": start,
+                            "end": end,
+                        }
+                    )
+                    start = end
+            else:
+                # Fallback: generic greedy segmentation when no exact meter exists.
+                foot_segments = deduce_foot_segments(full_code)
+
         num_feet = len(foot_segments)
         feet_ok = num_syllables >= 4 and num_feet >= 1
-        meter_ok = num_feet >= 3 or has_multiple_lines
+        meter_ok = num_feet >= 2 or has_multiple_lines
 
         if not syllables_ok:
             return {
-                "level": "syllables",
-                "explanation": "Insufficient input for scansion (need at least one word or two syllables).",
+                "analysis_level": "syllables",
+                "summary": {
+                    "text": "Insufficient input for scansion (need at least one word or two syllables).",
+                    "conforms_exactly": False,
+                },
                 "original_line": line_text,
                 "full_code": full_code,
-                "word_taqti": word_taqti,
                 "syllables": [],
                 "word_boundaries": word_boundaries_from_taqti(word_taqti),
+                "word_codes": word_codes,
             }
 
         level = "meter" if meter_ok else "feet" if feet_ok else "syllables"
         payload: Dict[str, Any] = {
-            "level": level,
+            "analysis_level": level,
             "original_line": line_text,
             **_build_syllables_payload(full_code, word_taqti),
         }
 
+        payload["word_codes"] = word_codes
+
         if feet_ok:
-            payload["feet"] = foot_segments
+            payload["feet_list"] = foot_segments
 
         if not meter_ok:
-            payload["explanation"] = (
-                "Syllables and feet only; add more text (≥3 feet) or multiple lines for Bahr."
-            )
+            payload["summary"] = {
+                "text": "Syllables and feet only; add more text (≥3 feet) or multiple lines for meter.",
+                "conforms_exactly": False,
+            }
             return payload
 
         # Meter level: exact then fuzzy + align
         if exact:
-            payload["conforms_exactly"] = True
-            payload["explanation"] = "Line conforms exactly to one or more classical Bahrs."
-            payload["bahrs"] = [_bahr_from_exact(so) for so in exact]
+            payload["summary"] = {
+                "text": "Line conforms exactly to one or more classical meters.",
+                "conforms_exactly": True,
+            }
+            payload["meters"] = [_meter_from_exact(so) for so in exact]
             payload["deviations"] = []
             payload["alignment"] = None
+            # Include meter pattern for exact match (first matching meter)
+            pattern = meter_pattern_for_exact_result(exact[0]) if exact else None
+            if pattern is not None:
+                payload["meter_pattern"] = pattern.replace("/", "")
             return payload
 
         fuzzy_results = scanner.scan_line_fuzzy(line, 0)
         if not fuzzy_results:
-            payload["conforms_exactly"] = False
-            payload["explanation"] = "No exact meter match and no fuzzy match could be inferred."
-            payload["bahrs"] = []
-            payload["inferred_bahr"] = None
+            payload["summary"] = {
+                "text": "No exact meter match and no fuzzy match could be inferred.",
+                "conforms_exactly": False,
+            }
+            payload["meters"] = []
+            payload["inferred_meter"] = None
             payload["deviations"] = []
             payload["alignment"] = None
             return payload
 
         best = min(fuzzy_results, key=lambda so: so.score)
         pattern = meter_pattern_for_fuzzy_result(best)
-        payload["conforms_exactly"] = False
 
         if not pattern:
-            payload["explanation"] = "Closest match is a special meter; syllabic alignment not available."
-            payload["bahrs"] = []
-            payload["inferred_bahr"] = _inferred_bahr_from_fuzzy(best)
+            payload["summary"] = {
+                "text": "Closest match is a special meter; syllabic alignment not available.",
+                "conforms_exactly": False,
+            }
+            payload["meters"] = []
+            payload["inferred_meter"] = _inferred_meter_from_fuzzy(best)
             payload["deviations"] = []
             payload["alignment"] = None
             return payload
 
         distance, edit_ops, leverage = align_best(full_code, pattern)
-        payload["explanation"] = (
-            f"No exact meter match; inferred closest: {best.meter_name} (edit distance {distance})."
-        )
-        payload["bahrs"] = []
-        payload["inferred_bahr"] = _inferred_bahr_from_fuzzy(best)
-        payload["meter_pattern_used"] = pattern
+        payload["summary"] = {
+            "text": f"No exact meter match; inferred closest: {best.meter_name} (edit distance {distance}).",
+            "conforms_exactly": False,
+        }
+        payload["meters"] = []
+        payload["inferred_meter"] = _inferred_meter_from_fuzzy(best)
+        payload["meter_pattern"] = pattern.replace("/", "")
         payload["alignment"] = {
             "distance": distance,
             "edit_ops": edit_ops,

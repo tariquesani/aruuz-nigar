@@ -61,6 +61,10 @@ def handle(request):
         for line_text in lines:
             scanner.add_line(Lines(line_text))
         result = scanner.get_scansion()
+        # Rename "results" to "meters" in each line_result for API response
+        for line_result in result.get("line_results", []):
+            if "results" in line_result:
+                line_result["meters"] = line_result.pop("results")
         return result
     except Exception as e:
         logger.exception("Scansion error in /api/scan")
