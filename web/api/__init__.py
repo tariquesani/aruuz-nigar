@@ -10,13 +10,12 @@ Each module defines handle(request) -> dict | tuple[dict, int].
 
 import importlib
 import logging
+import pkgutil
 import re
-from pathlib import Path
 from typing import Callable
 
 logger = logging.getLogger(__name__)
 
-_API_DIR = Path(__file__).resolve().parent
 _KEYWORD_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*$")
 
 _handlers_cache: dict[str, Callable] | None = None
@@ -33,28 +32,41 @@ def get_api_handlers() -> dict[str, Callable]:
 
     Handler key = file stem (e.g. scan.py -> "scan", meter_dominant.py -> "meter_dominant").
     Only stems matching [a-zA-Z][a-zA-Z0-9_]* are used. Result is cached.
+    
+    Uses pkgutil.iter_modules() for PyInstaller compatibility.
     """
     global _handlers_cache
     if _handlers_cache is not None:
         return _handlers_cache
 
     handlers: dict[str, Callable] = {}
-    for path in sorted(_API_DIR.glob("*.py")):
-        if path.name == "__init__.py":
-            continue
-        stem = path.stem
-        if not _is_valid_keyword(stem):
-            logger.warning("Skip API module %s: invalid keyword %r", path.name, stem)
-            continue
-        try:
-            mod = importlib.import_module(f"web.api.{stem}")
-            h = getattr(mod, "handle", None)
-            if not callable(h):
-                logger.warning("Skip API module %s: no handle() callable", path.name)
+    current_package = __package__ or "web.api"
+    
+    try:
+        # Use pkgutil which works in both normal execution and PyInstaller
+        current_module = __import__(current_package, fromlist=[''])
+        package_path = current_module.__path__
+        
+        for importer, modname, ispkg in pkgutil.iter_modules(package_path, prefix=f"{current_package}."):
+            if ispkg:
+                continue  # Skip subpackages
+            
+            stem = modname.split('.')[-1]
+            if not _is_valid_keyword(stem):
+                logger.warning("Skip API module %s: invalid keyword %r", modname, stem)
                 continue
-            handlers[stem] = h
-        except Exception as e:
-            logger.warning("Skip API module %s: %s", path.name, e)
+            
+            try:
+                mod = importlib.import_module(modname)
+                h = getattr(mod, "handle", None)
+                if not callable(h):
+                    logger.warning("Skip API module %s: no handle() callable", modname)
+                    continue
+                handlers[stem] = h
+            except Exception as e:
+                logger.warning("Skip API module %s: %s", modname, e)
+    except Exception as e:
+        logger.error("Failed to discover API modules: %s", e, exc_info=True)
 
     _handlers_cache = handlers
     return handlers
