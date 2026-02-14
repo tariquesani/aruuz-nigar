@@ -127,12 +127,21 @@
     {% endfor %}
     
     <!-- Show overall dominant bahr for the entire poem -->
-    {% if poem_dominant_bahrs %}
+    {% if poem_dominant_bahrs_info %}
     <div class="card mt-4">
         <div class="card-body">
-            <h5 class="text-center urdu-text mb-0">
-                Poem Bahr: <span dir="rtl" lang="ur" {% if poem_dominant_bahrs_roman %}data-bs-toggle="tooltip" data-bs-title="{{ poem_dominant_bahrs_roman | join(', ') }}" data-bs-placement="top"{% endif %}>{{ poem_dominant_bahrs | join(", ") }}</span>
-            </h5>
+            <h5 class="text-center urdu-text mb-2">Poem Bahr</h5>
+            {% for info in poem_dominant_bahrs_info %}
+            <div class="text-center mb-3 {% if not loop.last %}pb-3 border-bottom{% endif %}">
+                <div class="urdu-text" dir="rtl" lang="ur" style="font-size:1.15rem;">{{ info.name }}</div>
+                {% if info.roman %}
+                <div class="text-muted mt-1" style="font-size:0.95rem;">{{ info.roman }}</div>
+                {% endif %}
+                {% if info.summary %}
+                <div class="text-muted mt-1 small" style="font-size:0.85rem; max-width: 42rem; margin-left: auto; margin-right: auto;">{{ info.summary }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
         </div>
     </div>
     {% endif %}

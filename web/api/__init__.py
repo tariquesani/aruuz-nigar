@@ -33,7 +33,10 @@ def get_api_handlers() -> dict[str, Callable]:
     Handler key = file stem (e.g. scan.py -> "scan", meter_dominant.py -> "meter_dominant").
     Only stems matching [a-zA-Z][a-zA-Z0-9_]* are used. Result is cached.
     
-    Uses pkgutil.iter_modules() for PyInstaller compatibility.
+    NOTE: Uses pkgutil.iter_modules() instead of filesystem globbing (Path.glob)
+    because PyInstaller bundles modules into an archive where filesystem globbing
+    doesn't work. pkgutil uses Python's import system which works in both normal
+    execution and PyInstaller bundles.
     """
     global _handlers_cache
     if _handlers_cache is not None:

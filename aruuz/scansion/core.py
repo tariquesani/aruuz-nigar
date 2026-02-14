@@ -16,6 +16,7 @@ from aruuz.meters import (
     METERS, METERS_VARIED, RUBAI_METERS, SPECIAL_METERS,
     NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, NUM_SPECIAL_METERS
 )
+from aruuz.utils.meter_summaries import METER_SUMMARIES
 from .word_scansion_assigner import WordScansionAssigner
 from .meter_matching import MeterMatcher
 from .scoring import MeterResolver
@@ -483,6 +484,7 @@ class Scansion:
                 - 'is_default': Boolean indicating if this matches dominant bahr
                 - 'meter_id': Internal meter ID (for reference)
             - 'poem_dominant_bahrs': List of dominant meter names across all lines
+            - 'poem_dominant_bahrs_info': List of dicts with 'name', 'roman', 'summary' (from meter_summaries)
             - 'num_lines': Total number of lines processed
             - 'fuzzy_mode': Boolean indicating if fuzzy matching was used
             - 'free_verse_mode': Boolean indicating if free verse mode was enabled
@@ -512,6 +514,7 @@ class Scansion:
                 'line_results': [],
                 'poem_dominant_bahrs': [],
                 'poem_dominant_bahrs_roman': [],
+                'poem_dominant_bahrs_info': [],
                 'num_lines': 0,
                 'fuzzy_mode': self.fuzzy,
                 'free_verse_mode': self.free_verse,
@@ -533,12 +536,27 @@ class Scansion:
             so.meter_name for so in poem_scan_results
             if so.is_dominant and so.meter_name and so.meter_name != 'No meter match found'
         })
-        # Roman transliterations for dominant bahrs (same order as poem_dominant_bahrs)
+        # Roman and summary from meter_summaries (same order as poem_dominant_bahrs)
         name_to_roman: Dict[str, str] = {}
         for so in poem_scan_results:
             if so.meter_name and so.meter_name not in name_to_roman:
                 name_to_roman[so.meter_name] = getattr(so, 'meter_roman', '') or ''
-        poem_dominant_bahrs_roman = [name_to_roman.get(n, '') for n in poem_dominant_bahrs]
+        poem_dominant_bahrs_info: List[Dict[str, Any]] = []
+        for n in poem_dominant_bahrs:
+            info = METER_SUMMARIES.get(n)
+            if info:
+                poem_dominant_bahrs_info.append({
+                    'name': n,
+                    'roman': info['roman'],
+                    'summary': info['summary'],
+                })
+            else:
+                poem_dominant_bahrs_info.append({
+                    'name': n,
+                    'roman': name_to_roman.get(n, ''),
+                    'summary': '',
+                })
+        poem_dominant_bahrs_roman = [i['roman'] for i in poem_dominant_bahrs_info]
         
         # Step 3: Build comprehensive line_results structure for template/API
         for idx in range(self.num_lines):
@@ -630,6 +648,7 @@ class Scansion:
             'line_results': line_results,
             'poem_dominant_bahrs': poem_dominant_bahrs,
             'poem_dominant_bahrs_roman': poem_dominant_bahrs_roman,
+            'poem_dominant_bahrs_info': poem_dominant_bahrs_info,
             'num_lines': self.num_lines,
             'fuzzy_mode': self.fuzzy,
             'free_verse_mode': self.free_verse,
