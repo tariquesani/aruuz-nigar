@@ -1,13 +1,40 @@
 """
 Meter summaries for Urdu poetry meters.
 
-Derived from aruuz.meters._METERS_DATA. Each entry includes the Roman name
-and a short English description. Only unique meter names (by Urdu name) are included.
+Derived from aruuz.meters._METERS_DATA. Each entry includes the Roman name,
+bahr meaning (literal meaning of the meter family name), and a short English
+description. Only unique meter names (by Urdu name) are included.
+
+Bahr name meanings align with legacy_docs/meter-name-glossary.md (Meter family names).
 """
 
 from typing import Dict, Any
 
 from aruuz.meters import _METERS_DATA
+
+# Roman bahr name → literal meaning (see legacy_docs/meter-name-glossary.md)
+BHR_MEANINGS: Dict[str, str] = {
+    "Mutaqārib": "Near, close; the feet are similar or “close” to each other.",
+    "Hazaj": "Trilling; a light, quick rhythm.",
+    "Ramal": "Trotting, or haste; like a running gait.",
+    "Rajaz": "Trembling, tremor; historically a simpler, lower-status meter.",
+    "Ṭawīl": "Long; the most common classical meter.",
+    "Kāmil": "Complete, perfect.",
+    "Wāfir": "Abundant, ample.",
+    "Basīṭ": "Extended, spread out.",
+    "Madīd": "Prolonged, lengthy.",
+    "Khafīf": "Light (in weight).",
+    "Sarīʿ": "Fast, swift.",
+    "Muḍāriʿ": "Similar, resembling.",
+    "Mutadārik": "Pursuing, following in sequence.",
+    "Mujtathth": "Cut or broken (from the pattern).",
+    "Munsariḥ": "Flowing, loose.",
+    "Muqtaḍab": "Truncated, cut short.",
+    "Qarīb": "Near.",
+    "Jadīd": "New.",
+    "Mushākil": "Resembling (another meter).",
+    "Jamīl": "Beautiful.",
+}
 
 # Roman modifier terms → summary fragment (for "where ..." clause)
 _STRUCTURE = {
@@ -80,6 +107,14 @@ def _summary_from_roman(roman: str) -> str:
     return f"{article} {structure} of Bahr {bahr} where {', '.join(modifiers[:-1])}, and {modifiers[-1]}."
 
 
+def _bahr_meaning_from_roman(roman: str) -> str:
+    """Return the literal meaning of the bahr (first word) from BHR_MEANINGS."""
+    parts = roman.split()
+    if not parts:
+        return ""
+    return BHR_MEANINGS.get(parts[0], "")
+
+
 def _build_meter_summaries() -> Dict[str, Dict[str, Any]]:
     """Build METER_SUMMARIES from _METERS_DATA with unique meter names only."""
     seen: set = set()
@@ -88,8 +123,12 @@ def _build_meter_summaries() -> Dict[str, Dict[str, Any]]:
         if m.name in seen:
             continue
         seen.add(m.name)
+        parts = m.roman.split()
+        bahr_short = parts[0] if parts else ""
         out[m.name] = {
             "roman": m.roman,
+            "bahr_short": bahr_short,
+            "bahr_meaning": _bahr_meaning_from_roman(m.roman),
             "summary": _summary_from_roman(m.roman),
         }
     return out

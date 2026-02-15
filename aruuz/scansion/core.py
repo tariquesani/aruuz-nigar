@@ -548,12 +548,17 @@ class Scansion:
                 poem_dominant_bahrs_info.append({
                     'name': n,
                     'roman': info['roman'],
+                    'bahr_short': info.get('bahr_short', ''),
+                    'bahr_meaning': info.get('bahr_meaning', ''),
                     'summary': info['summary'],
                 })
             else:
+                r = name_to_roman.get(n, '')
                 poem_dominant_bahrs_info.append({
                     'name': n,
-                    'roman': name_to_roman.get(n, ''),
+                    'roman': r,
+                    'bahr_short': r.split()[0] if r else '',
+                    'bahr_meaning': '',
                     'summary': '',
                 })
         poem_dominant_bahrs_roman = [i['roman'] for i in poem_dominant_bahrs_info]

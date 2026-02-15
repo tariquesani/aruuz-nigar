@@ -135,10 +135,7 @@
             <div class="text-center mb-3 {% if not loop.last %}pb-3 border-bottom{% endif %}">
                 <div class="urdu-text" dir="rtl" lang="ur" style="font-size:1.15rem;">{{ info.name }}</div>
                 {% if info.roman %}
-                <div class="text-muted mt-1" style="font-size:0.95rem;">{{ info.roman }}</div>
-                {% endif %}
-                {% if info.summary %}
-                <div class="text-muted mt-1 small" style="font-size:0.85rem; max-width: 42rem; margin-left: auto; margin-right: auto;">{{ info.summary }}</div>
+                <div class="text-muted mt-1" style="font-size:0.95rem; max-width: 42rem; margin-left: auto; margin-right: auto;">{{ info.roman }}{% if info.summary %} — {{ info.summary }}{% endif %}{% if info.bahr_short and info.bahr_meaning %}{% if not info.summary or (info.summary|trim)[-1:] != '.' %}.{% endif %} {{ info.bahr_short }} means {{ info.bahr_meaning[0]|lower }}{{ info.bahr_meaning[1:] }}{% endif %}</div>
                 {% endif %}
             </div>
             {% endfor %}
