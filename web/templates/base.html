@@ -69,9 +69,12 @@
                             <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#aboutModal">About Aruuz Nigar</a></li>
                         </ul>
                     </li>
+                    {% set _hb_host = ((request.host or '').split(':')[0] | lower) %}
+                    {% if _hb_host in ['localhost', '127.0.0.1', '::1'] %}
                     <li class="nav-item d-flex align-items-center ms-1">
                         <span id="heartbeat-status" class="bi bi-power heartbeat-fail" title="Server status: checking…" aria-label="Server status: checking…"></span>
                     </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -160,6 +163,8 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/check_updates.js') }}"></script>
+    {% if _hb_host is defined and _hb_host in ['localhost', '127.0.0.1', '::1'] %}
     <script src="{{ url_for('static', filename='js/heartbeat.js') }}"></script>
+    {% endif %}
 </body>
 </html>
