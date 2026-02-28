@@ -19,7 +19,10 @@ nav:
           - Engine Execution Flow: guides/internals/engine-execution-flow.md
           - Scansion Data Flow: guides/internals/scansion-data-flow.md
           - API Documentation: api/README.md
-  - Download: https://github.com/tariquesani/aruuz-nigar/releases 
+  - Download: https://github.com/tariquesani/aruuz-nigar/releases
+  - Demos:
+      - Server 1: https://www--aruuznigar.replit.app/
+      - Server 2: https://aruuznigar.onrender.com/ 
   - Get the Code: https://github.com/tariquesani/aruuz-nigar
   - Report Bugs: https://github.com/tariquesani/aruuz-nigar/issues 
 

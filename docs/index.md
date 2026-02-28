@@ -2,7 +2,10 @@
 
 ## What is Aruuz Nigar?
 
-Aruuz Nigar is an Urdu poetry scansion tool that helps poets and readers understand Urdu arūz by inferring the taqti of individual lines and matching them against known bahrs. It consists of two parts: **Aruuz**, a reusable Python library that performs the scansion and meter analysis, and **Nigar**, a Flask based web frontend that provides a basic interface for end-users.
+Aruuz Nigar is an Urdu poetry scansion tool that helps poets and readers understand Urdu arūz by inferring the taqti of individual lines and matching them against known bahrs. It consists of two parts: **Aruuz**, a reusable Python library that performs the scansion and meter analysis, and **Nigar**, a Flask based web frontend that provides a basic interface for end-users. Here is how it looks...
+
+![Screenshot of Aruuz Nigar interface](img/screen1.png)
+
 
 ## Why create Aruuz Nigar?
 
