@@ -15,65 +15,16 @@ Implementation notes:
 
 from __future__ import annotations
 
-import re
-import unicodedata
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from aruuz.utils.araab import remove_araab
-
-
-_URDU_BLOCK_RE = re.compile(r"[\u0600-\u06FF]")
-_MULTISPACE_RE = re.compile(r"\s+")
-
-# Canonicalization map for common Arabic/Urdu variants.
-_CHAR_MAP = {
-    "ي": "ی",
-    "ى": "ی",
-    "ك": "ک",
-    "ة": "ہ",
-    "ۀ": "ہ",
-    "ھ": "ہ",
-    "ؤ": "و",
-    "أ": "ا",
-    "إ": "ا",
-    "ٱ": "ا",
-}
-
-# End punctuation/noise only (strict radeef matching works on line endings).
-_TRAILING_STRIP_CHARS = " ,\"'*۔،?!ؔ؟‘()؛;\u200B\u200C\u200D\uFEFF.ؒ؎=ؑؓ\uFDFD\uFDFA:’[]{}"
+from aruuz.rhyme.text_utils import (
+    contains_non_urdu_characters,
+    normalize_urdu_line_for_rhyme,
+    split_non_empty_lines,
+)
 
 # Optional stoplist for trivial single-token candidates in strict MVP.
 _TRIVIAL_SINGLE_TOKEN_STOPLIST = {"ہے"}
-
-
-def _normalize_line(line: str) -> str:
-    """Normalize one Urdu line for strict suffix comparison."""
-    if not line:
-        return ""
-
-    text = unicodedata.normalize("NFC", line)
-    text = remove_araab(text)
-    text = text.translate(str.maketrans(_CHAR_MAP))
-
-    # Align with existing text utility behavior:
-    # ا + madd (\u0653) -> آ and ہ with hamza above normalization.
-    text = re.sub("(\u0627)(\u0653)", "آ", text)
-    text = re.sub("(\u06C2)", "\u06C1\u0654", text)
-
-    text = text.strip()
-    text = text.rstrip(_TRAILING_STRIP_CHARS)
-    text = _MULTISPACE_RE.sub(" ", text).strip()
-    return text
-
-
-def _split_non_empty_lines(raw_text: str) -> List[Tuple[int, str]]:
-    """Return (1-based line_number, original_line) for non-empty lines."""
-    out: List[Tuple[int, str]] = []
-    for idx, raw_line in enumerate(raw_text.splitlines(), start=1):
-        trimmed = raw_line.strip()
-        if trimmed:
-            out.append((idx, trimmed))
-    return out
 
 
 def _assign_relevant_positions(total_lines: int) -> List[int]:
@@ -91,20 +42,6 @@ def _assign_relevant_positions(total_lines: int) -> List[int]:
         if line_number in (1, 2) or (line_number >= 3 and line_number % 2 == 0):
             relevant.append(pos)
     return relevant
-
-
-def _contains_non_urdu_characters(text: str) -> bool:
-    """True if line has Latin letters or digits (outside Urdu-script-only intent)."""
-    for ch in text:
-        if ch.isspace():
-            continue
-        if _URDU_BLOCK_RE.match(ch):
-            continue
-        if ch in _TRAILING_STRIP_CHARS:
-            continue
-        # Any visible non-Urdu character counts as warning-worthy.
-        return True
-    return False
 
 
 def _suffix_candidates(tokens: Sequence[str], max_suffix_tokens: int) -> List[str]:
@@ -256,10 +193,10 @@ def check_radeef(
             "warnings": warnings,
         }
 
-    non_empty_lines = _split_non_empty_lines(text)
-    normalized_lines = [_normalize_line(line) for _, line in non_empty_lines]
+    non_empty_lines = split_non_empty_lines(text)
+    normalized_lines = [normalize_urdu_line_for_rhyme(line) for _, line in non_empty_lines]
 
-    if any(_contains_non_urdu_characters(line) for _, line in non_empty_lines):
+    if any(contains_non_urdu_characters(line) for _, line in non_empty_lines):
         warnings.append("non_urdu_characters_detected")
 
     total_input_lines = len(text.splitlines())
