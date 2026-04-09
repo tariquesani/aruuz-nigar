@@ -15,6 +15,7 @@ import logging
 
 from flask import request
 
+from aruuz.rhyme.kafiya import check_kafiya
 from aruuz.rhyme.radeef import check_radeef
 
 logger = logging.getLogger(__name__)
@@ -56,14 +57,11 @@ def handle(request):
 
     try:
         radeef_result = check_radeef(text, mode="strict")
+        kafiya_result = check_kafiya(text, radeef_result=radeef_result)
         return {
             "results": {
                 "radeef": radeef_result,
-                "kafiya": {
-                    "implemented": False,
-                    "pass": False,
-                    "message": "Kafiya check is not implemented yet.",
-                },
+                "kafiya": kafiya_result,
             }
         }
     except Exception:
