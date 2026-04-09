@@ -51,10 +51,14 @@ def _suffix(word: str, length: int) -> str:
 
 def _extract_kafiya_candidates(
     text: str, radeef_result: Dict[str, Any]
-) -> Tuple[List[Tuple[int, str, str]], List[str], List[str]]:
+) -> Tuple[List[Tuple[int, int, str, str]], List[str], List[str]]:
+    """
+    Each candidate: (line_number, verse_index, full_line, kafiya_word).
+    verse_index matches radeef line_results (1-based among non-empty lines).
+    """
     errors: List[str] = []
     warnings: List[str] = []
-    candidates: List[Tuple[int, str, str]] = []
+    candidates: List[Tuple[int, int, str, str]] = []
 
     detected_radeef = radeef_result.get("detected_radeef")
     diag = radeef_result.get("diagnostics", {})
@@ -75,6 +79,7 @@ def _extract_kafiya_candidates(
             continue
 
         line_no = int(entry.get("line_number", 0))
+        verse_index = int(entry.get("verse_index", 0))
         original = str(entry.get("original", "")).strip()
         normalized = str(entry.get("normalized", "")).strip()
 
@@ -87,7 +92,7 @@ def _extract_kafiya_candidates(
         if not kafiya_word:
             warnings.append(f"line_{line_no}_missing_kafiya_word")
             continue
-        candidates.append((line_no, original or normalized, kafiya_word))
+        candidates.append((line_no, verse_index, original or normalized, kafiya_word))
 
     if len(candidates) < 2:
         errors.append("insufficient_kafiya_candidates")
@@ -95,10 +100,10 @@ def _extract_kafiya_candidates(
     return candidates, errors, warnings
 
 
-def _check_candidates(candidates: Sequence[Tuple[int, str, str]]) -> Dict[str, Any]:
+def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[str, Any]:
     # First two relevant candidates define kafiya reference (matla behavior).
-    line_no_1, full_line_1, word_1 = candidates[0]
-    line_no_2, full_line_2, word_2 = candidates[1]
+    line_no_1, verse_1, full_line_1, word_1 = candidates[0]
+    line_no_2, verse_2, full_line_2, word_2 = candidates[1]
 
     script_word_1 = normalize_urdu_text(word_1)
     script_word_2 = normalize_urdu_text(word_2)
@@ -122,6 +127,7 @@ def _check_candidates(candidates: Sequence[Tuple[int, str, str]]) -> Dict[str, A
     results: List[Dict[str, Any]] = [
         {
             "line_no": line_no_1,
+            "verse_index": verse_1,
             "full_line": full_line_1,
             "word": script_word_1,
             "status": "reference",
@@ -129,6 +135,7 @@ def _check_candidates(candidates: Sequence[Tuple[int, str, str]]) -> Dict[str, A
         },
         {
             "line_no": line_no_2,
+            "verse_index": verse_2,
             "full_line": full_line_2,
             "word": script_word_2,
             "status": "reference",
@@ -140,7 +147,7 @@ def _check_candidates(candidates: Sequence[Tuple[int, str, str]]) -> Dict[str, A
     phonetic_matched = 0
     flagged = 0
 
-    for line_no, full_line, raw_word in candidates[2:]:
+    for line_no, verse_idx, full_line, raw_word in candidates[2:]:
         script_word = normalize_urdu_text(raw_word)
         ph_word = _full_normalize_kafiya_word(raw_word)
         actual_script_suffix = _suffix(script_word, suffix_len)
@@ -168,6 +175,7 @@ def _check_candidates(candidates: Sequence[Tuple[int, str, str]]) -> Dict[str, A
         results.append(
             {
                 "line_no": line_no,
+                "verse_index": verse_idx,
                 "full_line": full_line,
                 "word": script_word,
                 "status": status,
