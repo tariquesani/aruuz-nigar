@@ -7,6 +7,27 @@
     [x-cloak] {
         display: none !important;
     }
+    .word-cell.rhyme-radeef-ok {
+        background-color: rgba(25, 135, 84, 0.2);
+        color: inherit;
+        border-radius: 0.25rem;
+    }
+    .word-cell.rhyme-radeef-bad {
+        background-color: rgba(220, 53, 69, 0.25);
+        color: inherit;
+        border-radius: 0.25rem;
+    }
+    .word-cell.rhyme-kafiya-ok {
+        /* Same green as radeef so valid qaafiya + radīf read as one rhyme band */
+        background-color: rgba(25, 135, 84, 0.2);
+        color: inherit;
+        border-radius: 0.25rem;
+    }
+    .word-cell.rhyme-kafiya-bad {
+        background-color: rgba(220, 53, 69, 0.2);
+        color: inherit;
+        border-radius: 0.25rem;
+    }
 </style>
 {% endblock %}
 
@@ -32,23 +53,19 @@
             <!-- Result: memoized getters return stable array refs for same result, reducing re-renders -->
             <div x-show="lineData.result" :class="{'opacity-50': lineData.loading}">
                 <h5 class="text-center urdu-text mb-4" dir="rtl" lang="ur" x-text="lineData.result?.original_line || lineData.lineText || ''"></h5>
-                <div class="scansion-grid-wrapper" x-data="{
-                    get words() { return getWordsWithBoundaries(lineData.result) || []; },
-                    get syllables() { return getSyllablesWithDeviations(lineData.result) || []; },
-                    get feet() { return getFeetWithBoundaries(lineData.result) || []; }
-                }">
+                <div class="scansion-grid-wrapper">
                     <div class="scansion-row words-row">
-                        <template x-for="wordData in words" :key="'line-' + idx + '-word-' + wordData.word_index">
-                            <div class="word-cell" :style="'grid-column: span ' + wordData.span" x-text="wordData.word"></div>
+                        <template x-for="wordData in wordsForLine(lineData, idx)" :key="'line-' + idx + '-word-' + wordData.word_index">
+                            <div class="word-cell" :class="wordData.rhymeClass" :style="'grid-column: span ' + wordData.span" x-text="wordData.word"></div>
                         </template>
                     </div>
                     <div class="scansion-row">
-                        <template x-for="(syllable, i) in syllables" :key="'line-' + idx + '-syll-' + i">
+                        <template x-for="(syllable, i) in syllablesForLine(lineData)" :key="'line-' + idx + '-syll-' + i">
                             <span class="syllable" :class="syllable.deviationType || ''" x-text="syllable.char || ''"></span>
                         </template>
                     </div>
                     <div class="scansion-row feet-row">
-                        <template x-for="(footData, footIndex) in feet" :key="'line-' + idx + '-foot-' + footData.start">
+                        <template x-for="(footData, footIndex) in feetForLine(lineData)" :key="'line-' + idx + '-foot-' + footData.start">
                             <div class="foot-cell" :class="{ 'foot-cell-alt': footIndex % 2 === 1 }" :style="'grid-column: span ' + footData.span" x-text="footData.foot"></div>
                         </template>
                     </div>
@@ -72,6 +89,22 @@
         </div>
     </div>
 
+    <!-- Radeef / Kafiya (full poem); summary from first misra -->
+    <div class="card mt-4" x-show="lineResults.length > 0">
+        <div class="card-body py-3">
+            <h6 class="text-center text-muted mb-2">ردیف / قافیہ</h6>
+            <div class="text-muted small text-center mb-0" x-show="rhymeLoading" x-text="'Checking rhyme…'"></div>
+            <div class="alert alert-warning py-2 mb-0" x-show="rhymeError && !rhymeLoading" x-text="'Rhyme check: ' + rhymeError"></div>
+            <div class="text-center urdu-text mb-0" dir="rtl" lang="ur" x-show="!rhymeLoading && !rhymeError && rhymePayload">
+                <span class="text-muted small me-1">ردیف:</span>
+                <span x-text="rhymeFooterRadeef || '—'"></span>
+                <span class="text-muted small mx-2">—</span>
+                <span class="text-muted small me-1">قافیہ (پہلا مصرع):</span>
+                <span x-text="rhymeFooterKafiya || '—'"></span>
+            </div>
+        </div>
+    </div>
+
     <!-- Input Card: same structure as index.html -->
     <div class="card mb-3 mt-4">
         <div class="card-body py-3">
@@ -92,6 +125,192 @@
 
 <script defer src="{{ url_for('static', filename='js/alpine.min.js') }}"></script>
 <script>
+    // Configuration
+    const CONFIG = {
+        DEBOUNCE_DELAY: 3000,
+        MIN_LINES_FOR_POEM_BAHR: 6,
+        API_ENDPOINTS: {
+            ISLAH: '/api/islah',
+            DOMINANT_METER: '/api/meter/dominant',
+            RADEEF_KAFIYA: '/api/radeefkafiya'
+        }
+    };
+
+    /** 1-based line numbers of non-empty lines (matches server splitlines + trim). */
+    function nonEmptyLineNumbers(text) {
+        const lines = text.split('\n');
+        const nums = [];
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].trim()) nums.push(i + 1);
+        }
+        return nums;
+    }
+
+    /** Max word_index from islah scansion (aligns with grid word cells, not naive whitespace split). */
+    function maxWordIndexFromIslahResult(result) {
+        if (!result?.word_boundaries?.length) return -1;
+        let m = -1;
+        for (let i = 0; i < result.word_boundaries.length; i++) {
+            const wi = result.word_boundaries[i].word_index;
+            if (typeof wi === 'number' && wi > m) m = wi;
+        }
+        return m;
+    }
+
+    /**
+     * Per islah line index: radeef/kafiya ranges use word_index space from word_boundaries
+     * (same as Row 1), so highlights match the scansion grid.
+     */
+    function buildRhymeLineMeta(text, payload, lineResults) {
+        const empty = [];
+        if (!payload || !payload.results) return empty;
+        const r = payload.results.radeef;
+        const k = payload.results.kafiya;
+        const nums = nonEmptyLineNumbers(text);
+        const detected = (r && r.detected_radeef) ? String(r.detected_radeef).trim() : '';
+
+        const lineResultsMap = new Map();
+        const lineResultsByVerse = new Map();
+        (r && r.diagnostics && r.diagnostics.line_results || []).forEach((lr) => {
+            lineResultsMap.set(lr.line_number, lr);
+            const v = lr.verse_index;
+            if (v != null) lineResultsByVerse.set(Number(v), lr);
+        });
+        const kafiyaMap = new Map();
+        const kafiyaByVerse = new Map();
+        (k && k.results || []).forEach((kr) => {
+            const physical = kr.line_no != null ? Number(kr.line_no) : NaN;
+            if (!Number.isNaN(physical)) kafiyaMap.set(physical, kr);
+            const v = kr.verse_index;
+            if (v != null) kafiyaByVerse.set(Number(v), kr);
+        });
+
+        return nums.map((ln, islahIdx) => {
+            const verseIdx = islahIdx + 1;
+            const lr = lineResultsByVerse.get(verseIdx) || lineResultsMap.get(ln);
+            const islahRes = lineResults && lineResults[islahIdx] ? lineResults[islahIdx].result : null;
+            const maxW = maxWordIndexFromIslahResult(islahRes);
+
+            const meta = {
+                lineNumber: ln,
+                relevant: lr && lr.role === 'relevant',
+                radeefPass: !!(lr && lr.pass),
+                radeefStart: -1,
+                radeefEnd: -1,
+                kafiyaIndex: -1,
+                kafiyaStatus: null,
+            };
+            if (!lr) {
+                const km0 = kafiyaByVerse.get(verseIdx) || kafiyaMap.get(Number(ln));
+                if (km0) meta.kafiyaStatus = km0.status;
+                return meta;
+            }
+
+            const phrase = (lr.matched_radeef != null && String(lr.matched_radeef).trim())
+                ? String(lr.matched_radeef).trim()
+                : detected;
+            let nTok = phrase.split(/\s+/).filter(Boolean).length;
+            if (nTok <= 0) nTok = 1;
+
+            if (meta.relevant && maxW >= 0) {
+                meta.radeefEnd = maxW;
+                meta.radeefStart = maxW - nTok + 1;
+                if (meta.radeefStart < 0) {
+                    meta.radeefStart = 0;
+                    meta.radeefEnd = maxW;
+                }
+                if (meta.radeefStart > 0) meta.kafiyaIndex = meta.radeefStart - 1;
+            } else if (meta.relevant && maxW < 0) {
+                const words = String(lr.original || '').trim().split(/\s+/).filter((w) => w.length > 0);
+                if (words.length > 0 && nTok > 0) {
+                    const end = words.length - 1;
+                    meta.radeefEnd = end;
+                    meta.radeefStart = Math.max(0, words.length - nTok);
+                    if (meta.radeefStart > 0) meta.kafiyaIndex = meta.radeefStart - 1;
+                }
+            }
+
+            const km = kafiyaByVerse.get(verseIdx) || kafiyaMap.get(Number(ln));
+            if (km) meta.kafiyaStatus = km.status;
+            return meta;
+        });
+    }
+
+    // API Service
+    const IslahAPI = {
+        async analyzeLine(text) {
+            const res = await fetch(CONFIG.API_ENDPOINTS.ISLAH, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text }),
+            });
+            const raw = await res.text();
+            if (!res.ok) throw new Error(raw || `HTTP ${res.status}`);
+            try {
+                return JSON.parse(raw);
+            } catch (err) {
+                throw new Error('Invalid JSON response');
+            }
+        },
+
+        async getDominantMeter(results) {
+            if (results.length === 0) return {};
+            const res = await fetch(CONFIG.API_ENDPOINTS.DOMINANT_METER, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ results }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        },
+
+        async fetchRadeefKafiya(fullText) {
+            const res = await fetch(CONFIG.API_ENDPOINTS.RADEEF_KAFIYA, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: fullText }),
+            });
+            const raw = await res.text();
+            if (!res.ok) throw new Error(raw || `HTTP ${res.status}`);
+            try {
+                return JSON.parse(raw);
+            } catch (e) {
+                throw new Error('Invalid JSON from radeefkafiya');
+            }
+        }
+    };
+
+    // Cache Manager
+    class ResultCache {
+        constructor() {
+            this.words = new WeakMap();
+            this.syllables = new WeakMap();
+            this.feet = new WeakMap();
+        }
+
+        getWords(result, builder) {
+            if (!this.words.has(result)) {
+                this.words.set(result, builder(result));
+            }
+            return this.words.get(result);
+        }
+
+        getSyllables(result, builder) {
+            if (!this.syllables.has(result)) {
+                this.syllables.set(result, builder(result));
+            }
+            return this.syllables.get(result);
+        }
+
+        getFeet(result, builder) {
+            if (!this.feet.has(result)) {
+                this.feet.set(result, builder(result));
+            }
+            return this.feet.get(result);
+        }
+    }
+
+    // Alpine Component
     document.addEventListener('alpine:init', () => {
         Alpine.data('islahApp', () => ({
             text: '',
@@ -102,14 +321,30 @@
             debounceTimer: null,
             poemDominant: null,
             poemDominantLoading: false,
-            _wordsCache: null,
-            _syllablesCache: null,
-            _feetCache: null,
+            rhymePayload: null,
+            rhymeLineMeta: [],
+            rhymeLoading: false,
+            rhymeError: null,
+            cache: null,
+
+            get rhymeFooterRadeef() {
+                const d = this.rhymePayload?.results?.radeef?.detected_radeef;
+                return d ? String(d).trim() : '';
+            },
+
+            get rhymeFooterKafiya() {
+                const rows = this.rhymePayload?.results?.kafiya?.results;
+                if (!rows || !rows.length) return '';
+                const row = rows.find((r) => Number(r.verse_index) === 1)
+                    || rows.find((r) => {
+                        const nums = nonEmptyLineNumbers(this.text);
+                        return nums.length && Number(r.line_no) === nums[0];
+                    });
+                return row && row.word ? String(row.word) : '';
+            },
 
             init() {
-                this._wordsCache = new WeakMap();
-                this._syllablesCache = new WeakMap();
-                this._feetCache = new WeakMap();
+                this.cache = new ResultCache();
                 this.initBahrTooltips = () => {
                     const root = this.$el;
                     if (!root || typeof bootstrap === 'undefined') return;
@@ -125,7 +360,7 @@
                         this.debounceTimer = setTimeout(() => {
                             this.debounceTimer = null;
                             if (!this.loading) this.silentUpdate();
-                        }, 3000);
+                        }, CONFIG.DEBOUNCE_DELAY);
                     }
                 });
             },
@@ -139,65 +374,81 @@
             },
 
             getWordsWithBoundaries(result) {
-                if (!result || !result.word_boundaries || !result.original_line) return [];
-                const cached = this._wordsCache.get(result);
-                if (cached !== undefined) return cached;
-                const words = result.original_line.trim().split(/\s+/).filter(w => w.length > 0);
-                const boundaries = result.word_boundaries;
-                const deviations = result.deviations || [];
-                const insertions = deviations.filter(dev => dev.type === 'insert');
-                const value = boundaries.map(wb => {
-                    let span = wb.code_end - wb.code_start;
-                    insertions.forEach(ins => {
-                        if (ins.code_pos >= wb.code_start && ins.code_pos < wb.code_end) span += 1;
+                if (!result?.word_boundaries?.length || !result.original_line) return [];
+                return this.cache.getWords(result, (r) => {
+                    const words = r.original_line.trim().split(/\s+/).filter(w => w.length > 0);
+                    const insertions = (r.deviations || []).filter(dev => dev.type === 'insert');
+                    return r.word_boundaries.map(wb => {
+                        let span = wb.code_end - wb.code_start;
+                        insertions.forEach(ins => {
+                            if (ins.code_pos >= wb.code_start && ins.code_pos < wb.code_end) span += 1;
+                        });
+                        return { word_index: wb.word_index, word: words[wb.word_index] || '', span };
                     });
-                    return { word_index: wb.word_index, word: words[wb.word_index] || '', span };
                 });
-                this._wordsCache.set(result, value);
-                return value;
+            },
+
+            /** Row 1 words with rhyme classes; avoids nested x-data so every line sees correct idx. */
+            wordsForLine(lineData, lineIdx) {
+                const base = this.getWordsWithBoundaries(lineData.result) || [];
+                return base.map((w) => ({
+                    ...w,
+                    rhymeClass: this.wordRhymeClass(lineIdx, w.word_index),
+                }));
+            },
+
+            syllablesForLine(lineData) {
+                return this.getSyllablesWithDeviations(lineData.result) || [];
+            },
+
+            feetForLine(lineData) {
+                return this.getFeetWithBoundaries(lineData.result) || [];
             },
 
             getSyllablesWithDeviations(result) {
                 const codeStr = this.getDisplayCode(result);
                 if (!result || !codeStr) return [];
-                const cached = this._syllablesCache.get(result);
-                if (cached !== undefined) return cached;
-                const code = codeStr.split('');
-                const deviations = result.deviations || [];
-                const deviationMap = new Map();
-                deviations.forEach(dev => {
-                    if (dev.type === 'substitute' || dev.type === 'delete') deviationMap.set(dev.code_pos, dev);
+                return this.cache.getSyllables(result, (r) => {
+                    const code = codeStr.split('');
+                    const deviations = r.deviations || [];
+                    const deviationMap = new Map();
+                    deviations.forEach(dev => {
+                        if (dev.type === 'substitute' || dev.type === 'delete') {
+                            deviationMap.set(dev.code_pos, dev);
+                        }
+                    });
+                    const syllables = code.map((char, index) => ({
+                        char,
+                        index,
+                        deviationType: deviationMap.has(index) ? deviationMap.get(index).type : null,
+                        expected: deviationMap.has(index) ? deviationMap.get(index).expected : null,
+                    }));
+                    const insertions = deviations.filter(dev => dev.type === 'insert')
+                        .sort((a, b) => b.code_pos - a.code_pos);
+                    insertions.forEach(ins => {
+                        syllables.splice(ins.code_pos, 0, { 
+                            char: '', 
+                            index: ins.code_pos, 
+                            deviationType: 'insert', 
+                            expected: ins.expected 
+                        });
+                    });
+                    return syllables;
                 });
-                const syllables = code.map((char, index) => ({
-                    char,
-                    index,
-                    deviationType: deviationMap.has(index) ? deviationMap.get(index).type : null,
-                    expected: deviationMap.has(index) ? deviationMap.get(index).expected : null,
-                }));
-                const insertions = deviations.filter(dev => dev.type === 'insert').sort((a, b) => b.code_pos - a.code_pos);
-                insertions.forEach(ins => {
-                    syllables.splice(ins.code_pos, 0, { char: '', index: ins.code_pos, deviationType: 'insert', expected: ins.expected });
-                });
-                this._syllablesCache.set(result, syllables);
-                return syllables;
             },
 
             getFeetWithBoundaries(result) {
-                if (!result || !result.feet_list || !result.full_code) return [];
-                const cached = this._feetCache.get(result);
-                if (cached !== undefined) return cached;
-                const feet = result.feet_list;
-                const deviations = result.deviations || [];
-                const insertions = deviations.filter(dev => dev.type === 'insert');
-                const value = feet.map(seg => {
-                    let span = seg.end - seg.start;
-                    insertions.forEach(ins => {
-                        if (ins.code_pos >= seg.start && ins.code_pos < seg.end) span += 1;
+                if (!result?.feet_list?.length || !result.full_code) return [];
+                return this.cache.getFeet(result, (r) => {
+                    const insertions = (r.deviations || []).filter(dev => dev.type === 'insert');
+                    return r.feet_list.map(seg => {
+                        let span = seg.end - seg.start;
+                        insertions.forEach(ins => {
+                            if (ins.code_pos >= seg.start && ins.code_pos < seg.end) span += 1;
+                        });
+                        return { foot: seg.foot, start: seg.start, span };
                     });
-                    return { foot: seg.foot, start: seg.start, span };
                 });
-                this._feetCache.set(result, value);
-                return value;
             },
 
             getBahrLabel(result) {
@@ -238,7 +489,6 @@
                 return lines.length ? lines.join(' ') : '';
             },
 
-            /** Get { meter_name, feet } from a line result for /api/meter/dominant, or null. */
             getMeterPayloadForLine(result) {
                 if (!result) return null;
                 if (result.meters && result.meters[0]) {
@@ -250,31 +500,40 @@
                 return null;
             },
 
+            wordRhymeClass(lineIdx, wordIndex) {
+                const m = this.rhymeLineMeta[lineIdx];
+                if (!m || !m.relevant) return '';
+                const parts = [];
+                if (m.radeefStart >= 0 && wordIndex >= m.radeefStart && wordIndex <= m.radeefEnd) {
+                    parts.push(m.radeefPass ? 'rhyme-radeef-ok' : 'rhyme-radeef-bad');
+                }
+                if (m.kafiyaIndex === wordIndex && m.kafiyaStatus) {
+                    if (m.kafiyaStatus === 'flagged') parts.push('rhyme-kafiya-bad');
+                    else if (['match', 'phonetic_match', 'reference'].includes(m.kafiyaStatus)) {
+                        parts.push('rhyme-kafiya-ok');
+                    }
+                }
+                return parts.join(' ');
+            },
+
             async fetchDominantMeter() {
-                if (this.lineResults.length < 6) {
+                if (this.lineResults.length < CONFIG.MIN_LINES_FOR_POEM_BAHR) {
                     this.poemDominant = null;
                     return;
                 }
-                const results = [];
-                for (const lineData of this.lineResults) {
-                    const payload = this.getMeterPayloadForLine(lineData.result);
-                    if (payload) results.push(payload);
-                }
-                if (results.length === 0) {
+                const meterPayloads = this.lineResults
+                    .map(lineData => this.getMeterPayloadForLine(lineData.result))
+                    .filter(Boolean);
+                if (meterPayloads.length === 0) {
                     this.poemDominant = {};
                     return;
                 }
                 this.poemDominantLoading = true;
                 this.poemDominant = null;
                 try {
-                    const res = await fetch('/api/meter/dominant', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ results }),
-                    });
-                    const data = await res.json().catch(() => ({}));
-                    this.poemDominant = res.ok ? data : {};
-                } catch (_) {
+                    this.poemDominant = await IslahAPI.getDominantMeter(meterPayloads);
+                } catch (err) {
+                    console.error('Failed to fetch dominant meter:', err);
                     this.poemDominant = {};
                 } finally {
                     this.poemDominantLoading = false;
@@ -297,13 +556,19 @@
                     this.lineResults = [];
                     this.previousLines = [];
                     this.poemDominant = null;
+                    this.rhymePayload = null;
+                    this.rhymeLineMeta = [];
+                    this.rhymeError = null;
+                    this.rhymeLoading = false;
                     if (explicit) this.$nextTick(() => textarea?.focus());
                     return;
                 }
 
                 const needFetch = [];
                 for (let i = 0; i < currentLines.length; i++) {
-                    if (i >= this.previousLines.length || currentLines[i] !== this.previousLines[i]) needFetch.push(i);
+                    if (i >= this.previousLines.length || currentLines[i] !== this.previousLines[i]) {
+                        needFetch.push(i);
+                    }
                 }
 
                 this.updatingResults = true;
@@ -312,27 +577,15 @@
                 const fetchedByIndex = {};
 
                 try {
-                    for (const i of needFetch) {
+                    // Fetch all changed lines in parallel (performance boost!)
+                    await Promise.all(needFetch.map(async (i) => {
                         try {
-                            const res = await fetch('/api/islah', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ text: currentLines[i] }),
-                            });
-                            const raw = await res.text();
-                            if (!res.ok) {
-                                fetchedByIndex[i] = { result: null, error: raw || `HTTP ${res.status}` };
-                            } else {
-                                try {
-                                    fetchedByIndex[i] = { result: JSON.parse(raw), error: null };
-                                } catch (_) {
-                                    fetchedByIndex[i] = { result: null, error: 'Invalid JSON' };
-                                }
-                            }
+                            const result = await IslahAPI.analyzeLine(currentLines[i]);
+                            fetchedByIndex[i] = { result, error: null };
                         } catch (err) {
                             fetchedByIndex[i] = { result: null, error: err.message || 'Request failed' };
                         }
-                    }
+                    }));
 
                     const newLineResults = [];
                     for (let i = 0; i < currentLines.length; i++) {
@@ -359,8 +612,22 @@
                     }
                     this.lineResults = newLineResults;
                     this.previousLines = currentLines.slice();
-                    if (this.lineResults.length >= 6) this.fetchDominantMeter();
+                    if (this.lineResults.length >= CONFIG.MIN_LINES_FOR_POEM_BAHR) this.fetchDominantMeter();
                     else this.poemDominant = null;
+
+                    this.rhymeLoading = true;
+                    this.rhymeError = null;
+                    try {
+                        this.rhymePayload = await IslahAPI.fetchRadeefKafiya(this.text);
+                        this.rhymeLineMeta = buildRhymeLineMeta(this.text, this.rhymePayload, this.lineResults);
+                    } catch (err) {
+                        console.error('Radeef/kafiya:', err);
+                        this.rhymeError = err.message || 'Request failed';
+                        this.rhymePayload = null;
+                        this.rhymeLineMeta = [];
+                    } finally {
+                        this.rhymeLoading = false;
+                    }
                 } finally {
                     this.updatingResults = false;
                     if (explicit) this.loading = false;
