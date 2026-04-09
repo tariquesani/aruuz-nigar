@@ -29,17 +29,24 @@ _TRIVIAL_SINGLE_TOKEN_STOPLIST = {"ہے"}
 
 def _assign_relevant_positions(total_lines: int) -> List[int]:
     """
-    Relevant positions in the filtered non-empty line list (0-based):
-    - first and second line
-    - then every even-numbered line (2,4,6...) in 1-based human indexing.
+    Ghazal radeef appears on these **non-empty** misras (1-based verse index):
+
+    - Verse 1 and 2: matla (both misre)
+    - Then verse 4, 6, 8, …: second misra of each subsequent sher
+
+    (Verse 3, 5, 7, … are the first misra of each sher after the matla — no radeef.)
+
+    ``total_lines`` is the count of non-empty lines only; ``pos`` is 0-based into that list.
     """
     if total_lines <= 0:
         return []
 
     relevant: List[int] = []
     for pos in range(total_lines):
-        line_number = pos + 1
-        if line_number in (1, 2) or (line_number >= 3 and line_number % 2 == 0):
+        verse_index = pos + 1
+        if verse_index in (1, 2):
+            relevant.append(pos)
+        elif verse_index >= 4 and verse_index % 2 == 0:
             relevant.append(pos)
     return relevant
 
@@ -124,6 +131,7 @@ def _build_line_results(
 
         entry: Dict[str, Any] = {
             "line_number": original_idx,
+            "verse_index": pos + 1,
             "role": role,
             "original": original_text,
             "normalized": normalized,
