@@ -104,8 +104,8 @@ def index():
 @app.route('/islah', methods=['GET'])
 def islah():
     """Islah page: placeholder for correction/suggestions UI."""
-    return render_template('islah_refactored.html')
-    # return render_template('islah.html')
+    return render_template('islah.html')
+
 
 
 @app.route('/heartbeat', methods=['GET'])
