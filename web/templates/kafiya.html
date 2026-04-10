@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Kafiya Dictionary — Aruuz Nigar{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <h1 class="text-center mb-4">Aruuz Nigar: Kafiya Dictionary</h1>
+
+    <div class="alert alert-light border mb-2 py-1" role="alert">
+        <small class="text-muted">
+            <strong>Legend:</strong>
+            <span class="ms-2">Script = exact written suffix match</span>
+            <span class="ms-3">Phonetic = sound-based suffix match</span>
+        </small>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show">
+        <strong>Error</strong> {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    {% if result %}
+    <div class="card mb-4">
+        <div class="card-body py-3">
+            <h5 class="text-center urdu-text mb-1" dir="rtl" lang="ur">
+                قافیہ for: {{ result.query }}
+            </h5>
+            <p class="text-center text-muted small mb-0">Grouped by quality buckets: exact, close, open</p>
+        </div>
+    </div>
+
+    {% set buckets = [
+        ('exact', 'Exact', result.exact, result.suffix_lengths.exact),
+        ('close', 'Close', result.close, result.suffix_lengths.close),
+        ('open', 'Open', result.open, result.suffix_lengths.open),
+    ] %}
+    {% set ns = namespace(has_any=false) %}
+
+    {% for bucket_key, bucket_label, matches, suffix_len in buckets %}
+        {% if matches %}
+            {% set ns.has_any = true %}
+            {% set script_words = matches | selectattr('match_kind', 'equalto', 'script') | map(attribute='word') | list %}
+            {% set phonetic_words = matches | selectattr('match_kind', 'equalto', 'phonetic') | map(attribute='word') | list %}
+            <div class="card mb-4">
+                <div class="card-body py-3">
+                    <h6 class="mb-3">
+                        {{ bucket_label }} | suffix length: {{ suffix_len }} ({{ matches | length }} words)
+                    </h6>
+
+                    {% if script_words %}
+                    <div class="mb-3">
+                        <strong class="d-block mb-1">Script</strong>
+                        <div class="kafiya-word-list" lang="ur">
+                            {% for w in script_words %}
+                            <span class="kafiya-word urdu-text">{{ w }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if phonetic_words %}
+                    <div class="mb-0">
+                        <strong class="d-block mb-1">Phonetic</strong>
+                        <div class="kafiya-word-list" lang="ur">
+                            {% for w in phonetic_words %}
+                            <span class="kafiya-word urdu-text">{{ w }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    {% endfor %}
+
+    {% if not ns.has_any %}
+    <div class="alert alert-warning">
+        No kafiya matches found for this word.
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <div class="card mb-3">
+        <div class="card-body py-3">
+            <form method="POST" action="/kafiya" class="needs-validation" novalidate>
+                <label for="text" class="form-label">Enter one Urdu word</label>
+                <input
+                    type="text"
+                    class="form-control form-control-lg urdu-input mb-3"
+                    id="text"
+                    name="text"
+                    dir="rtl"
+                    lang="ur"
+                    placeholder="تصویر"
+                    value="{{ text_input or '' }}"
+                    required
+                    autofocus
+                />
+                <div class="invalid-feedback">
+                    Please enter one Urdu word.
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg w-100 py-2">
+                    Find Kafiya
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+    'use strict';
+    var forms = document.querySelectorAll('.needs-validation');
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+})();
+</script>
+{% endblock %}

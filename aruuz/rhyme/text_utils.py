@@ -27,6 +27,17 @@ CHAR_MAP = {
     "ٱ": "ا",
 }
 
+# Homophone map: letters that sound identical in Urdu.
+PHONETIC_MAP: dict[str, str] = {
+    "ث": "س",
+    "ص": "س",
+    "ذ": "ز",
+    "ض": "ز",
+    "ظ": "ز",
+    "ح": "ہ",
+    "ط": "ت",
+}
+
 # End punctuation/noise for line-end matching tasks.
 TRAILING_STRIP_CHARS = " ,\"'*۔،?!ؔ؟‘()؛;\u200B\u200C\u200D\uFEFF.ؒ؎=ؑؓ\uFDFD\uFDFA:’[]{}"
 
@@ -54,6 +65,20 @@ def normalize_urdu_line_for_rhyme(line: str) -> str:
     out = out.rstrip(TRAILING_STRIP_CHARS).strip()
     out = MULTISPACE_RE.sub(" ", out).strip()
     return out
+
+
+def phonetic_normalize(word: str) -> str:
+    """
+    Apply the Urdu homophone map to a word.
+    """
+    return "".join(PHONETIC_MAP.get(c, c) for c in word)
+
+
+def full_normalize(word: str) -> str:
+    """
+    Full pipeline for kafiya matching: script normalization then phonetic map.
+    """
+    return phonetic_normalize(normalize_urdu_text(word))
 
 
 def split_non_empty_lines(raw_text: str) -> List[Tuple[int, str]]:
@@ -104,10 +129,14 @@ def strip_suffix_phrase(text: str, suffix_phrase: str) -> str:
 __all__ = [
     "normalize_urdu_text",
     "normalize_urdu_line_for_rhyme",
+    "phonetic_normalize",
+    "full_normalize",
     "split_non_empty_lines",
     "contains_non_urdu_characters",
     "get_last_token",
     "strip_suffix_phrase",
+    "CHAR_MAP",
+    "PHONETIC_MAP",
     "TRAILING_STRIP_CHARS",
 ]
 

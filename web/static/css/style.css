@@ -88,6 +88,25 @@ body {
     text-align: right;
 }
 
+/* Kafiya dictionary: widely spaced Urdu words */
+.kafiya-word-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem 1.5rem;
+    justify-content: flex-end;
+    align-content: flex-start;
+    direction: rtl;
+    font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
+    font-size: 1.45rem;
+    line-height: 2;
+    margin-top: 0.35rem;
+}
+
+.kafiya-word-list .kafiya-word {
+    display: inline-block;
+    padding: 0.2rem 0.35rem;
+}
+
 /* Code Value Styling */
 .code-value {
     font-family: 'Courier New', 'Courier', monospace;

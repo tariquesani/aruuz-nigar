@@ -15,6 +15,7 @@ from flask import Flask, jsonify, render_template, request
 
 from web.api import get_api_handlers, is_valid_keyword
 from aruuz.models import Lines
+from aruuz.rhyme.kafiya_dict import KafiyaDict
 from aruuz.scansion import Scansion
 from aruuz.utils.logging_config import setup_logging
 
@@ -49,6 +50,52 @@ app.config['SECRET_KEY'] = 'dev-key-for-testing'
 app.config['JSON_AS_ASCII'] = False  # Important for Urdu JSON
 
 API_HANDLERS = get_api_handlers()
+_KAFIYA_DICT: KafiyaDict | None = None
+_KAFIYA_LOAD_ERROR: str | None = None
+
+
+def _resolve_kafiya_index_path() -> Path:
+    """
+    Resolve kafiya index path with shared priority:
+    1) KAFIYA_INDEX_PATH env var
+    2) first existing default candidate
+    3) canonical fallback path
+    """
+    env_override = os.getenv("KAFIYA_INDEX_PATH", "").strip()
+    if env_override:
+        return Path(env_override)
+
+    candidates = [
+        PROJECT_ROOT / "database" / "kafiya_index.pkl",
+        PROJECT_ROOT / "aruuz" / "database" / "kafiya_index.pkl",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+
+def _get_kafiya_dict() -> tuple[KafiyaDict | None, str | None]:
+    """Load and cache KafiyaDict once; return cached instance or error."""
+    global _KAFIYA_DICT, _KAFIYA_LOAD_ERROR
+    if _KAFIYA_DICT is not None:
+        return _KAFIYA_DICT, None
+    if _KAFIYA_LOAD_ERROR is not None:
+        return None, _KAFIYA_LOAD_ERROR
+
+    index_path = _resolve_kafiya_index_path()
+    try:
+        _KAFIYA_DICT = KafiyaDict.load(index_path)
+        return _KAFIYA_DICT, None
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "Failed to load kafiya index from %s", index_path
+        )
+        _KAFIYA_LOAD_ERROR = (
+            f"Kafiya index could not be loaded from '{index_path}'. "
+            "Please verify the file exists and is a valid index."
+        )
+        return None, _KAFIYA_LOAD_ERROR
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -105,6 +152,37 @@ def index():
 def islah():
     """Islah page: placeholder for correction/suggestions UI."""
     return render_template('islah.html')
+
+
+@app.route('/kafiya', methods=['GET', 'POST'])
+def kafiya():
+    """Kafiya dictionary page: lookup one Urdu word and show grouped results."""
+    text_input = ""
+    error = None
+    result = None
+
+    if request.method == 'POST':
+        text_input = request.form.get('text', '').strip()
+        if not text_input:
+            error = "Please enter one Urdu word"
+        else:
+            kd, load_error = _get_kafiya_dict()
+            if load_error:
+                error = load_error
+            elif kd is None:
+                error = "Kafiya lookup is not available right now."
+            else:
+                try:
+                    result = kd.lookup(text_input).to_dict()
+                except Exception as e:
+                    error = f"Error processing word: {str(e)}"
+
+    return render_template(
+        'kafiya.html',
+        text_input=text_input,
+        error=error,
+        result=result,
+    )
 
 
 
