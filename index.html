@@ -193,7 +193,8 @@
 
 <h1 id="aruuz-nigar-urdu-poetry-scansion-tool">Aruuz Nigar - Urdu Poetry Scansion Tool</h1>
 <h2 id="what-is-aruuz-nigar">What is Aruuz Nigar?</h2>
-<p>Aruuz Nigar is an Urdu poetry scansion tool that helps poets and readers understand Urdu arūz by inferring the taqti of individual lines and matching them against known bahrs. It consists of two parts: <strong>Aruuz</strong>, a reusable Python library that performs the scansion and meter analysis, and <strong>Nigar</strong>, a Flask based web frontend that provides a basic interface for end-users. Here is how it looks...</p>
+<p>Aruuz Nigar is an Urdu poetry tool that helps poets and readers work with <strong>arūz</strong> and <strong>ghazal rhyme</strong>. For meter, it infers the taqti of individual lines and matches them against known bahrs. For ghazals, it can check <strong>radeef</strong> and <strong>kafiya</strong> (strict Urdu-script radeef detection, kafiya consistency against the matla, plus phonetic hints where applicable). It also ships with a <strong>basic kafiya dictionary</strong>: look up an Urdu word and browse rhyming words grouped by match quality, backed by a binary index (<code>kafiya_index.pkl</code>).</p>
+<p>The project has two parts: <strong>Aruuz</strong>, a reusable Python library (scansion, meter matching, and rhyme utilities), and <strong>Nigar</strong>, a Flask-based web frontend that exposes scansion, islah-style radeef/kafiya feedback, and the dictionary UI. Here is how it looks...</p>
 <p><img alt="Screenshot of Aruuz Nigar interface" src="img/screen1.png" /></p>
 <h2 id="why-create-aruuz-nigar">Why create Aruuz Nigar?</h2>
 <p>Aruuz Nigar was created for my understanding of Urdu arūz. While tools such as Rekhta's taqti and Aruuz.com are available, Rekhta is proprietary and the publicly available Aruuz.com codebase is more than a decade old, written in C#. Aruuz Nigar aims to provide a modern, open source, developer friendly alternative with a clear semantic core that can run on both desktops and servers.</p>
@@ -230,7 +231,9 @@ pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </s
 <p>The web app provides:
    - RTL (right-to-left) text input for Urdu poetry
    - RTL display of scansion codes
-   - Meter matching and identification</p>
+   - Meter matching and identification
+   - Ghazal <strong>radeef</strong> and <strong>kafiya</strong> checks (e.g. in islah), via <code>/api/radeefkafiya</code>
+   - A <strong>Kafiya</strong> dictionary lookup for rhyming words</p>
 <p><strong>For developers, use as a Python library (Aruuz):</strong></p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">aruuz.scansion</span><span class="w"> </span><span class="kn">import</span> <span class="n">Scansion</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">aruuz.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Lines</span>
@@ -264,6 +267,14 @@ pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </s
 <li><code>database/</code> - Database functionality<ul>
 <li><code>word_lookup.py</code> - Word lookup from database</li>
 <li><code>aruuz_nigar.db</code> - SQLite database</li>
+<li><code>kafiya_index.pkl</code> - Binary index for the kafiya dictionary (build scripts populate this)</li>
+</ul>
+</li>
+<li><code>rhyme/</code> - Ghazal rhyme utilities<ul>
+<li><code>radeef.py</code> - Strict radeef detection</li>
+<li><code>kafiya.py</code> - Kafiya checking (composes with radeef)</li>
+<li><code>kafiya_dict.py</code> - Dictionary lookup API (<code>KafiyaDict</code>)</li>
+<li><code>text_utils.py</code> - Shared Urdu normalization for rhyme</li>
 </ul>
 </li>
 <li><code>utils/</code> - Utility functions<ul>
@@ -275,9 +286,12 @@ pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </s
 <li><code>meters.py</code> - Meter definitions (bahrs)</li>
 <li><code>models.py</code> - Data models (Lines, Words, etc.)</li>
 <li><code>app.py</code> - Flask web application (Nigar frontend)</li>
-<li><code>templates/</code> - Flask HTML templates</li>
-<li><code>index.html</code> - Main interface</li>
-<li><code>static/</code> - Static web assets (CSS, etc.)</li>
+<li><code>web/templates/</code> - Flask HTML templates</li>
+<li><code>index.html</code> - Main scansion interface</li>
+<li><code>islah.html</code> - Meter check with radeef/kafiya feedback</li>
+<li><code>kafiya.html</code> - Kafiya dictionary lookup</li>
+<li><code>web/api/</code> - JSON API handlers (including radeef/kafiya)</li>
+<li><code>web/static/</code> - Static web assets (CSS, JS, images)</li>
 <li><code>scripts/</code> - CLI scripts and utilities</li>
 <li><code>scan_poetry.py</code> - Poetry scanning script</li>
 <li><code>scan_word.py</code> - Word scanning script</li>
@@ -304,7 +318,7 @@ Ported by Dr. Tarique Sani, 2026</p>
 <p>Aruuz Nigar is under active development, and bugs or incorrect scansion results are expected.
 If you encounter issues, please report them using <a href="https://github.com/tariquesani/aruuz-nigar/issues">GitHub Issues</a>.</p>
 <h2 id="documentation">Documentation</h2>
-<p>The core Python library (<code>aruuz/</code>) is extensively documented using module-level docstrings and inline explanations for all public classes and functions. These docstrings describe the intended behavior, inputs, outputs, and design rationale of the scansion engine, meter matching, tree traversal, scoring, and utility modules.</p>
+<p>The core Python library (<code>aruuz/</code>) is extensively documented using module-level docstrings and inline explanations for all public classes and functions. These docstrings describe the intended behavior, inputs, outputs, and design rationale of the scansion engine, meter matching, tree traversal, scoring, rhyme (radeef/kafiya), kafiya dictionary lookup, and utility modules.</p>
 <p>The existing source documentation is suitable for automatic API documentation generation using tools such as Sphinx or similar docstring-based systems. Generated API documentation is not published yet and will be added once the public interfaces stabilize further.</p>
 <h2 id="license">License</h2>
 <p>GPL V3.0, See <a href="./LICENSE">LICENSE</a> file in parent directory.</p></div>
@@ -390,5 +404,5 @@ If you encounter issues, please report them using <a href="https://github.com/ta
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-02-28 06:18:49.342192+00:00
+Build Date UTC : 2026-04-11 13:59:10.063633+00:00
 -->
