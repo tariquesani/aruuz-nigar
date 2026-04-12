@@ -9,7 +9,9 @@
 
 ## What is Aruuz Nigar?
 
-Aruuz Nigar is an Urdu poetry scansion tool that helps poets and readers understand Urdu arūz by inferring the taqti of individual lines and matching them against known bahrs. It consists of two parts: **Aruuz**, a reusable Python library that performs the scansion and meter analysis, and **Nigar**, a Flask based web frontend that provides a basic interface for end-users.
+Aruuz Nigar is an Urdu poetry tool that helps poets and readers work with **arūz** and **ghazal rhyme**. For meter, it infers the taqti of individual lines and matches them against known bahrs. For ghazals, it can check **radeef** and **kafiya** (strict Urdu-script radeef detection, kafiya consistency against the matla, plus phonetic hints where applicable). It also ships with a **basic kafiya dictionary**: look up an Urdu word and browse rhyming words grouped by match quality.
+
+The project has two parts: **Aruuz**, a reusable Python library (scansion, meter matching, and rhyme utilities), and **Nigar**, a Flask-based web frontend that exposes scansion, islah-style radeef/kafiya feedback, and the dictionary UI.
 
 ## Why create Aruuz Nigar?
 
@@ -64,6 +66,8 @@ All processing happens locally on your machine, and no external network access i
    - RTL (right-to-left) text input for Urdu poetry
    - RTL display of scansion codes
    - Meter matching and identification
+   - Ghazal **radeef** and **kafiya** checks (e.g. in islah), via `/api/radeefkafiya`
+   - A **Kafiya** dictionary lookup for rhyming words
 
 4. **For developers, use as a Python library (Aruuz):**
 
@@ -97,6 +101,12 @@ All processing happens locally on your machine, and no external network access i
   - `database/` - Database functionality
     - `word_lookup.py` - Word lookup from database
     - `aruuz_nigar.db` - SQLite database
+    - `kafiya_index.pkl` - Binary index for the kafiya dictionary (build scripts populate this)
+  - `rhyme/` - Ghazal rhyme utilities
+    - `radeef.py` - Strict radeef detection
+    - `kafiya.py` - Kafiya checking (composes with radeef)
+    - `kafiya_dict.py` - Dictionary lookup API (`KafiyaDict`)
+    - `text_utils.py` - Shared Urdu normalization for rhyme
   - `utils/` - Utility functions
     - `text.py` - Text processing utilities
     - `araab.py` - Diacritical marks handling
@@ -104,9 +114,12 @@ All processing happens locally on your machine, and no external network access i
   - `meters.py` - Meter definitions (bahrs)
   - `models.py` - Data models (Lines, Words, etc.)
 - `app.py` - Flask web application (Nigar frontend)
-- `templates/` - Flask HTML templates
-  - `index.html` - Main interface
-- `static/` - Static web assets (CSS, etc.)
+- `web/templates/` - Flask HTML templates
+  - `index.html` - Main scansion interface
+  - `islah.html` - Meter check with radeef/kafiya feedback
+  - `kafiya.html` - Kafiya dictionary lookup
+- `web/api/` - JSON API handlers (including radeef/kafiya)
+- `web/static/` - Static web assets (CSS, JS, images)
 - `scripts/` - CLI scripts and utilities
   - `scan_poetry.py` - Poetry scanning script
   - `scan_word.py` - Word scanning script
@@ -142,7 +155,7 @@ Aruuz Nigar is under active development, and bugs or incorrect scansion results 
 If you encounter issues, please report them using [GitHub Issues](https://github.com/tariquesani/aruuz-nigar/issues).
 
 ## Documentation
-The core Python library (`aruuz/`) is extensively documented using module-level docstrings and inline explanations for all public classes and functions. These docstrings describe the intended behavior, inputs, outputs, and design rationale of the scansion engine, meter matching, tree traversal, scoring, and utility modules.
+The core Python library (`aruuz/`) is extensively documented using module-level docstrings and inline explanations for all public classes and functions. These docstrings describe the intended behavior, inputs, outputs, and design rationale of the scansion engine, meter matching, tree traversal, scoring, rhyme (radeef/kafiya), kafiya dictionary lookup, and utility modules.
 
 The existing source documentation is suitable for automatic API documentation generation using tools such as Sphinx or similar docstring-based systems. Generated API documentation is not published yet and will be added once the public interfaces stabilize further.
 
