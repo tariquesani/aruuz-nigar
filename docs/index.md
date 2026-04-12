@@ -137,6 +137,9 @@ Word-level scansion intentionally over-generates. Canonical selection happens at
 ## Attribution
 
 Based on the original [Aruuz](https://github.com/sayedzeeshan/Aruuz) by [Sayed Zeeshan Asghar](https://github.com/sayedzeeshan) (thank you!)
+
+Urdu word list for the kafiya dictionary index: [urduhack/urdu-words](https://github.com/urduhack/urdu-words).
+
 Original: GPL-2.0 licensed  
 Aruuz Nigar Python port: GPL-3.0 licensed  
 Ported by Dr. Tarique Sani, 2026
