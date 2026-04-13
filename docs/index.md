@@ -2,7 +2,7 @@
 
 ## What is Aruuz Nigar?
 
-Aruuz Nigar is an Urdu poetry tool that helps poets and readers work with **arūz** and **ghazal rhyme**. For meter, it infers the taqti of individual lines and matches them against known bahrs. For ghazals, it can check **radeef** and **kafiya** (strict Urdu-script radeef detection, kafiya consistency against the matla, plus phonetic hints where applicable). It also ships with a **basic kafiya dictionary**: look up an Urdu word and browse rhyming words grouped by match quality.
+Aruuz Nigar is an Urdu poetry tool that helps poets and readers work with **arūz** and **ghazal rhyme**. For meter, it infers the taqti of individual lines and matches them against known **bahrs**. For ghazals, it can check **radeef** and **kafiya** (strict Urdu-script radeef detection, kafiya consistency against the matla, plus phonetic hints where applicable). It also ships with a **basic kafiya dictionary**: look up an Urdu word and browse rhyming words grouped by match quality.
 
 The project has two parts: **Aruuz**, a reusable Python library (scansion, meter matching, and rhyme utilities), and **Nigar**, a Flask-based web frontend that exposes scansion, islah-style radeef/kafiya feedback, and the dictionary UI. Here is how it looks...
 
