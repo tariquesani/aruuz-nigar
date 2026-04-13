@@ -24,7 +24,7 @@ from aruuz.rhyme.text_utils import (
 )
 
 # Optional stoplist for trivial single-token candidates in strict MVP.
-_TRIVIAL_SINGLE_TOKEN_STOPLIST = {"ہے"}
+_TRIVIAL_SINGLE_TOKEN_STOPLIST = {}
 
 
 def _assign_relevant_positions(total_lines: int) -> List[int]:
