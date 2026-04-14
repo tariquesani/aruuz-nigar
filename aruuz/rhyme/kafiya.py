@@ -8,14 +8,46 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from aruuz.rhyme.radeef import check_radeef
 from aruuz.rhyme.text_utils import (
-    extract_kafiya_key,
-    full_normalize,
     get_last_token,
-    is_kafiya_match,
     normalize_urdu_text,
-    resolve_kafiya_reference,
     strip_suffix_phrase,
 )
+
+PHONETIC_MAP = {
+    "ث": "س",
+    "ص": "س",
+    "ذ": "ز",
+    "ض": "ز",
+    "ظ": "ز",
+    "ح": "ہ",
+    "ط": "ت",
+}
+
+
+def _phonetic_normalize(word: str) -> str:
+    return "".join(PHONETIC_MAP.get(c, c) for c in word)
+
+
+def _full_normalize_kafiya_word(word: str) -> str:
+    return _phonetic_normalize(normalize_urdu_text(word))
+
+
+def _longest_common_suffix_length(a: str, b: str) -> int:
+    ra, rb = a[::-1], b[::-1]
+    common = 0
+    for x, y in zip(ra, rb):
+        if x != y:
+            break
+        common += 1
+    # Avoid full-word identity as the only pattern.
+    return min(common, len(a) - 1, len(b) - 1) if a and b else 0
+
+
+def _suffix(word: str, length: int) -> str:
+    if length <= 0:
+        return ""
+    return word[-length:] if len(word) >= length else word
+
 
 def _extract_kafiya_candidates(
     text: str, radeef_result: Dict[str, Any]
@@ -75,23 +107,23 @@ def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[s
 
     script_word_1 = normalize_urdu_text(word_1)
     script_word_2 = normalize_urdu_text(word_2)
-    ph_word_1 = full_normalize(word_1)
-    ph_word_2 = full_normalize(word_2)
-    unit_mode, reference_unit_phonetic = resolve_kafiya_reference(ph_word_1, ph_word_2)
+    ph_word_1 = _full_normalize_kafiya_word(word_1)
+    ph_word_2 = _full_normalize_kafiya_word(word_2)
 
-    if unit_mode == "no_match" or not reference_unit_phonetic:
+    suffix_len = _longest_common_suffix_length(ph_word_1, ph_word_2)
+    if suffix_len == 0:
         return {
             "pass": False,
-            "reference_unit_phonetic": "",
-            "reference_unit_script": "",
-            "unit_mode": "unknown",
+            "reference_suffix_phonetic": "",
+            "reference_suffix_script": "",
+            "suffix_length": 0,
             "results": [],
-            "errors": ["no_common_kafiya_unit_in_matla"],
+            "errors": ["no_common_kafiya_suffix_in_matla"],
             "warnings": [],
         }
 
-    reference_unit_script = extract_kafiya_key(script_word_1, unit_mode)
-    second_unit_phonetic = extract_kafiya_key(ph_word_2, unit_mode)
+    reference_suffix_phonetic = _suffix(ph_word_1, suffix_len)
+    reference_suffix_script = _suffix(script_word_1, suffix_len)
     results: List[Dict[str, Any]] = [
         {
             "line_no": line_no_1,
@@ -99,9 +131,7 @@ def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[s
             "full_line": full_line_1,
             "word": script_word_1,
             "status": "reference",
-            "reason": f"matla_reference_unit=-{reference_unit_phonetic}",
-            "phonetic_unit": reference_unit_phonetic,
-            "script_unit": reference_unit_script,
+            "reason": f"matla_reference_suffix=-{reference_suffix_phonetic}",
         },
         {
             "line_no": line_no_2,
@@ -109,9 +139,7 @@ def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[s
             "full_line": full_line_2,
             "word": script_word_2,
             "status": "reference",
-            "reason": f"matla_reference_unit=-{reference_unit_phonetic}",
-            "phonetic_unit": second_unit_phonetic,
-            "script_unit": extract_kafiya_key(script_word_2, unit_mode),
+            "reason": f"matla_reference_suffix=-{reference_suffix_phonetic}",
         },
     ]
 
@@ -121,26 +149,26 @@ def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[s
 
     for line_no, verse_idx, full_line, raw_word in candidates[2:]:
         script_word = normalize_urdu_text(raw_word)
-        ph_word = full_normalize(raw_word)
-        actual_script_unit = extract_kafiya_key(script_word, unit_mode)
-        actual_ph_unit = extract_kafiya_key(ph_word, unit_mode)
+        ph_word = _full_normalize_kafiya_word(raw_word)
+        actual_script_suffix = _suffix(script_word, suffix_len)
+        actual_ph_suffix = _suffix(ph_word, suffix_len)
 
-        if is_kafiya_match(reference_unit_script, unit_mode, script_word):
+        if actual_script_suffix == reference_suffix_script:
             status = "match"
-            reason = f"script_unit_match=-{reference_unit_script}"
+            reason = f"script_suffix_match=-{reference_suffix_script}"
             matched += 1
-        elif is_kafiya_match(reference_unit_phonetic, unit_mode, ph_word):
+        elif actual_ph_suffix == reference_suffix_phonetic:
             status = "phonetic_match"
             reason = (
-                f"phonetic_unit_match=-{reference_unit_phonetic};"
-                f" script_unit=-{actual_script_unit}"
+                f"phonetic_suffix_match=-{reference_suffix_phonetic};"
+                f" script_suffix=-{actual_script_suffix}"
             )
             phonetic_matched += 1
         else:
             status = "flagged"
             reason = (
-                f"kafiya_break expected_unit=-{reference_unit_phonetic}"
-                f" got_unit=-{actual_ph_unit}"
+                f"kafiya_break expected_phonetic=-{reference_suffix_phonetic}"
+                f" got_phonetic=-{actual_ph_suffix}"
             )
             flagged += 1
 
@@ -152,17 +180,15 @@ def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[s
                 "word": script_word,
                 "status": status,
                 "reason": reason,
-                "phonetic_unit": actual_ph_unit,
-                "script_unit": actual_script_unit,
             }
         )
 
     total_checked = max(0, len(candidates) - 2)
     return {
         "pass": flagged == 0,
-        "reference_unit_phonetic": reference_unit_phonetic,
-        "reference_unit_script": reference_unit_script,
-        "unit_mode": unit_mode,
+        "reference_suffix_phonetic": reference_suffix_phonetic,
+        "reference_suffix_script": reference_suffix_script,
+        "suffix_length": suffix_len,
         "summary": {
             "candidate_lines": len(candidates),
             "checked_lines": total_checked,
@@ -195,9 +221,9 @@ def check_kafiya(
     if errors:
         return {
             "pass": False,
-            "reference_unit_phonetic": "",
-            "reference_unit_script": "",
-            "unit_mode": "unknown",
+            "reference_suffix_phonetic": "",
+            "reference_suffix_script": "",
+            "suffix_length": 0,
             "summary": {
                 "candidate_lines": len(candidates),
                 "checked_lines": 0,
