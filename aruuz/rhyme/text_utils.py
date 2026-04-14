@@ -95,6 +95,17 @@ def exact_suffix_length(word: str) -> int:
     return min(2, len(word))
 
 
+def extract_kafiya_unit(word: str) -> str:
+    """
+    Return kafiya unit anchored at the last long vowel.
+    Falls back to final consonant class when no long vowel is present.
+    """
+    if not word:
+        return ""
+    suffix_len = exact_suffix_length(word)
+    return word[-suffix_len:] if suffix_len > 0 else ""
+
+
 def extract_onset(word: str) -> str | None:
     """
     Return the consonant immediately before the last long vowel.
@@ -103,6 +114,54 @@ def extract_onset(word: str) -> str | None:
         if word[i] in VOWELS:
             return word[i - 1] if i > 0 else None
     return None
+
+
+def extract_final_consonant_class(word: str) -> str:
+    """
+    Return final consonant class key used for implicit short-vowel rhyme fallback.
+    """
+    return word[-1] if word else ""
+
+
+def extract_kafiya_key(word: str, mode: str) -> str:
+    """
+    Extract comparable key for the given mode.
+    """
+    if mode == "explicit_unit":
+        return extract_kafiya_unit(word)
+    if mode == "implicit_final_class":
+        return extract_final_consonant_class(word)
+    return ""
+
+
+def resolve_kafiya_reference(query_word: str, matla_word: str) -> tuple[str, str]:
+    """
+    Resolve reference mode and key from matla pair.
+    Modes:
+      - explicit_unit: both share same explicit/anchored unit
+      - implicit_final_class: fallback on final consonant class
+      - no_match: no shared reference
+    """
+    q_unit = extract_kafiya_unit(query_word)
+    m_unit = extract_kafiya_unit(matla_word)
+    if q_unit and q_unit == m_unit:
+        return "explicit_unit", q_unit
+
+    q_class = extract_final_consonant_class(query_word)
+    m_class = extract_final_consonant_class(matla_word)
+    if q_class and q_class == m_class:
+        return "implicit_final_class", q_class
+
+    return "no_match", ""
+
+
+def is_kafiya_match(reference_key: str, mode: str, candidate_word: str) -> bool:
+    """
+    Check whether candidate matches the resolved reference key under mode.
+    """
+    if not reference_key:
+        return False
+    return extract_kafiya_key(candidate_word, mode) == reference_key
 
 
 def split_non_empty_lines(raw_text: str) -> List[Tuple[int, str]]:
@@ -156,7 +215,12 @@ __all__ = [
     "phonetic_normalize",
     "full_normalize",
     "exact_suffix_length",
+    "extract_kafiya_unit",
     "extract_onset",
+    "extract_final_consonant_class",
+    "extract_kafiya_key",
+    "resolve_kafiya_reference",
+    "is_kafiya_match",
     "split_non_empty_lines",
     "contains_non_urdu_characters",
     "get_last_token",
