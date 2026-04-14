@@ -1,34 +1,24 @@
-import re
 import pickle
+import sys
 from collections import defaultdict
 from pathlib import Path
+
+try:
+    from aruuz.rhyme.text_utils import full_normalize, normalize_urdu_text
+except ModuleNotFoundError:
+    # Allow running as: python scripts/build_words_index.py
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from aruuz.rhyme.text_utils import full_normalize, normalize_urdu_text
 from kafiya_path_policy import resolve_index_path
 
-PHONETIC_MAP = {
-    'ث': 'س',
-    'ص': 'س',
-    'ذ': 'ز',
-    'ض': 'ز',
-    'ظ': 'ز',
-    'ح': 'ہ',
-    'ط': 'ت',
-}
 
-def normalize(word):
-    word = re.sub(r'[\u0610-\u061A\u064B-\u065F]', '', word)  # remove diacritics
-    word = re.sub(r'[آأإٱ]', 'ا', word)                        # normalize alef variants
-    return word.strip()
-
-def phonetic_normalize(word):
-    return ''.join(PHONETIC_MAP.get(c, c) for c in word)
-
-def build_index(filepath, suffix_lengths=[1, 2, 3, 4]):
+def build_index(filepath, suffix_lengths=[2, 3, 4]):
     with open(filepath, encoding="utf-8") as f:
-        words = [normalize(l.strip()) for l in f if l.strip()]
+        words = [normalize_urdu_text(l.strip()) for l in f if l.strip()]
 
     index = defaultdict(set)
     for word in words:
-        phonetic = phonetic_normalize(word)
+        phonetic = full_normalize(word)
         for n in suffix_lengths:
             if len(phonetic) >= n:
                 index[(n, phonetic[-n:])].add(word)  # key=phonetic, value=original

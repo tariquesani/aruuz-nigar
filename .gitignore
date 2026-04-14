@@ -103,3 +103,4 @@ scripts/generate_changelog.py
 site/img/screen1.png
 CHANGELOG.release-draft.md
 RELEASING.md
+scripts/ghazal2.txt

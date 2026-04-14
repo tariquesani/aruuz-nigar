@@ -9,7 +9,12 @@ import pickle
 from pathlib import Path
 from typing import Dict, List, Literal, Optional
 
-from aruuz.rhyme.text_utils import full_normalize, normalize_urdu_text
+from aruuz.rhyme.text_utils import (
+    exact_suffix_length,
+    extract_onset,
+    full_normalize,
+    normalize_urdu_text,
+)
 
 
 MatchKind = Literal["script", "phonetic"]
@@ -107,7 +112,7 @@ class KafiyaDict:
         phonetic_query = full_normalize(query)
 
         max_possible = len(phonetic_query) - 1
-        if max_possible < 1:
+        if max_possible < 2:
             return KafiyaResult(
                 query=script_query,
                 suffix_lengths={"exact": 0, "close": 0, "open": 0},
@@ -116,14 +121,10 @@ class KafiyaDict:
                 open_=[],
             )
 
-        exact_len = 0
-        for n in range(min(max_possible, 4), 2, -1):
-            if self._index.get((n, phonetic_query[-n:])):
-                exact_len = n
-                break
-
-        close_len = min(2, max_possible)
-        open_len = 1
+        exact_len = min(exact_suffix_length(phonetic_query), max_possible, 4)
+        exact_len = max(2, exact_len)
+        close_len = max(2, min(exact_len - 1, max_possible))
+        open_len = 0
 
         suffix_lengths = {
             "exact": exact_len,
@@ -147,7 +148,11 @@ class KafiyaDict:
         )
         seen.update(m.word for m in close_matches)
 
-        open_matches = self._fetch_bucket(phonetic_query, script_query, open_len, seen)
+        open_matches = (
+            self._fetch_bucket(phonetic_query, script_query, open_len, seen)
+            if open_len > 0
+            else []
+        )
 
         if limit is not None:
             exact_matches = exact_matches[:limit]
@@ -180,9 +185,18 @@ class KafiyaDict:
         )
 
         matches: List[KafiyaMatch] = []
+        query_onset = extract_onset(phonetic_query)
         for word in sorted(raw_words):
             if word in exclude:
                 continue
+
+            candidate_phonetic = full_normalize(word)
+            candidate_onset = extract_onset(candidate_phonetic)
+
+            # Reject candidates that do not share consonant onset before the rhyme vowel.
+            if query_onset != candidate_onset:
+                continue
+
             word_script_suffix = word[-suffix_len:] if len(word) >= suffix_len else word
             kind: MatchKind = (
                 "script" if word_script_suffix == script_suffix else "phonetic"

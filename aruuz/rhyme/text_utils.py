@@ -38,6 +38,9 @@ PHONETIC_MAP: dict[str, str] = {
     "ط": "ت",
 }
 
+# Long vowels used to anchor kafiya suffix extraction.
+VOWELS: set[str] = {"ا", "ی", "ے", "و"}
+
 # End punctuation/noise for line-end matching tasks.
 TRAILING_STRIP_CHARS = " ,\"'*۔،?!ؔ؟‘()؛;\u200B\u200C\u200D\uFEFF.ؒ؎=ؑؓ\uFDFD\uFDFA:’[]{}"
 
@@ -79,6 +82,27 @@ def full_normalize(word: str) -> str:
     Full pipeline for kafiya matching: script normalization then phonetic map.
     """
     return phonetic_normalize(normalize_urdu_text(word))
+
+
+def exact_suffix_length(word: str) -> int:
+    """
+    Return suffix length from the last long vowel to the end.
+    Falls back to up to 2 chars when no long vowel is found.
+    """
+    for i in range(len(word) - 1, -1, -1):
+        if word[i] in VOWELS:
+            return len(word) - i
+    return min(2, len(word))
+
+
+def extract_onset(word: str) -> str | None:
+    """
+    Return the consonant immediately before the last long vowel.
+    """
+    for i in range(len(word) - 1, -1, -1):
+        if word[i] in VOWELS:
+            return word[i - 1] if i > 0 else None
+    return None
 
 
 def split_non_empty_lines(raw_text: str) -> List[Tuple[int, str]]:
@@ -131,12 +155,15 @@ __all__ = [
     "normalize_urdu_line_for_rhyme",
     "phonetic_normalize",
     "full_normalize",
+    "exact_suffix_length",
+    "extract_onset",
     "split_non_empty_lines",
     "contains_non_urdu_characters",
     "get_last_token",
     "strip_suffix_phrase",
     "CHAR_MAP",
     "PHONETIC_MAP",
+    "VOWELS",
     "TRAILING_STRIP_CHARS",
 ]
 
