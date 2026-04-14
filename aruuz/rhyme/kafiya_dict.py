@@ -123,7 +123,7 @@ class KafiyaDict:
                 break
 
         close_len = min(2, max_possible)
-        open_len = 1
+        open_len = 0
 
         suffix_lengths = {
             "exact": exact_len,
@@ -147,7 +147,11 @@ class KafiyaDict:
         )
         seen.update(m.word for m in close_matches)
 
-        open_matches = self._fetch_bucket(phonetic_query, script_query, open_len, seen)
+        open_matches = (
+            self._fetch_bucket(phonetic_query, script_query, open_len, seen)
+            if open_len > 0
+            else []
+        )
 
         if limit is not None:
             exact_matches = exact_matches[:limit]
