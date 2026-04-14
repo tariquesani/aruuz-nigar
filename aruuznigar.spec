@@ -20,6 +20,7 @@ a = Analysis(
         "web.api.scan",
         "web.api.meter_dominant",
         "web.api.islah",
+        "web.api.radeefkafiya",
         "pkgutil",
     ],
     hookspath=[],
