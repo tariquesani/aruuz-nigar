@@ -38,6 +38,9 @@ PHONETIC_MAP: dict[str, str] = {
     "ط": "ت",
 }
 
+# Urdu long-vowel carrier letters used in orthographic rhyme checks.
+URDU_VOWEL_LETTERS = frozenset({"ا", "و", "ی", "ے"})
+
 # End punctuation/noise for line-end matching tasks.
 TRAILING_STRIP_CHARS = " ,\"'*۔،?!ؔ؟‘()؛;\u200B\u200C\u200D\uFEFF.ؒ؎=ؑؓ\uFDFD\uFDFA:’[]{}"
 
@@ -126,6 +129,11 @@ def strip_suffix_phrase(text: str, suffix_phrase: str) -> str:
     return remainder
 
 
+def is_urdu_vowel_letter(ch: str) -> bool:
+    """True if ch is an Urdu vowel carrier letter used in rhyme checks."""
+    return len(ch) == 1 and ch in URDU_VOWEL_LETTERS
+
+
 __all__ = [
     "normalize_urdu_text",
     "normalize_urdu_line_for_rhyme",
@@ -135,8 +143,10 @@ __all__ = [
     "contains_non_urdu_characters",
     "get_last_token",
     "strip_suffix_phrase",
+    "is_urdu_vowel_letter",
     "CHAR_MAP",
     "PHONETIC_MAP",
+    "URDU_VOWEL_LETTERS",
     "TRAILING_STRIP_CHARS",
 ]
 

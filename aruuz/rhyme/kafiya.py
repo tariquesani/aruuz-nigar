@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from aruuz.rhyme.radeef import check_radeef
 from aruuz.rhyme.text_utils import (
     get_last_token,
+    is_urdu_vowel_letter,
     normalize_urdu_text,
     strip_suffix_phrase,
 )
@@ -57,6 +58,33 @@ def _suffix(word: str, length: int) -> str:
     if length <= 0:
         return ""
     return word[-length:] if len(word) >= length else word
+
+
+def _passes_length_one_guard(reference_word: str, candidate_word: str) -> Tuple[bool, str]:
+    """
+    Validate 1-letter kafiya using preceding letters as a guardrail.
+
+    If preceding letters are non-vowels, allow an implicit short "a".
+    If either preceding letter is a vowel carrier, the preceding letters
+    must match exactly.
+    """
+    if len(reference_word) < 2 or len(candidate_word) < 2:
+        return False, "length_1_guard_missing_preceding_letter"
+
+    ref_prev = reference_word[-2]
+    cand_prev = candidate_word[-2]
+    ref_prev_vowel = is_urdu_vowel_letter(ref_prev)
+    cand_prev_vowel = is_urdu_vowel_letter(cand_prev)
+
+    if ref_prev_vowel or cand_prev_vowel:
+        if ref_prev == cand_prev:
+            return True, f"length_1_guard_vowel_preceding_match=-{ref_prev}"
+        return (
+            False,
+            f"length_1_guard_vowel_preceding_mismatch expected=-{ref_prev} got=-{cand_prev}",
+        )
+
+    return True, "length_1_guard_implicit_a_non_vowel_preceding"
 
 
 def _extract_kafiya_candidates(
@@ -176,9 +204,20 @@ def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[s
         actual_script_suffix = _suffix(script_word, suffix_len)
         actual_ph_suffix = _suffix(ph_word, suffix_len)
 
-        if actual_script_suffix == reference_suffix_script:
+        guard_ok = True
+        guard_reason = ""
+        if suffix_len == 1:
+            guard_ok, guard_reason = _passes_length_one_guard(script_word_1, script_word)
+
+        if not guard_ok:
+            status = "flagged"
+            reason = f"kafiya_break {guard_reason}"
+            flagged += 1
+        elif actual_script_suffix == reference_suffix_script:
             status = "match"
             reason = f"script_suffix_match=-{reference_suffix_script}"
+            if suffix_len == 1:
+                reason = f"{reason}; {guard_reason}"
             matched += 1
         elif actual_ph_suffix == reference_suffix_phonetic:
             status = "phonetic_match"
@@ -186,6 +225,8 @@ def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[s
                 f"phonetic_suffix_match=-{reference_suffix_phonetic};"
                 f" script_suffix=-{actual_script_suffix}"
             )
+            if suffix_len == 1:
+                reason = f"{reason}; {guard_reason}"
             phonetic_matched += 1
         else:
             status = "flagged"
