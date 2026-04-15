@@ -60,31 +60,63 @@ def _suffix(word: str, length: int) -> str:
     return word[-length:] if len(word) >= length else word
 
 
-def _passes_length_one_guard(reference_word: str, candidate_word: str) -> Tuple[bool, str]:
+def _build_length_one_guard_profile(word_1: str, word_2: str) -> Dict[str, str]:
     """
-    Validate 1-letter kafiya using preceding letters as a guardrail.
+    Build a 1-letter kafiya guard profile from both matla reference words.
 
-    If preceding letters are non-vowels, allow an implicit short "a".
-    If either preceding letter is a vowel carrier, the preceding letters
-    must match exactly.
+    The profile describes whether 1-letter checks should enforce a strict vowel,
+    enforce non-vowel class behavior, or relax checks for mixed matla context.
     """
-    if len(reference_word) < 2 or len(candidate_word) < 2:
+    if len(word_1) < 2 or len(word_2) < 2:
+        return {"mode": "missing_preceding"}
+
+    prev_1 = word_1[-2]
+    prev_2 = word_2[-2]
+    prev_1_vowel = is_urdu_vowel_letter(prev_1)
+    prev_2_vowel = is_urdu_vowel_letter(prev_2)
+
+    if prev_1_vowel and prev_2_vowel:
+        if prev_1 == prev_2:
+            return {"mode": "strict_vowel", "vowel": prev_1}
+        return {"mode": "flex_vowel"}
+
+    if (not prev_1_vowel) and (not prev_2_vowel):
+        return {"mode": "non_vowel_class"}
+
+    return {"mode": "mixed_relaxed"}
+
+
+def _passes_length_one_guard(profile: Dict[str, str], candidate_word: str) -> Tuple[bool, str]:
+    """
+    Validate 1-letter kafiya using a profile built from the matla pair.
+    """
+    mode = profile.get("mode", "mixed_relaxed")
+    if len(candidate_word) < 2:
         return False, "length_1_guard_missing_preceding_letter"
 
-    ref_prev = reference_word[-2]
     cand_prev = candidate_word[-2]
-    ref_prev_vowel = is_urdu_vowel_letter(ref_prev)
     cand_prev_vowel = is_urdu_vowel_letter(cand_prev)
 
-    if ref_prev_vowel or cand_prev_vowel:
-        if ref_prev == cand_prev:
-            return True, f"length_1_guard_vowel_preceding_match=-{ref_prev}"
-        return (
-            False,
-            f"length_1_guard_vowel_preceding_mismatch expected=-{ref_prev} got=-{cand_prev}",
-        )
+    if mode == "missing_preceding":
+        return False, "length_1_guard_missing_preceding_letter_in_matla"
 
-    return True, "length_1_guard_implicit_a_non_vowel_preceding"
+    if mode == "strict_vowel":
+        expected = profile.get("vowel", "")
+        if cand_prev == expected:
+            return True, f"length_1_guard_strict_vowel_match=-{expected}"
+        return False, f"length_1_guard_strict_vowel_mismatch expected=-{expected} got=-{cand_prev}"
+
+    if mode == "non_vowel_class":
+        if cand_prev_vowel:
+            return False, f"length_1_guard_non_vowel_class_mismatch got_vowel=-{cand_prev}"
+        return True, "length_1_guard_implicit_a_non_vowel_class"
+
+    if mode == "flex_vowel":
+        if cand_prev_vowel:
+            return True, f"length_1_guard_flex_vowel_match=-{cand_prev}"
+        return False, f"length_1_guard_flex_vowel_mismatch got_non_vowel=-{cand_prev}"
+
+    return True, "length_1_guard_relaxed_mixed_matla"
 
 
 def _extract_kafiya_candidates(
@@ -198,6 +230,10 @@ def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[s
     phonetic_matched = 0
     flagged = 0
 
+    length_one_profile: Dict[str, str] = {}
+    if suffix_len == 1:
+        length_one_profile = _build_length_one_guard_profile(script_word_1, script_word_2)
+
     for line_no, verse_idx, full_line, raw_word in candidates[2:]:
         script_word = normalize_urdu_text(raw_word)
         ph_word = _full_normalize_kafiya_word(raw_word)
@@ -207,7 +243,7 @@ def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[s
         guard_ok = True
         guard_reason = ""
         if suffix_len == 1:
-            guard_ok, guard_reason = _passes_length_one_guard(script_word_1, script_word)
+            guard_ok, guard_reason = _passes_length_one_guard(length_one_profile, script_word)
 
         if not guard_ok:
             status = "flagged"
