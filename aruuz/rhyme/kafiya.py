@@ -61,7 +61,7 @@ def _suffix(word: str, length: int) -> str:
 
 def _extract_kafiya_candidates(
     text: str, radeef_result: Dict[str, Any]
-) -> Tuple[List[Tuple[int, int, str, str]], List[str], List[str]]:
+) -> Tuple[List[Tuple[int, int, str, str]], List[str], List[str], str]:
     """
     Extract candidate kafiya words from radeef-validated relevant lines.
 
@@ -69,7 +69,8 @@ def _extract_kafiya_candidates(
     verse_index matches radeef line_results (1-based among non-empty lines).
 
     Returns:
-        A tuple of (candidates, errors, warnings).
+        A tuple of (candidates, errors, warnings, kafiya_mode) where mode is
+        "with_radeef" or "without_radeef".
     """
     errors: List[str] = []
     warnings: List[str] = []
@@ -79,13 +80,11 @@ def _extract_kafiya_candidates(
     diag = radeef_result.get("diagnostics", {})
     line_results = diag.get("line_results", [])
 
-    if not detected_radeef:
-        errors.append("missing_radeef_for_kafiya")
-        return candidates, errors, warnings
+    kafiya_mode = "with_radeef" if detected_radeef else "without_radeef"
 
     if not isinstance(line_results, list):
         errors.append("invalid_radeef_line_results")
-        return candidates, errors, warnings
+        return candidates, errors, warnings, kafiya_mode
 
     for entry in line_results:
         if not isinstance(entry, dict):
@@ -98,12 +97,15 @@ def _extract_kafiya_candidates(
         original = str(entry.get("original", "")).strip()
         normalized = str(entry.get("normalized", "")).strip()
 
-        if not normalized.endswith(detected_radeef):
-            # We only evaluate kafiya where radeef is actually present.
-            continue
-
-        prefix = strip_suffix_phrase(normalized, detected_radeef)
-        kafiya_word = get_last_token(prefix)
+        if detected_radeef:
+            if not normalized.endswith(detected_radeef):
+                # We only evaluate kafiya where radeef is actually present.
+                continue
+            prefix = strip_suffix_phrase(normalized, detected_radeef)
+            kafiya_word = get_last_token(prefix)
+        else:
+            # In ghair-muraddaf ghazal (no radeef), last word is the kafiya candidate.
+            kafiya_word = get_last_token(normalized)
         if not kafiya_word:
             warnings.append(f"line_{line_no}_missing_kafiya_word")
             continue
@@ -112,7 +114,7 @@ def _extract_kafiya_candidates(
     if len(candidates) < 2:
         errors.append("insufficient_kafiya_candidates")
 
-    return candidates, errors, warnings
+    return candidates, errors, warnings, kafiya_mode
 
 
 def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[str, Any]:
@@ -241,11 +243,12 @@ def check_kafiya(
         suffixes, per-line status, summary counts, and warnings/errors.
     """
     rr = radeef_result if isinstance(radeef_result, dict) else check_radeef(text, mode="strict")
-    candidates, errors, warnings = _extract_kafiya_candidates(text, rr)
+    candidates, errors, warnings, kafiya_mode = _extract_kafiya_candidates(text, rr)
 
     if errors:
         return {
             "pass": False,
+            "kafiya_mode": kafiya_mode,
             "reference_suffix_phonetic": "",
             "reference_suffix_script": "",
             "suffix_length": 0,
@@ -262,6 +265,7 @@ def check_kafiya(
         }
 
     out = _check_candidates(candidates)
+    out["kafiya_mode"] = kafiya_mode
     out["warnings"] = list(set(out.get("warnings", []) + warnings))
     return out
 
