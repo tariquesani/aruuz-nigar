@@ -22,17 +22,26 @@ PHONETIC_MAP = {
     "ح": "ہ",
     "ط": "ت",
 }
+"""Script-level substitutions used for phonetic kafiya comparison."""
 
 
 def _phonetic_normalize(word: str) -> str:
+    """Map Urdu letters to simplified phonetic equivalents."""
     return "".join(PHONETIC_MAP.get(c, c) for c in word)
 
 
 def _full_normalize_kafiya_word(word: str) -> str:
+    """Normalize a kafiya word in script and then phonetic form."""
     return _phonetic_normalize(normalize_urdu_text(word))
 
 
 def _longest_common_suffix_length(a: str, b: str) -> int:
+    """
+    Return the shared suffix length between two words.
+
+    Full-word identity is intentionally avoided so kafiya is not inferred
+    from exact repeated words alone.
+    """
     ra, rb = a[::-1], b[::-1]
     common = 0
     for x, y in zip(ra, rb):
@@ -44,6 +53,7 @@ def _longest_common_suffix_length(a: str, b: str) -> int:
 
 
 def _suffix(word: str, length: int) -> str:
+    """Safely return the last `length` characters from `word`."""
     if length <= 0:
         return ""
     return word[-length:] if len(word) >= length else word
@@ -53,8 +63,13 @@ def _extract_kafiya_candidates(
     text: str, radeef_result: Dict[str, Any]
 ) -> Tuple[List[Tuple[int, int, str, str]], List[str], List[str]]:
     """
+    Extract candidate kafiya words from radeef-validated relevant lines.
+
     Each candidate: (line_number, verse_index, full_line, kafiya_word).
     verse_index matches radeef line_results (1-based among non-empty lines).
+
+    Returns:
+        A tuple of (candidates, errors, warnings).
     """
     errors: List[str] = []
     warnings: List[str] = []
@@ -101,6 +116,12 @@ def _extract_kafiya_candidates(
 
 
 def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[str, Any]:
+    """
+    Validate candidate words against a reference kafiya suffix.
+
+    The first two candidates (matla) define the suffix reference. Remaining
+    candidates are marked as script match, phonetic match, or flagged break.
+    """
     # First two relevant candidates define kafiya reference (matla behavior).
     line_no_1, verse_1, full_line_1, word_1 = candidates[0]
     line_no_2, verse_2, full_line_2, word_2 = candidates[1]
@@ -214,6 +235,10 @@ def check_kafiya(
         text: Raw multiline ghazal text.
         radeef_result: Optional precomputed check_radeef(...) result.
                        If absent, this function computes it.
+
+    Returns:
+        A diagnostics dictionary including pass/fail, detected reference
+        suffixes, per-line status, summary counts, and warnings/errors.
     """
     rr = radeef_result if isinstance(radeef_result, dict) else check_radeef(text, mode="strict")
     candidates, errors, warnings = _extract_kafiya_candidates(text, rr)
