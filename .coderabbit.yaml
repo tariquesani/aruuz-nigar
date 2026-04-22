@@ -1,0 +1,29 @@
+# CodeRabbit Configuration
+language: "en-US"
+
+reviews:
+  profile: "chill" # Options: chill, assertive (chill is better for OSS)
+  request_changes_workflow: false # Set to true if you want it to formally 'Request Changes'
+  
+  auto_review:
+    enabled: true
+    drafts: false # Set to true if you want reviews on Draft PRs
+    
+  tools:
+    # Python-specific optimization
+    python:
+      enabled: true
+      # Choose your preferred linter/formatter styles
+      pylint:
+        enabled: true
+      ruff:
+        enabled: true
+
+chat:
+  enabled: true # Allows you to tag @coderabbitai in comments to ask questions
+
+# Instructions tell the AI how to behave specifically for your project
+instructions: >
+  Please focus on Python best practices (PEP 8), type hinting, 
+  and potential edge cases in asynchronous code. 
+  Maintain a helpful and encouraging tone.
