@@ -9,10 +9,17 @@ import pickle
 from pathlib import Path
 from typing import Dict, List, Literal, Optional
 
-from aruuz.rhyme.text_utils import full_normalize, normalize_urdu_text
+from aruuz.rhyme.text_utils import (
+    full_normalize,
+    is_urdu_vowel_letter,
+    normalize_urdu_text,
+)
 
 
 MatchKind = Literal["script", "phonetic"]
+OpenGuardClass = Literal["vowel", "semi_vowel", "non_vowel"]
+
+SEMI_VOWEL_LETTERS = frozenset({"و", "ی", "ے"})
 
 
 class KafiyaMatch:
@@ -122,8 +129,8 @@ class KafiyaDict:
                 exact_len = n
                 break
 
-        close_len = min(2, max_possible)
-        open_len = 0
+        close_len = 2 if max_possible >= 2 else 0
+        open_len = 1
 
         suffix_lengths = {
             "exact": exact_len,
@@ -166,6 +173,35 @@ class KafiyaDict:
             open_=open_matches,
         )
 
+    def _classify_open_guard_letter(self, ch: str) -> OpenGuardClass:
+        """Classify a penultimate letter for 1-letter dictionary matching."""
+        if ch in SEMI_VOWEL_LETTERS:
+            return "semi_vowel"
+        if is_urdu_vowel_letter(ch):
+            return "vowel"
+        return "non_vowel"
+
+    def _passes_open_guard(self, query_word: str, candidate_word: str) -> bool:
+        """
+        Filter 1-letter suffix matches using the query word as the guard source.
+
+        Semi-vowels such as و / ی / ے are allowed to match either side of the
+        implicit-a non-vowel class, which keeps common Urdu rhyme spellings
+        discoverable without opening the bucket completely.
+        """
+        if len(query_word) < 2 or len(candidate_word) < 2:
+            return False
+
+        query_class = self._classify_open_guard_letter(query_word[-2])
+        candidate_class = self._classify_open_guard_letter(candidate_word[-2])
+
+        compatible_classes = {
+            "vowel": {"vowel", "semi_vowel"},
+            "semi_vowel": {"vowel", "semi_vowel", "non_vowel"},
+            "non_vowel": {"semi_vowel", "non_vowel"},
+        }
+        return candidate_class in compatible_classes[query_class]
+
     def _fetch_bucket(
         self,
         phonetic_query: str,
@@ -186,6 +222,8 @@ class KafiyaDict:
         matches: List[KafiyaMatch] = []
         for word in sorted(raw_words):
             if word in exclude:
+                continue
+            if suffix_len == 1 and not self._passes_open_guard(script_query, word):
                 continue
             word_script_suffix = word[-suffix_len:] if len(word) >= suffix_len else word
             kind: MatchKind = (
