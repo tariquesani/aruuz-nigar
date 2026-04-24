@@ -167,15 +167,15 @@
 
         var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
         Array.prototype.slice.call(tooltipTriggerList).forEach(function (tooltipTriggerEl) {
-            var tooltip = new bootstrap.Tooltip(tooltipTriggerEl, {
+            new bootstrap.Tooltip(tooltipTriggerEl, {
                 container: 'body',
                 html: true
             });
 
             tooltipTriggerEl.addEventListener('shown.bs.tooltip', function () {
-                var tooltipElement = document.querySelector('.tooltip.show');
-                if (tooltipElement) {
-                    var tooltipInner = tooltipElement.querySelector('.tooltip-inner');
+                var tooltipInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                if (tooltipInstance) {
+                    var tooltipInner = tooltipInstance.getTipElement().querySelector('.tooltip-inner');
                     if (tooltipInner) {
                         var originalTitle = tooltipTriggerEl.getAttribute('data-bs-title') || tooltipTriggerEl.getAttribute('title') || '';
                         if (originalTitle) {
@@ -184,8 +184,6 @@
                     }
                 }
             });
-
-            return tooltip;
         });
     }
 
