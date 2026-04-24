@@ -9,6 +9,7 @@ and identify matching meters (bahr).
 
 import logging
 import os
+import json
 from pathlib import Path
 import sys
 from flask import Flask, jsonify, render_template, request
@@ -16,6 +17,7 @@ from flask import Flask, jsonify, render_template, request
 from web.api import get_api_handlers, is_valid_keyword
 from aruuz.models import Lines
 from aruuz.rhyme.kafiya_dict import KafiyaDict
+from aruuz.rhyme.text_utils import normalize_urdu_text
 from aruuz.scansion import Scansion
 from aruuz.utils.logging_config import setup_logging
 
@@ -52,6 +54,8 @@ app.config['JSON_AS_ASCII'] = False  # Important for Urdu JSON
 API_HANDLERS = get_api_handlers()
 _KAFIYA_DICT: KafiyaDict | None = None
 _KAFIYA_LOAD_ERROR: str | None = None
+_WORD_METADATA: dict[str, dict[str, object | None]] | None = None
+_WORD_METADATA_LOAD_ERROR: str | None = None
 
 
 def _resolve_kafiya_index_path() -> Path:
@@ -96,6 +100,87 @@ def _get_kafiya_dict() -> tuple[KafiyaDict | None, str | None]:
             "Please verify the file exists and is a valid index."
         )
         return None, _KAFIYA_LOAD_ERROR
+
+
+def _resolve_word_metadata_path() -> Path:
+    """
+    Resolve word metadata path with shared priority:
+    1) WORD_METADATA_PATH env var
+    2) first existing default candidate
+    3) canonical fallback path
+    """
+    env_override = os.getenv("WORD_METADATA_PATH", "").strip()
+    if env_override:
+        return Path(env_override)
+
+    candidates = [
+        PROJECT_ROOT / "database" / "word_metadata.json",
+        PROJECT_ROOT / "aruuz" / "database" / "word_metadata.json",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+
+def _get_word_metadata() -> tuple[dict[str, dict[str, object | None]] | None, str | None]:
+    """Load and cache word metadata once; return cached mapping or error."""
+    global _WORD_METADATA, _WORD_METADATA_LOAD_ERROR
+    if _WORD_METADATA is not None:
+        return _WORD_METADATA, None
+    if _WORD_METADATA_LOAD_ERROR is not None:
+        return None, _WORD_METADATA_LOAD_ERROR
+
+    metadata_path = _resolve_word_metadata_path()
+    try:
+        with open(metadata_path, encoding="utf-8") as fh:
+            loaded = json.load(fh)
+        if not isinstance(loaded, dict):
+            raise ValueError("word metadata JSON must contain an object at the top level")
+        _WORD_METADATA = loaded
+        return _WORD_METADATA, None
+    except FileNotFoundError:
+        _WORD_METADATA_LOAD_ERROR = (
+            f"Word metadata could not be loaded from '{metadata_path}'. "
+            "Please verify the file exists."
+        )
+        return None, _WORD_METADATA_LOAD_ERROR
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "Failed to load word metadata from %s", metadata_path
+        )
+        _WORD_METADATA_LOAD_ERROR = (
+            f"Word metadata could not be loaded from '{metadata_path}'. "
+            "Please verify the file exists and is valid JSON."
+        )
+        return None, _WORD_METADATA_LOAD_ERROR
+
+
+def _attach_word_metadata(
+    lookup_result: dict,
+    word_metadata: dict[str, dict[str, object | None]] | None,
+) -> dict:
+    """Attach optional word metadata to match rows without changing grouping."""
+    if not word_metadata:
+        return lookup_result
+
+    for bucket_name in ("exact", "close", "open"):
+        matches = lookup_result.get(bucket_name)
+        if not isinstance(matches, list):
+            continue
+        for match in matches:
+            if not isinstance(match, dict):
+                continue
+            word = match.get("word")
+            if not isinstance(word, str):
+                continue
+            entry = word_metadata.get(normalize_urdu_text(word))
+            if entry:
+                meaning = entry.get("meaning")
+                if isinstance(meaning, str) and meaning:
+                    match["meaning"] = meaning
+
+    return lookup_result
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -174,6 +259,8 @@ def kafiya():
             else:
                 try:
                     result = kd.lookup(text_input).to_dict()
+                    word_metadata, _ = _get_word_metadata()
+                    result = _attach_word_metadata(result, word_metadata)
                 except Exception as e:
                     error = f"Error processing word: {str(e)}"
 
