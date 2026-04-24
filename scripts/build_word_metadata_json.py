@@ -64,10 +64,11 @@ def build_metadata_map(csv_path: str | Path) -> dict[str, dict[str, object | Non
 
 def main() -> int:
     csv_path = _SCRIPT_DIR / "frequent_dictionary_export.csv"
-    output_path = _SCRIPT_DIR / "word_metadata.json"
+    output_path = _PYTHON_ROOT / "aruuz" / "database" / "word_metadata.json"
 
     metadata = build_metadata_map(csv_path)
 
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as fh:
         json.dump(metadata, fh, ensure_ascii=False, indent=2, sort_keys=True)
         fh.write("\n")
