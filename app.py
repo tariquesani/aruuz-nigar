@@ -209,10 +209,12 @@ def _attach_word_metadata(
             if not isinstance(word, str):
                 continue
             lookup_word = word.replace("_", " ") if "_" in word else word
+            lookup_word = word.replace("_", " ") if "_" in word else word
             entry = word_metadata.get(normalize_urdu_text(lookup_word))
-            if entry:
+            if isinstance(entry, dict):
                 meaning = entry.get("meaning")
                 if isinstance(meaning, str) and meaning:
+                    match["meaning"] = meaning
                     match["meaning"] = meaning
 
     return lookup_result
