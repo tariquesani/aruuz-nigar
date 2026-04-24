@@ -25,9 +25,21 @@ from aruuz.rhyme.text_utils import normalize_urdu_text
 
 def build_metadata_map(csv_path: str | Path) -> dict[str, dict[str, object | None]]:
     """
-    Build a normalized Urdu word -> metadata mapping from the CSV export.
-
-    If multiple CSV rows normalize to the same Urdu key, the first row wins.
+    Builds a mapping from normalized Urdu words to metadata extracted from a CSV export.
+    
+    Rows missing an "Urdu word" or an "English meaning of the word" are skipped. Each CSV row's "Urdu word" is normalized; if normalization fails or produces a key already present, the row is ignored (first-row wins). Optional fields are taken from "Roman Urdu Words" (stored as `None` if empty) and "Serial number" (parsed to an integer when it contains only digits, otherwise `None`).
+    
+    Parameters:
+        csv_path (str | Path): Path to the CSV file containing columns
+            "Urdu word", "English meaning of the word", "Serial number",
+            and "Roman Urdu Words".
+    
+    Returns:
+        dict[str, dict[str, object | None]]: Mapping from normalized Urdu word to a metadata
+        dictionary with keys:
+          - "meaning" (str): English meaning (always present).
+          - "roman" (str | None): Romanized Urdu form or `None`.
+          - "frequency_rank" (int | None): Integer rank parsed from "Serial number" or `None`.
     """
     metadata: dict[str, dict[str, object | None]] = {}
 
@@ -63,6 +75,14 @@ def build_metadata_map(csv_path: str | Path) -> dict[str, dict[str, object | Non
 
 
 def main() -> int:
+    """
+    Builds a normalized Urdu word → metadata map from the frequent dictionary CSV and writes it to the project's JSON output file.
+    
+    Creates the output directory if needed, writes UTF-8 JSON (pretty-printed, sorted keys) with a trailing newline, and prints a one-line status message indicating how many entries were saved.
+    
+    Returns:
+        int: Exit status code 0 on success.
+    """
     csv_path = _SCRIPT_DIR / "frequent_dictionary_export.csv"
     output_path = _PYTHON_ROOT / "aruuz" / "database" / "word_metadata.json"
 
