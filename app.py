@@ -9,6 +9,7 @@ and identify matching meters (bahr).
 
 import logging
 import os
+import json
 from pathlib import Path
 import sys
 from flask import Flask, jsonify, render_template, request
@@ -16,6 +17,7 @@ from flask import Flask, jsonify, render_template, request
 from web.api import get_api_handlers, is_valid_keyword
 from aruuz.models import Lines
 from aruuz.rhyme.kafiya_dict import KafiyaDict
+from aruuz.rhyme.text_utils import normalize_urdu_text
 from aruuz.scansion import Scansion
 from aruuz.utils.logging_config import setup_logging
 
@@ -52,14 +54,22 @@ app.config['JSON_AS_ASCII'] = False  # Important for Urdu JSON
 API_HANDLERS = get_api_handlers()
 _KAFIYA_DICT: KafiyaDict | None = None
 _KAFIYA_LOAD_ERROR: str | None = None
+_WORD_METADATA: dict[str, dict[str, object | None]] | None = None
+_WORD_METADATA_LOAD_ERROR: str | None = None
 
 
 def _resolve_kafiya_index_path() -> Path:
     """
-    Resolve kafiya index path with shared priority:
-    1) KAFIYA_INDEX_PATH env var
-    2) first existing default candidate
-    3) canonical fallback path
+    Resolve the filesystem path to the kafiya index using an override and fallback candidates.
+    
+    If the environment variable KAFIYA_INDEX_PATH is set to a non-empty value, that value is returned (converted to a Path) without checking for existence. Otherwise the function returns the first existing path among these candidates:
+    - PROJECT_ROOT/database/kafiya_index.pkl
+    - PROJECT_ROOT/aruuz/database/kafiya_index.pkl
+    
+    If none of the candidates exist, the first candidate (PROJECT_ROOT/database/kafiya_index.pkl) is returned as the canonical fallback.
+    
+    Returns:
+        Path: Resolved path to the kafiya index file.
     """
     env_override = os.getenv("KAFIYA_INDEX_PATH", "").strip()
     if env_override:
@@ -76,7 +86,14 @@ def _resolve_kafiya_index_path() -> Path:
 
 
 def _get_kafiya_dict() -> tuple[KafiyaDict | None, str | None]:
-    """Load and cache KafiyaDict once; return cached instance or error."""
+    """
+    Load and cache the KafiyaDict index used for kafiya lookups.
+    
+    Attempts to load the index once and caches either the loaded KafiyaDict or a user-facing error message to avoid repeated load attempts. Subsequent calls return the cached instance or cached error without re-reading the file.
+    
+    Returns:
+        tuple[KafiyaDict | None, str | None]: A tuple where the first element is the loaded KafiyaDict when successful, otherwise `None`; the second element is `None` on success or a human-readable error message when loading failed.
+    """
     global _KAFIYA_DICT, _KAFIYA_LOAD_ERROR
     if _KAFIYA_DICT is not None:
         return _KAFIYA_DICT, None
@@ -98,9 +115,127 @@ def _get_kafiya_dict() -> tuple[KafiyaDict | None, str | None]:
         return None, _KAFIYA_LOAD_ERROR
 
 
+def _resolve_word_metadata_path() -> Path:
+    """
+    Resolve the filesystem path to the word metadata JSON file using environment and project defaults.
+    
+    Checks the following in order and returns the first match:
+    - The `WORD_METADATA_PATH` environment variable when set and non-empty.
+    - The first existing candidate among project default locations.
+    - The primary canonical candidate (project default) if no candidates exist on disk.
+    
+    Returns:
+        Path: Path to the resolved word metadata JSON file.
+    """
+    env_override = os.getenv("WORD_METADATA_PATH", "").strip()
+    if env_override:
+        return Path(env_override)
+
+    candidates = [
+        PROJECT_ROOT / "database" / "word_metadata.json",
+        PROJECT_ROOT / "aruuz" / "database" / "word_metadata.json",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+
+def _get_word_metadata() -> tuple[dict[str, dict[str, object | None]] | None, str | None]:
+    """
+    Load and cache the word metadata mapping from the resolved JSON file for use by lookup functions.
+    
+    Reads the JSON file at the path returned by _resolve_word_metadata_path(), validates that the top-level value is an object, and stores it in a module-level cache to avoid repeated loads.
+    
+    Returns:
+        A tuple where the first element is the loaded mapping (a dict keyed by normalized words to their metadata) and the second element is an error message string or `None`. On success the return value is `(mapping, None)`. On failure the return value is `(None, error_message)`.
+    """
+    global _WORD_METADATA, _WORD_METADATA_LOAD_ERROR
+    if _WORD_METADATA is not None:
+        return _WORD_METADATA, None
+    if _WORD_METADATA_LOAD_ERROR is not None:
+        return None, _WORD_METADATA_LOAD_ERROR
+
+    metadata_path = _resolve_word_metadata_path()
+    try:
+        with open(metadata_path, encoding="utf-8") as fh:
+            loaded = json.load(fh)
+        if not isinstance(loaded, dict):
+            raise ValueError("word metadata JSON must contain an object at the top level")
+        _WORD_METADATA = loaded
+        return _WORD_METADATA, None
+    except FileNotFoundError:
+        _WORD_METADATA_LOAD_ERROR = (
+            f"Word metadata could not be loaded from '{metadata_path}'. "
+            "Please verify the file exists."
+        )
+        return None, _WORD_METADATA_LOAD_ERROR
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "Failed to load word metadata from %s", metadata_path
+        )
+        _WORD_METADATA_LOAD_ERROR = (
+            f"Word metadata could not be loaded from '{metadata_path}'. "
+            "Please verify the file exists and is valid JSON."
+        )
+        return None, _WORD_METADATA_LOAD_ERROR
+
+
+def _attach_word_metadata(
+    lookup_result: dict,
+    word_metadata: dict[str, dict[str, object | None]] | None,
+) -> dict:
+    """
+    Enriches a kafiya lookup result by adding a `meaning` field to matched word entries when available.
+    
+    Parameters:
+        lookup_result (dict): A lookup result mapping that may contain the buckets "exact", "close", and "open", each expected to be a list of match dictionaries that may include a "word" key.
+        word_metadata (dict[str, dict[str, object | None]] | None): Mapping keyed by normalized Urdu words to metadata objects; when an entry contains a non-empty string under the "meaning" key, that string will be attached to the corresponding match as `match["meaning"]`. If `None` or empty, no changes are made.
+    
+    Returns:
+        dict: The same `lookup_result` object, potentially modified in-place to include `meaning` on matching entries; the original bucket grouping is preserved.
+    """
+    if not word_metadata:
+        return lookup_result
+
+    for bucket_name in ("exact", "close", "open"):
+        matches = lookup_result.get(bucket_name)
+        if not isinstance(matches, list):
+            continue
+        for match in matches:
+            if not isinstance(match, dict):
+                continue
+            word = match.get("word")
+            if not isinstance(word, str):
+                continue
+            lookup_word = word.replace("_", " ") if "_" in word else word
+            lookup_word = word.replace("_", " ") if "_" in word else word
+            entry = word_metadata.get(normalize_urdu_text(lookup_word))
+            if isinstance(entry, dict):
+                meaning = entry.get("meaning")
+                if isinstance(meaning, str) and meaning:
+                    match["meaning"] = meaning
+                    match["meaning"] = meaning
+
+    return lookup_result
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    """Main route: display form and process multiple lines of poetry."""
+    """
+    Render the main UI and process submitted Urdu poetry lines for scansion and meter matching.
+    
+    On GET renders the index template. On POST reads the form field 'text', validates and splits it into non-empty lines, runs the scansion pipeline to compute per-line results and poem-level dominant bahrs, and populates template context values. If input is empty or processing fails, an error message is provided and result lists are empty or None.
+    
+    Returns:
+        The rendered 'index.html' template with context variables:
+        - line_results: per-line scansion results or None
+        - error: an error message string or None
+        - text_input: the submitted text (trimmed)
+        - poem_dominant_bahrs: list of detected dominant bahrs for the poem
+        - poem_dominant_bahrs_roman: optional romanized bahrs list
+        - poem_dominant_bahrs_info: optional additional bahrs info list
+    """
     line_results = None
     error = None
     text_input = ""
@@ -174,6 +309,8 @@ def kafiya():
             else:
                 try:
                     result = kd.lookup(text_input).to_dict()
+                    word_metadata, _ = _get_word_metadata()
+                    result = _attach_word_metadata(result, word_metadata)
                 except Exception as e:
                     error = f"Error processing word: {str(e)}"
 

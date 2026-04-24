@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 # CodeRabbit Configuration
 language: "en-US"
 
@@ -19,11 +20,20 @@ reviews:
       ruff:
         enabled: true
 
+  path_instructions:
+    - path: "**/*.py"
+      instructions: |
+        Focus on Python best practices (PEP 8), type hinting,
+        and potential edge cases in asynchronous code.
+        Maintain a helpful and encouraging tone.
+    - path: "**/*.js"
+      instructions: |
+        Focus on tooltip safety and UX: keyboard accessibility,
+        ARIA usage, and safe handling of rendered text content.
+    - path: "**/*.html"
+      instructions: |
+        Focus on semantic markup and accessible tooltip triggers/labels.
+
 chat:
   enabled: true # Allows you to tag @coderabbitai in comments to ask questions
 
-# Instructions tell the AI how to behave specifically for your project
-instructions: >
-  Please focus on Python best practices (PEP 8), type hinting, 
-  and potential edge cases in asynchronous code. 
-  Maintain a helpful and encouraging tone.

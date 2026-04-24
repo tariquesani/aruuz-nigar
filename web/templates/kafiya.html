@@ -25,7 +25,7 @@
     <div class="card mb-4">
         <div class="card-body py-3">
             <h5 class="text-center urdu-text mb-1" dir="rtl" lang="ur">
-                قافیہ for: {{ result.query }}
+                قافیہ for: {{ result.query | replace('_', ' ') }}
             </h5>
             <p class="text-center text-muted small mb-0">Grouped by quality buckets: exact, close, open</p>
         </div>
@@ -41,8 +41,8 @@
     {% for bucket_key, bucket_label, matches, suffix_len in buckets %}
         {% if matches %}
             {% set ns.has_any = true %}
-            {% set script_words = matches | selectattr('match_kind', 'equalto', 'script') | map(attribute='word') | list %}
-            {% set phonetic_words = matches | selectattr('match_kind', 'equalto', 'phonetic') | map(attribute='word') | list %}
+            {% set script_words = matches | selectattr('match_kind', 'equalto', 'script') | list %}
+            {% set phonetic_words = matches | selectattr('match_kind', 'equalto', 'phonetic') | list %}
             <div class="card mb-4">
                 <div class="card-body py-3">
                     <h6 class="mb-3">
@@ -54,7 +54,16 @@
                         <strong class="d-block mb-1">Script</strong>
                         <div class="kafiya-word-list" lang="ur">
                             {% for w in script_words %}
-                            <span class="kafiya-word urdu-text">{{ w }}</span>
+                            {% if w.meaning %}
+                            <span
+                                class="kafiya-word urdu-text"
+                                data-bs-toggle="tooltip"
+                                data-bs-title="{{ w.meaning }}"
+                                data-bs-placement="top"
+                            >{{ w.word | replace('_', ' ') }}</span>
+                            {% else %}
+                            <span class="kafiya-word urdu-text">{{ w.word | replace('_', ' ') }}</span>
+                            {% endif %}
                             {% endfor %}
                         </div>
                     </div>
@@ -65,7 +74,16 @@
                         <strong class="d-block mb-1">Phonetic</strong>
                         <div class="kafiya-word-list" lang="ur">
                             {% for w in phonetic_words %}
-                            <span class="kafiya-word urdu-text">{{ w }}</span>
+                            {% if w.meaning %}
+                            <span
+                                class="kafiya-word urdu-text"
+                                data-bs-toggle="tooltip"
+                                data-bs-title="{{ w.meaning }}"
+                                data-bs-placement="top"
+                            >{{ w.word | replace('_', ' ') }}</span>
+                            {% else %}
+                            <span class="kafiya-word urdu-text">{{ w.word | replace('_', ' ') }}</span>
+                            {% endif %}
                             {% endfor %}
                         </div>
                     </div>
@@ -124,6 +142,56 @@
             form.classList.add('was-validated');
         }, false);
     });
+})();
+</script>
+<script>
+(function () {
+    'use strict';
+
+    function wrapUrduText(text) {
+        if (!text) return text;
+        var urduRegex = /[\u0600-\u06FF]+/g;
+        return text.replace(urduRegex, function(match) {
+            return '<span style="font-family: \'Noto Nastaliq Urdu\', \'Jameel Noori Nastaleeq\', \'Segoe UI\', serif; direction: rtl;">' + match + '</span>';
+        });
+    }
+
+    function initializeTooltips() {
+        var existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        existingTooltips.forEach(function (el) {
+            var tooltipInstance = bootstrap.Tooltip.getInstance(el);
+            if (tooltipInstance) {
+                tooltipInstance.dispose();
+            }
+        });
+
+        var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        Array.prototype.slice.call(tooltipTriggerList).forEach(function (tooltipTriggerEl) {
+            new bootstrap.Tooltip(tooltipTriggerEl, {
+                container: 'body',
+                html: true
+            });
+
+            tooltipTriggerEl.addEventListener('shown.bs.tooltip', function () {
+                var tooltipInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                if (tooltipInstance) {
+                    var tooltipInner = tooltipInstance.getTipElement().querySelector('.tooltip-inner');
+                    if (tooltipInner) {
+                        var originalTitle = tooltipTriggerEl.getAttribute('data-bs-title') || tooltipTriggerEl.getAttribute('title') || '';
+                        if (originalTitle) {
+                            tooltipInner.innerHTML = wrapUrduText(originalTitle);
+                        }
+                    }
+                }
+            });
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeTooltips);
+    } else {
+        initializeTooltips();
+    }
 })();
 </script>
 {% endblock %}
