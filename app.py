@@ -208,7 +208,8 @@ def _attach_word_metadata(
             word = match.get("word")
             if not isinstance(word, str):
                 continue
-            entry = word_metadata.get(normalize_urdu_text(word))
+            lookup_word = word.replace("_", " ") if "_" in word else word
+            entry = word_metadata.get(normalize_urdu_text(lookup_word))
             if entry:
                 meaning = entry.get("meaning")
                 if isinstance(meaning, str) and meaning:
