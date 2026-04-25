@@ -27,7 +27,14 @@ SEMI_VOWEL_LETTERS = frozenset({"و", "ی", "ے"})
 class KafiyaMatch:
     """A single rhyming word with provenance."""
 
-    __slots__ = ("word", "match_kind", "meaning")
+    __slots__ = (
+        "word",
+        "match_kind",
+        "meaning",
+        "frequency_rank",
+        "is_compound",
+        "same_letter_count",
+    )
 
     def __init__(
         self,
@@ -35,18 +42,31 @@ class KafiyaMatch:
         match_kind: MatchKind,
         *,
         meaning: Optional[str] = None,
+        frequency_rank: Optional[int] = None,
+        is_compound: bool = False,
+        same_letter_count: bool = False,
     ) -> None:
         self.word = word
         self.match_kind = match_kind
         self.meaning = meaning
+        self.frequency_rank = frequency_rank
+        self.is_compound = is_compound
+        self.same_letter_count = same_letter_count
 
     def __repr__(self) -> str:
         return f"KafiyaMatch({self.word!r}, {self.match_kind!r})"
 
     def to_dict(self) -> Dict:
-        out = {"word": self.word, "match_kind": self.match_kind}
+        out = {
+            "word": self.word,
+            "match_kind": self.match_kind,
+            "is_compound": self.is_compound,
+            "same_letter_count": self.same_letter_count,
+        }
         if self.meaning:
             out["meaning"] = self.meaning
+        if self.frequency_rank is not None:
+            out["frequency_rank"] = self.frequency_rank
         return out
 
 
@@ -208,9 +228,14 @@ class KafiyaDict:
             else []
         )
 
-        self._attach_meanings(exact_matches)
-        self._attach_meanings(close_matches)
-        self._attach_meanings(open_matches)
+        query_letter_count = len(script_query)
+        self._enrich_matches(exact_matches, query_letter_count)
+        self._enrich_matches(close_matches, query_letter_count)
+        self._enrich_matches(open_matches, query_letter_count)
+
+        self._sort_matches(exact_matches)
+        self._sort_matches(close_matches)
+        self._sort_matches(open_matches)
 
         if limit is not None:
             exact_matches = exact_matches[:limit]
@@ -254,19 +279,44 @@ class KafiyaDict:
         }
         return candidate_class in compatible_classes[query_class]
 
-    def _attach_meanings(self, matches: List[KafiyaMatch]) -> None:
-        """Attach optional word meanings in-place when metadata is available."""
-        if not self._word_metadata:
-            return
-
+    def _enrich_matches(
+        self,
+        matches: List[KafiyaMatch],
+        query_letter_count: int,
+    ) -> None:
+        """Attach metadata and ranking features used by the dictionary UI."""
         for match in matches:
+            match.is_compound = "_" in match.word or " " in match.word
             lookup_word = match.word.replace("_", " ")
-            entry = self._word_metadata.get(normalize_urdu_text(lookup_word))
+            normalized_lookup_word = normalize_urdu_text(lookup_word)
+            match.same_letter_count = len(normalized_lookup_word) == query_letter_count
+
+            if not self._word_metadata:
+                continue
+
+            entry = self._word_metadata.get(normalized_lookup_word)
             if not isinstance(entry, dict):
                 continue
             meaning = entry.get("meaning")
             if isinstance(meaning, str) and meaning:
                 match.meaning = meaning
+            frequency_rank = entry.get("frequency_rank")
+            if isinstance(frequency_rank, int):
+                match.frequency_rank = frequency_rank
+
+    def _sort_matches(self, matches: List[KafiyaMatch]) -> None:
+        """Sort candidates by poetic usefulness for dictionary browsing."""
+        matches.sort(
+            key=lambda match: (
+                match.is_compound,
+                not match.same_letter_count,
+                0 if match.match_kind == "script" else 1,
+                match.frequency_rank is None,
+                match.frequency_rank if match.frequency_rank is not None else 0,
+                not bool(match.meaning),
+                match.word,
+            )
+        )
 
     def _fetch_bucket(
         self,

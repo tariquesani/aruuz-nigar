@@ -41,19 +41,26 @@
     {% for bucket_key, bucket_label, matches, suffix_len in buckets %}
         {% if matches %}
             {% set ns.has_any = true %}
-            {% set script_words = matches | selectattr('match_kind', 'equalto', 'script') | list %}
-            {% set phonetic_words = matches | selectattr('match_kind', 'equalto', 'phonetic') | list %}
+            {% set simple_matches = matches | rejectattr('is_compound') | list %}
+            {% set compound_matches = matches | selectattr('is_compound') | list %}
+            {% set simple_script_words = simple_matches | selectattr('match_kind', 'equalto', 'script') | list %}
+            {% set simple_phonetic_words = simple_matches | selectattr('match_kind', 'equalto', 'phonetic') | list %}
+            {% set compound_script_words = compound_matches | selectattr('match_kind', 'equalto', 'script') | list %}
+            {% set compound_phonetic_words = compound_matches | selectattr('match_kind', 'equalto', 'phonetic') | list %}
             <div class="card mb-4">
                 <div class="card-body py-3">
                     <h6 class="mb-3">
                         {{ bucket_label }} | suffix length: {{ suffix_len }} ({{ matches | length }} words)
                     </h6>
 
-                    {% if script_words %}
+                    {% if simple_matches %}
+                    <div class="mb-3">
+                        <strong class="d-block mb-2">Simple Words</strong>
+                    {% if simple_script_words %}
                     <div class="mb-3">
                         <strong class="d-block mb-1">Script</strong>
                         <div class="kafiya-word-list" lang="ur">
-                            {% for w in script_words %}
+                            {% for w in simple_script_words %}
                             {% if w.meaning %}
                             <span
                                 class="kafiya-word urdu-text"
@@ -69,11 +76,11 @@
                     </div>
                     {% endif %}
 
-                    {% if phonetic_words %}
+                    {% if simple_phonetic_words %}
                     <div class="mb-0">
                         <strong class="d-block mb-1">Phonetic</strong>
                         <div class="kafiya-word-list" lang="ur">
-                            {% for w in phonetic_words %}
+                            {% for w in simple_phonetic_words %}
                             {% if w.meaning %}
                             <span
                                 class="kafiya-word urdu-text"
@@ -86,6 +93,53 @@
                             {% endif %}
                             {% endfor %}
                         </div>
+                    </div>
+                    {% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if compound_matches %}
+                    <div class="mb-0">
+                        <strong class="d-block mb-2">Compound Words</strong>
+                    {% if compound_script_words %}
+                    <div class="mb-3">
+                        <strong class="d-block mb-1">Script</strong>
+                        <div class="kafiya-word-list" lang="ur">
+                            {% for w in compound_script_words %}
+                            {% if w.meaning %}
+                            <span
+                                class="kafiya-word urdu-text"
+                                data-bs-toggle="tooltip"
+                                data-bs-title="{{ w.meaning }}"
+                                data-bs-placement="top"
+                            >{{ w.word | replace('_', ' ') }}</span>
+                            {% else %}
+                            <span class="kafiya-word urdu-text">{{ w.word | replace('_', ' ') }}</span>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if compound_phonetic_words %}
+                    <div class="mb-0">
+                        <strong class="d-block mb-1">Phonetic</strong>
+                        <div class="kafiya-word-list" lang="ur">
+                            {% for w in compound_phonetic_words %}
+                            {% if w.meaning %}
+                            <span
+                                class="kafiya-word urdu-text"
+                                data-bs-toggle="tooltip"
+                                data-bs-title="{{ w.meaning }}"
+                                data-bs-placement="top"
+                            >{{ w.word | replace('_', ' ') }}</span>
+                            {% else %}
+                            <span class="kafiya-word urdu-text">{{ w.word | replace('_', ' ') }}</span>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
                     </div>
                     {% endif %}
                 </div>
