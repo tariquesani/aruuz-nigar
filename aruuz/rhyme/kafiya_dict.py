@@ -5,6 +5,8 @@ match quality (exact / close / open), with phonetic matches flagged.
 
 from __future__ import annotations
 
+import json
+import logging
 import pickle
 from pathlib import Path
 from typing import Dict, List, Literal, Optional
@@ -25,17 +27,27 @@ SEMI_VOWEL_LETTERS = frozenset({"و", "ی", "ے"})
 class KafiyaMatch:
     """A single rhyming word with provenance."""
 
-    __slots__ = ("word", "match_kind")
+    __slots__ = ("word", "match_kind", "meaning")
 
-    def __init__(self, word: str, match_kind: MatchKind) -> None:
+    def __init__(
+        self,
+        word: str,
+        match_kind: MatchKind,
+        *,
+        meaning: Optional[str] = None,
+    ) -> None:
         self.word = word
         self.match_kind = match_kind
+        self.meaning = meaning
 
     def __repr__(self) -> str:
         return f"KafiyaMatch({self.word!r}, {self.match_kind!r})"
 
     def to_dict(self) -> Dict:
-        return {"word": self.word, "match_kind": self.match_kind}
+        out = {"word": self.word, "match_kind": self.match_kind}
+        if self.meaning:
+            out["meaning"] = self.meaning
+        return out
 
 
 class KafiyaResult:
@@ -82,9 +94,11 @@ class KafiyaDict:
         self,
         index: dict,
         *,
+        word_metadata: Optional[dict[str, dict[str, object | None]]] = None,
         max_per_bucket: Optional[int] = 50,
     ) -> None:
         self._index = index
+        self._word_metadata = word_metadata or {}
         self.max_per_bucket = max_per_bucket
 
     @classmethod
@@ -92,12 +106,46 @@ class KafiyaDict:
         cls,
         pickle_path: str | Path,
         *,
+        metadata_path: str | Path | None = None,
         max_per_bucket: Optional[int] = 50,
     ) -> "KafiyaDict":
         """Load a pre-built index from a pickle file."""
         with open(pickle_path, "rb") as fh:
             index = pickle.load(fh)
-        return cls(index, max_per_bucket=max_per_bucket)
+        word_metadata = cls._load_word_metadata(metadata_path)
+        return cls(
+            index,
+            word_metadata=word_metadata,
+            max_per_bucket=max_per_bucket,
+        )
+
+    @staticmethod
+    def _load_word_metadata(
+        metadata_path: str | Path | None,
+    ) -> Optional[dict[str, dict[str, object | None]]]:
+        """Load optional word metadata used to enrich dictionary results."""
+        if metadata_path is None:
+            return None
+
+        try:
+            with open(metadata_path, encoding="utf-8") as fh:
+                loaded = json.load(fh)
+        except FileNotFoundError:
+            return None
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "Failed to load word metadata from %s", metadata_path
+            )
+            return None
+
+        if not isinstance(loaded, dict):
+            logging.getLogger(__name__).warning(
+                "Ignoring word metadata from %s because the top-level JSON value is not an object",
+                metadata_path,
+            )
+            return None
+
+        return loaded
 
     def lookup(
         self,
@@ -160,6 +208,10 @@ class KafiyaDict:
             else []
         )
 
+        self._attach_meanings(exact_matches)
+        self._attach_meanings(close_matches)
+        self._attach_meanings(open_matches)
+
         if limit is not None:
             exact_matches = exact_matches[:limit]
             close_matches = close_matches[:limit]
@@ -201,6 +253,20 @@ class KafiyaDict:
             "non_vowel": {"semi_vowel", "non_vowel"},
         }
         return candidate_class in compatible_classes[query_class]
+
+    def _attach_meanings(self, matches: List[KafiyaMatch]) -> None:
+        """Attach optional word meanings in-place when metadata is available."""
+        if not self._word_metadata:
+            return
+
+        for match in matches:
+            lookup_word = match.word.replace("_", " ")
+            entry = self._word_metadata.get(normalize_urdu_text(lookup_word))
+            if not isinstance(entry, dict):
+                continue
+            meaning = entry.get("meaning")
+            if isinstance(meaning, str) and meaning:
+                match.meaning = meaning
 
     def _fetch_bucket(
         self,
