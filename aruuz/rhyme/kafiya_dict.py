@@ -7,15 +7,18 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import pickle
 from pathlib import Path
 from typing import Dict, List, Literal, Optional
 
+from aruuz.models import Words
 from aruuz.rhyme.text_utils import (
     full_normalize,
     is_urdu_vowel_letter,
     normalize_urdu_text,
 )
+from aruuz.scansion import Scansion
 
 
 MatchKind = Literal["script", "phonetic"]
@@ -34,6 +37,8 @@ class KafiyaMatch:
         "frequency_rank",
         "is_compound",
         "same_letter_count",
+        "vazn_codes",
+        "vazn_match",
     )
 
     def __init__(
@@ -45,6 +50,8 @@ class KafiyaMatch:
         frequency_rank: Optional[int] = None,
         is_compound: bool = False,
         same_letter_count: bool = False,
+        vazn_codes: Optional[List[str]] = None,
+        vazn_match: bool = False,
     ) -> None:
         self.word = word
         self.match_kind = match_kind
@@ -52,6 +59,8 @@ class KafiyaMatch:
         self.frequency_rank = frequency_rank
         self.is_compound = is_compound
         self.same_letter_count = same_letter_count
+        self.vazn_codes = vazn_codes or []
+        self.vazn_match = vazn_match
 
     def __repr__(self) -> str:
         return f"KafiyaMatch({self.word!r}, {self.match_kind!r})"
@@ -62,7 +71,10 @@ class KafiyaMatch:
             "match_kind": self.match_kind,
             "is_compound": self.is_compound,
             "same_letter_count": self.same_letter_count,
+            "vazn_match": self.vazn_match,
         }
+        if self.vazn_codes:
+            out["vazn_codes"] = self.vazn_codes
         if self.meaning:
             out["meaning"] = self.meaning
         if self.frequency_rank is not None:
@@ -78,12 +90,14 @@ class KafiyaResult:
     def __init__(
         self,
         query: str,
+        query_vazn_codes: List[str],
         suffix_lengths: Dict[str, int],
         exact: List[KafiyaMatch],
         close: List[KafiyaMatch],
         open_: List[KafiyaMatch],
     ) -> None:
         self.query = query
+        self.query_vazn_codes = query_vazn_codes
         self.suffix_lengths = suffix_lengths
         self.exact = exact
         self.close = close
@@ -92,6 +106,7 @@ class KafiyaResult:
     def to_dict(self) -> Dict:
         return {
             "query": self.query,
+            "query_vazn_codes": self.query_vazn_codes,
             "suffix_lengths": self.suffix_lengths,
             "exact": [m.to_dict() for m in self.exact],
             "close": [m.to_dict() for m in self.close],
@@ -115,10 +130,13 @@ class KafiyaDict:
         index: dict,
         *,
         word_metadata: Optional[dict[str, dict[str, object | None]]] = None,
+        word_vazn_metadata: Optional[dict[str, list[str]]] = None,
         max_per_bucket: Optional[int] = 50,
     ) -> None:
         self._index = index
         self._word_metadata = word_metadata or {}
+        self._word_vazn_metadata = word_vazn_metadata or {}
+        self._scanner = Scansion()
         self.max_per_bucket = max_per_bucket
 
     @classmethod
@@ -127,17 +145,46 @@ class KafiyaDict:
         pickle_path: str | Path,
         *,
         metadata_path: str | Path | None = None,
+        vazn_metadata_path: str | Path | None = None,
         max_per_bucket: Optional[int] = 50,
     ) -> "KafiyaDict":
         """Load a pre-built index from a pickle file."""
+        pickle_path = Path(pickle_path)
         with open(pickle_path, "rb") as fh:
             index = pickle.load(fh)
         word_metadata = cls._load_word_metadata(metadata_path)
+        if vazn_metadata_path is None:
+            vazn_metadata_path = cls._resolve_word_vazn_metadata_path(pickle_path)
+        word_vazn_metadata = cls._load_word_vazn_metadata(vazn_metadata_path)
         return cls(
             index,
             word_metadata=word_metadata,
+            word_vazn_metadata=word_vazn_metadata,
             max_per_bucket=max_per_bucket,
         )
+
+    @staticmethod
+    def _resolve_word_vazn_metadata_path(pickle_path: Path) -> Path:
+        """
+        Resolve word_vazn_metadata.json near the index path.
+
+        Priority:
+        1) WORD_VAZN_METADATA_PATH environment override
+        2) sibling of index pickle
+        3) repo-level aruuz/database fallback derived from index location
+        """
+        env_override = os.getenv("WORD_VAZN_METADATA_PATH", "").strip()
+        if env_override:
+            return Path(env_override)
+
+        candidates = [
+            pickle_path.parent / "word_vazn_metadata.json",
+            pickle_path.parent.parent / "aruuz" / "database" / "word_vazn_metadata.json",
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return candidates[0]
 
     @staticmethod
     def _load_word_metadata(
@@ -167,6 +214,41 @@ class KafiyaDict:
 
         return loaded
 
+    @staticmethod
+    def _load_word_vazn_metadata(
+        metadata_path: str | Path | None,
+    ) -> Optional[dict[str, list[str]]]:
+        """Load optional normalized-word -> list[vazn code] metadata."""
+        if metadata_path is None:
+            return None
+
+        try:
+            with open(metadata_path, encoding="utf-8") as fh:
+                loaded = json.load(fh)
+        except FileNotFoundError:
+            return None
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "Failed to load word vazn metadata from %s", metadata_path
+            )
+            return None
+
+        if not isinstance(loaded, dict):
+            logging.getLogger(__name__).warning(
+                "Ignoring word vazn metadata from %s because the top-level JSON value is not an object",
+                metadata_path,
+            )
+            return None
+
+        out: dict[str, list[str]] = {}
+        for key, value in loaded.items():
+            if not isinstance(key, str) or not isinstance(value, list):
+                continue
+            codes = [item.strip() for item in value if isinstance(item, str) and item.strip()]
+            if codes:
+                out[key] = list(dict.fromkeys(codes))
+        return out
+
     def lookup(
         self,
         query: str,
@@ -185,6 +267,7 @@ class KafiyaDict:
         if max_possible < 1:
             return KafiyaResult(
                 query=script_query,
+                query_vazn_codes=[],
                 suffix_lengths={"exact": 0, "close": 0, "open": 0},
                 exact=[],
                 close=[],
@@ -228,10 +311,11 @@ class KafiyaDict:
             else []
         )
 
+        query_vazn_codes = self._get_query_vazn_codes(script_query)
         query_letter_count = len(script_query)
-        self._enrich_matches(exact_matches, query_letter_count)
-        self._enrich_matches(close_matches, query_letter_count)
-        self._enrich_matches(open_matches, query_letter_count)
+        self._enrich_matches(exact_matches, query_letter_count, query_vazn_codes)
+        self._enrich_matches(close_matches, query_letter_count, query_vazn_codes)
+        self._enrich_matches(open_matches, query_letter_count, query_vazn_codes)
 
         self._sort_matches(exact_matches)
         self._sort_matches(close_matches)
@@ -244,6 +328,7 @@ class KafiyaDict:
 
         return KafiyaResult(
             query=script_query,
+            query_vazn_codes=query_vazn_codes,
             suffix_lengths=suffix_lengths,
             exact=exact_matches,
             close=close_matches,
@@ -283,6 +368,7 @@ class KafiyaDict:
         self,
         matches: List[KafiyaMatch],
         query_letter_count: int,
+        query_vazn_codes: List[str],
     ) -> None:
         """Attach metadata and ranking features used by the dictionary UI."""
         for match in matches:
@@ -290,6 +376,8 @@ class KafiyaDict:
             lookup_word = match.word.replace("_", " ")
             normalized_lookup_word = normalize_urdu_text(lookup_word)
             match.same_letter_count = len(normalized_lookup_word) == query_letter_count
+            match.vazn_codes = self._get_vazn_codes_for_word(normalized_lookup_word)
+            match.vazn_match = self._has_compatible_vazn(query_vazn_codes, match.vazn_codes)
 
             if not self._word_metadata:
                 continue
@@ -308,6 +396,7 @@ class KafiyaDict:
         """Sort candidates by poetic usefulness for dictionary browsing."""
         matches.sort(
             key=lambda match: (
+                not match.vazn_match,
                 match.is_compound,
                 not match.same_letter_count,
                 0 if match.match_kind == "script" else 1,
@@ -317,6 +406,51 @@ class KafiyaDict:
                 match.word,
             )
         )
+
+    def _get_query_vazn_codes(self, query_word: str) -> List[str]:
+        scanned = Words()
+        scanned.word = query_word
+        scanned.taqti = []
+        scanned = self._scanner.assign_scansion_to_word(scanned)
+        raw_codes = [code.strip() for code in scanned.code if isinstance(code, str)]
+        non_empty_codes = [code for code in raw_codes if code]
+        return list(dict.fromkeys(non_empty_codes))
+
+    def _get_vazn_codes_for_word(self, normalized_lookup_word: str) -> List[str]:
+        direct = self._word_vazn_metadata.get(normalized_lookup_word)
+        if isinstance(direct, list):
+            return direct
+
+        fallback_key = normalized_lookup_word.replace(" ", "_")
+        fallback = self._word_vazn_metadata.get(fallback_key)
+        if isinstance(fallback, list):
+            return fallback
+        return []
+
+    def _is_compatible_vazn_code_pair(self, query_code: str, candidate_code: str) -> bool:
+        """Match vazn codes with x treated as flexible on either side."""
+        if len(query_code) != len(candidate_code):
+            return False
+
+        for qch, cch in zip(query_code, candidate_code):
+            if qch == "x" or cch == "x":
+                continue
+            if qch != cch:
+                return False
+        return True
+
+    def _has_compatible_vazn(
+        self,
+        query_codes: List[str],
+        candidate_codes: List[str],
+    ) -> bool:
+        if not query_codes or not candidate_codes:
+            return False
+        for query_code in query_codes:
+            for candidate_code in candidate_codes:
+                if self._is_compatible_vazn_code_pair(query_code, candidate_code):
+                    return True
+        return False
 
     def _fetch_bucket(
         self,

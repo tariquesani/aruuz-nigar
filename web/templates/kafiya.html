@@ -22,11 +22,15 @@
     {% endif %}
 
     {% if result %}
+    {% set query_vazn_text = (result.query_vazn_codes | join(' | ')) if result.query_vazn_codes else '—' %}
     <div class="card mb-4">
         <div class="card-body py-3">
             <h5 class="text-center urdu-text mb-1" dir="rtl" lang="ur">
                 قافیہ for: {{ result.query | replace('_', ' ') }}
             </h5>
+            <p class="text-center small mb-1">
+                Vazn: <code class="text-dark">{{ query_vazn_text }}</code>
+            </p>
             <p class="text-center text-muted small mb-0">Grouped by quality buckets: exact, close, open</p>
         </div>
     </div>
@@ -61,16 +65,14 @@
                         <strong class="d-block mb-1">Script</strong>
                         <div class="kafiya-word-list" lang="ur">
                             {% for w in simple_script_words %}
-                            {% if w.meaning %}
+                            {% set word_vazn_text = (w.vazn_codes | join(' | ')) if w.vazn_codes else '—' %}
+                            {% set tooltip_text = word_vazn_text + (', ' + w.meaning if w.meaning else '') %}
                             <span
                                 class="kafiya-word urdu-text"
                                 data-bs-toggle="tooltip"
-                                data-bs-title="{{ w.meaning }}"
+                                data-bs-title="{{ tooltip_text }}"
                                 data-bs-placement="top"
                             >{{ w.word | replace('_', ' ') }}</span>
-                            {% else %}
-                            <span class="kafiya-word urdu-text">{{ w.word | replace('_', ' ') }}</span>
-                            {% endif %}
                             {% endfor %}
                         </div>
                     </div>
@@ -81,16 +83,14 @@
                         <strong class="d-block mb-1">Phonetic</strong>
                         <div class="kafiya-word-list" lang="ur">
                             {% for w in simple_phonetic_words %}
-                            {% if w.meaning %}
+                            {% set word_vazn_text = (w.vazn_codes | join(' | ')) if w.vazn_codes else '—' %}
+                            {% set tooltip_text = word_vazn_text + (', ' + w.meaning if w.meaning else '') %}
                             <span
                                 class="kafiya-word urdu-text"
                                 data-bs-toggle="tooltip"
-                                data-bs-title="{{ w.meaning }}"
+                                data-bs-title="{{ tooltip_text }}"
                                 data-bs-placement="top"
                             >{{ w.word | replace('_', ' ') }}</span>
-                            {% else %}
-                            <span class="kafiya-word urdu-text">{{ w.word | replace('_', ' ') }}</span>
-                            {% endif %}
                             {% endfor %}
                         </div>
                     </div>
@@ -106,16 +106,14 @@
                         <strong class="d-block mb-1">Script</strong>
                         <div class="kafiya-word-list" lang="ur">
                             {% for w in compound_script_words %}
-                            {% if w.meaning %}
+                            {% set word_vazn_text = (w.vazn_codes | join(' | ')) if w.vazn_codes else '—' %}
+                            {% set tooltip_text = word_vazn_text + (', ' + w.meaning if w.meaning else '') %}
                             <span
                                 class="kafiya-word urdu-text"
                                 data-bs-toggle="tooltip"
-                                data-bs-title="{{ w.meaning }}"
+                                data-bs-title="{{ tooltip_text }}"
                                 data-bs-placement="top"
                             >{{ w.word | replace('_', ' ') }}</span>
-                            {% else %}
-                            <span class="kafiya-word urdu-text">{{ w.word | replace('_', ' ') }}</span>
-                            {% endif %}
                             {% endfor %}
                         </div>
                     </div>
@@ -126,16 +124,14 @@
                         <strong class="d-block mb-1">Phonetic</strong>
                         <div class="kafiya-word-list" lang="ur">
                             {% for w in compound_phonetic_words %}
-                            {% if w.meaning %}
+                            {% set word_vazn_text = (w.vazn_codes | join(' | ')) if w.vazn_codes else '—' %}
+                            {% set tooltip_text = word_vazn_text + (', ' + w.meaning if w.meaning else '') %}
                             <span
                                 class="kafiya-word urdu-text"
                                 data-bs-toggle="tooltip"
-                                data-bs-title="{{ w.meaning }}"
+                                data-bs-title="{{ tooltip_text }}"
                                 data-bs-placement="top"
                             >{{ w.word | replace('_', ' ') }}</span>
-                            {% else %}
-                            <span class="kafiya-word urdu-text">{{ w.word | replace('_', ' ') }}</span>
-                            {% endif %}
                             {% endfor %}
                         </div>
                     </div>
