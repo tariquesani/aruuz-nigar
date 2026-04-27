@@ -11,6 +11,7 @@ theme:
 
 nav:
   - Home: index.md
+  - Changelog: CHANGELOG.md
   - Guides:
       - Conceptual Overview: guides/overview.md
       - Scansion Pipeline: guides/pipeline.md
@@ -21,7 +22,7 @@ nav:
           - API Documentation: api/README.md
   - Download: https://github.com/tariquesani/aruuz-nigar/releases
   - Demos:
-      - Server 1: https://www--aruuznigar.replit.app/
+      - Server 1 (Not working): https://www--aruuznigar.replit.app/
       - Server 2: https://aruuznigar.onrender.com/ 
   - Get the Code: https://github.com/tariquesani/aruuz-nigar
   - Report Bugs: https://github.com/tariquesani/aruuz-nigar/issues 
