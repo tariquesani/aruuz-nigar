@@ -31,7 +31,7 @@
             <p class="text-center small mb-1">
                 Vazn: <code class="text-dark">{{ query_vazn_text }}</code>
             </p>
-            <p class="text-center text-muted small mb-0">Grouped by quality buckets: exact, close, open</p>
+            <p class="text-center text-muted small mb-0">Grouped by suffix length</p>
         </div>
     </div>
 
@@ -51,10 +51,19 @@
             {% set simple_phonetic_words = simple_matches | selectattr('match_kind', 'equalto', 'phonetic') | list %}
             {% set compound_script_words = compound_matches | selectattr('match_kind', 'equalto', 'script') | list %}
             {% set compound_phonetic_words = compound_matches | selectattr('match_kind', 'equalto', 'phonetic') | list %}
+            {% if suffix_len == 1 %}
+            <div class="alert alert-light border mb-2 py-2" role="note">
+                <small class="text-muted">
+                    <strong>Open (suffix length&nbsp;1):</strong>
+                    matches share only the last letter after sound-normalization (e.g. homophone letters map together).
+                    Results are broad hints for browsing, not full classical qāfiya judgment.
+                </small>
+            </div>
+            {% endif %}
             <div class="card mb-4">
                 <div class="card-body py-3">
                     <h6 class="mb-3">
-                        {{ bucket_label }} | suffix length: {{ suffix_len }} ({{ matches | length }} words)
+                        Suffix length: {{ suffix_len }} ({{ matches | length }} words)
                     </h6>
 
                     {% if simple_matches %}

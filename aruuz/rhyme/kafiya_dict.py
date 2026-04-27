@@ -459,6 +459,16 @@ class KafiyaDict:
         suffix_len: int,
         exclude: set[str],
     ) -> List[KafiyaMatch]:
+        """
+        Return index words that share a *phonetic* suffix of length *suffix_len* with
+        the query, dropping *exclude* (the query and any words from stronger buckets).
+
+        For *suffix_len* == 1 (the "open" bucket), the index key is the last character
+        of *phonetic_query* (``full_normalize``; homophones share a bucket). Each
+        candidate must also pass ``_passes_open_guard``, which compares the
+        penultimate *script* letter class (vowel / semi_vowel / non_vowel) to cut
+        spurious 1-letter matches. The open bucket is high recall, not full qāfiya.
+        """
         if suffix_len <= 0:
             return []
 
