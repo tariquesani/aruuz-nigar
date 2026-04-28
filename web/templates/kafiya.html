@@ -54,9 +54,20 @@
             {% if suffix_len == 1 %}
             <div class="alert alert-light border mb-2 py-2" role="note">
                 <small class="text-muted">
-                    <strong>Open (suffix length&nbsp;1):</strong>
-                    matches share only the last letter after sound-normalization (e.g. homophone letters map together).
-                    Results are broad hints for browsing, not full classical qāfiya judgment.
+                    <strong class="d-block mb-1">Open (suffix length&nbsp;1)</strong>
+                    <span class="d-block mb-1">
+                        Single-character suffix matching can be affected by implicit vowel
+                        ambiguity in unvocalised Urdu script.
+                    </span>
+                    <span class="d-block mb-1">
+                        Words ending in naked consonants (e.g. ر، ن، ل) may be grouped
+                        together despite different short vowel sounds (<code>-ar</code>,
+                        <code>-ir</code>, <code>-ur</code>).
+                    </span>
+                    <span class="d-block">
+                        This is a known limitation without diacritised input or a curated
+                        pronunciation lexicon.
+                    </span>
                 </small>
             </div>
             {% endif %}
