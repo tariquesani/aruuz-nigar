@@ -45,6 +45,7 @@
     {% for bucket_key, bucket_label, matches, suffix_len in buckets %}
         {% if matches %}
             {% set ns.has_any = true %}
+            {% set total_matches = result.total_counts.get(bucket_key, matches | length) %}
             {% set simple_matches = matches | rejectattr('is_compound') | list %}
             {% set compound_matches = matches | selectattr('is_compound') | list %}
             {% set simple_script_words = simple_matches | selectattr('match_kind', 'equalto', 'script') | list %}
@@ -74,7 +75,13 @@
             <div class="card mb-4">
                 <div class="card-body py-3">
                     <h6 class="mb-3">
-                        Suffix length: {{ suffix_len }} ({{ matches | length }} words)
+                        Suffix length: {{ suffix_len }} (
+                        {% if total_matches == (matches | length) %}
+                            {{ total_matches }} words
+                        {% else %}
+                            {{ matches | length }} / {{ total_matches }} words
+                        {% endif %}
+                        )
                     </h6>
 
                     {% if simple_matches %}

@@ -92,6 +92,7 @@ class KafiyaResult:
         query: str,
         query_vazn_codes: List[str],
         suffix_lengths: Dict[str, int],
+        total_counts: Dict[str, int],
         exact: List[KafiyaMatch],
         close: List[KafiyaMatch],
         open_: List[KafiyaMatch],
@@ -99,6 +100,7 @@ class KafiyaResult:
         self.query = query
         self.query_vazn_codes = query_vazn_codes
         self.suffix_lengths = suffix_lengths
+        self.total_counts = total_counts
         self.exact = exact
         self.close = close
         self.open = open_
@@ -108,6 +110,7 @@ class KafiyaResult:
             "query": self.query,
             "query_vazn_codes": self.query_vazn_codes,
             "suffix_lengths": self.suffix_lengths,
+            "total_counts": self.total_counts,
             "exact": [m.to_dict() for m in self.exact],
             "close": [m.to_dict() for m in self.close],
             "open": [m.to_dict() for m in self.open],
@@ -269,6 +272,7 @@ class KafiyaDict:
                 query=script_query,
                 query_vazn_codes=[],
                 suffix_lengths={"exact": 0, "close": 0, "open": 0},
+                total_counts={"exact": 0, "close": 0, "open": 0},
                 exact=[],
                 close=[],
                 open_=[],
@@ -321,6 +325,12 @@ class KafiyaDict:
         self._sort_matches(close_matches)
         self._sort_matches(open_matches)
 
+        total_counts = {
+            "exact": len(exact_matches),
+            "close": len(close_matches),
+            "open": len(open_matches),
+        }
+
         if limit is not None:
             exact_matches = exact_matches[:limit]
             close_matches = close_matches[:limit]
@@ -330,6 +340,7 @@ class KafiyaDict:
             query=script_query,
             query_vazn_codes=query_vazn_codes,
             suffix_lengths=suffix_lengths,
+            total_counts=total_counts,
             exact=exact_matches,
             close=close_matches,
             open_=open_matches,
