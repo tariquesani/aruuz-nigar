@@ -26,6 +26,12 @@ from aruuz.scansion import Scansion
 
 
 def _unique_preserve_order(items: list[str]) -> list[str]:
+    """
+    Return a new list containing the first occurrence of each item from the input, preserving the original order.
+    
+    Returns:
+        list[str]: Items from `items` with duplicates removed; each value appears only once in the order of its first appearance.
+    """
     seen: set[str] = set()
     out: list[str] = []
     for item in items:
@@ -37,6 +43,21 @@ def _unique_preserve_order(items: list[str]) -> list[str]:
 
 
 def _scan_codes(scanner: Scansion, normalized_word: str) -> list[str]:
+    """
+    Extract ordered, de-duplicated scansion codes for a normalized Urdu word.
+    
+    Uses the provided scansion engine to obtain codes for the given normalized word,
+    strips surrounding whitespace, discards non-string and empty entries, and preserves
+    the first occurrence order while removing duplicates.
+    
+    Parameters:
+        scanner (Scansion): Scansion engine used to assign scansion to the word.
+        normalized_word (str): A normalized Urdu word to be scanned.
+    
+    Returns:
+        list[str]: Scansion codes with whitespace trimmed, empty strings removed,
+        and duplicates removed while preserving original order.
+    """
     word_obj = Words()
     word_obj.word = normalized_word
     word_obj.taqti = []
@@ -48,6 +69,15 @@ def _scan_codes(scanner: Scansion, normalized_word: str) -> list[str]:
 
 
 def _write_json(path: Path, payload: dict[str, list[str]]) -> None:
+    """
+    Write the given mapping as JSON to the destination path atomically, creating parent directories if needed.
+    
+    The file is written with UTF-8 encoding, sorted keys, an indentation of two spaces, non-ASCII characters preserved, and a final trailing newline. The write is performed to a temporary file which is then moved to the destination to replace any existing file.
+    
+    Parameters:
+        path (Path): Destination file path for the JSON output.
+        payload (dict[str, list[str]]): Mapping from normalized words to lists of vazn/scansion codes to serialize.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = path.with_suffix(path.suffix + ".tmp")
     with open(temp_path, "w", encoding="utf-8") as fh:
@@ -57,6 +87,15 @@ def _write_json(path: Path, payload: dict[str, list[str]]) -> None:
 
 
 def _load_existing_metadata(path: Path) -> dict[str, list[str]]:
+    """
+    Load and sanitize an existing word-to-vazn metadata JSON file.
+    
+    Parameters:
+        path (Path): Path to the JSON file containing a mapping from words to lists of vazn/scansion codes.
+    
+    Returns:
+        dict[str, list[str]]: A mapping where each key is a string word and each value is a list of non-empty, whitespace-stripped vazn codes with duplicates removed while preserving original order. Returns an empty dict if the file does not exist or does not contain a valid dict mapping.
+    """
     if not path.exists():
         return {}
 
@@ -87,6 +126,26 @@ def build_vazn_map(
     checkpoint_every: int = 1000,
     resume: bool = True,
 ) -> tuple[dict[str, list[str]], dict[str, int]]:
+    """
+    Build a mapping from normalized Urdu words to lists of vazn (scansion) codes by scanning words from a text file.
+    
+    Parameters:
+        words_path (str | Path): Path to the input text file containing one Urdu word per line.
+        output_path (Path): Path to the JSON file used for resuming and for checkpoint writes.
+        limit (int | None): Optional maximum number of unique normalized words to process; `None` means no limit.
+        progress_every (int): Print progress every N words (0 disables progress printing).
+        checkpoint_every (int): Save intermediate results to `output_path` after every N newly processed words (0 disables checkpointing).
+        resume (bool): If true, load and reuse existing metadata from `output_path` and skip already-present words.
+    
+    Returns:
+        tuple[dict[str, list[str]], dict[str, int]]:
+            - A dictionary mapping normalized words to de-duplicated, ordered lists of non-empty scansion codes.
+            - A stats dictionary containing counts: "input_lines", "normalized_non_empty", "unique_normalized_words",
+              "with_codes", "without_codes", "resumed_skips", and "processed_in_run".
+    
+    Side effects:
+        May write checkpoint files to `output_path` (atomic replace) when `checkpoint_every > 0` and prints progress messages according to `progress_every`.
+    """
     with open(words_path, encoding="utf-8") as fh:
         raw_words = [line.strip() for line in fh if line.strip()]
 
@@ -151,6 +210,20 @@ def build_vazn_map(
 
 
 def parse_args() -> argparse.Namespace:
+    """
+    Parse command-line arguments for the word→vazn metadata builder.
+    
+    Options:
+    - words_path: Path to words.txt (default: scripts/words.txt)
+    - output_path: Path to output JSON file (default: aruuz/database/word_vazn_metadata.json)
+    - limit: Optional maximum number of unique normalized words to process
+    - progress_every: Print progress every N processed words (0 disables)
+    - checkpoint_every: Persist output every N newly processed words (0 disables)
+    - no_resume: If set, ignore existing output and recompute from scratch
+    
+    Returns:
+        argparse.Namespace: Parsed arguments with attributes `words_path`, `output_path`, `limit`, `progress_every`, `checkpoint_every`, and `no_resume`.
+    """
     parser = argparse.ArgumentParser(
         description="Build normalized word -> list[vazn code] JSON metadata.",
     )
@@ -193,6 +266,12 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """
+    Run the CLI: parse arguments, build the vazn mapping, write the output file, and print a summary.
+    
+    Returns:
+        exit_code (int): Process exit code (0 for success).
+    """
     args = parse_args()
 
     vazn_map, stats = build_vazn_map(

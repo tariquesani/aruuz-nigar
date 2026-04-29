@@ -114,15 +114,15 @@ def _get_kafiya_dict() -> tuple[KafiyaDict | None, str | None]:
 
 def _resolve_word_metadata_path() -> Path:
     """
-    Resolve the filesystem path to the word metadata JSON file using environment and project defaults.
+    Resolve the filesystem path to the word metadata JSON file.
     
-    Checks the following in order and returns the first match:
-    - The `WORD_METADATA_PATH` environment variable when set and non-empty.
+    Checks the following in order and returns the first applicable path:
+    - The `WORD_METADATA_PATH` environment variable when set to a non-empty value.
     - The first existing candidate among project default locations.
-    - The primary canonical candidate (project default) if no candidates exist on disk.
+    - The primary canonical candidate (`PROJECT_ROOT/database/word_metadata.json`) if no candidates exist on disk.
     
     Returns:
-        Path: Path to the resolved word metadata JSON file.
+        Path: Resolved path to the word metadata JSON file.
     """
     env_override = os.getenv("WORD_METADATA_PATH", "").strip()
     if env_override:
