@@ -170,6 +170,7 @@ class KafiyaResult:
         query_vazn_codes: List[str],
         suffix_lengths: Dict[str, int],
         total_counts: Dict[str, int],
+        pagination: Dict[str, Dict[str, int | bool]],
         exact: List[KafiyaMatch],
         close: List[KafiyaMatch],
         open_: List[KafiyaMatch],
@@ -190,6 +191,7 @@ class KafiyaResult:
         self.query_vazn_codes = query_vazn_codes
         self.suffix_lengths = suffix_lengths
         self.total_counts = total_counts
+        self.pagination = pagination
         self.exact = exact
         self.close = close
         self.open = open_
@@ -213,6 +215,7 @@ class KafiyaResult:
             "query_vazn_codes": self.query_vazn_codes,
             "suffix_lengths": self.suffix_lengths,
             "total_counts": self.total_counts,
+            "pagination": self.pagination,
             "exact": [m.to_dict() for m in self.exact],
             "close": [m.to_dict() for m in self.close],
             "open": [m.to_dict() for m in self.open],
@@ -408,6 +411,7 @@ class KafiyaDict:
         query: str,
         *,
         max_per_bucket: Optional[int] = None,
+        page_by_bucket: Optional[Dict[str, int]] = None,
     ) -> KafiyaResult:
         """
         Return candidate kafiya matches for a query, grouped into three quality buckets: exact, close, and open.
@@ -426,6 +430,7 @@ class KafiyaDict:
         		If the query is too short to produce suffixes, returns a `KafiyaResult` with empty buckets and zeroed statistics.
         """
         limit = max_per_bucket if max_per_bucket is not None else self.max_per_bucket
+        page_map = page_by_bucket or {}
 
         script_query = normalize_urdu_text(query)
         phonetic_query = full_normalize(query)
@@ -437,6 +442,11 @@ class KafiyaDict:
                 query_vazn_codes=[],
                 suffix_lengths={"exact": 0, "close": 0, "open": 0},
                 total_counts={"exact": 0, "close": 0, "open": 0},
+                pagination=self._paginate_buckets(
+                    {"exact": [], "close": [], "open": []},
+                    limit,
+                    page_map,
+                )[1],
                 exact=[],
                 close=[],
                 open_=[],
@@ -504,20 +514,66 @@ class KafiyaDict:
             "open": len(open_matches),
         }
 
-        if limit is not None:
-            exact_matches = exact_matches[:limit]
-            close_matches = close_matches[:limit]
-            open_matches = open_matches[:limit]
+        buckets, pagination = self._paginate_buckets(
+            {"exact": exact_matches, "close": close_matches, "open": open_matches},
+            limit,
+            page_map,
+        )
 
         return KafiyaResult(
             query=script_query,
             query_vazn_codes=query_vazn_codes,
             suffix_lengths=suffix_lengths,
             total_counts=total_counts,
-            exact=exact_matches,
-            close=close_matches,
-            open_=open_matches,
+            pagination=pagination,
+            exact=buckets["exact"],
+            close=buckets["close"],
+            open_=buckets["open"],
         )
+
+    def _paginate_buckets(
+        self,
+        buckets: Dict[str, List[KafiyaMatch]],
+        per_page: Optional[int],
+        page_by_bucket: Dict[str, int],
+    ) -> tuple[Dict[str, List[KafiyaMatch]], Dict[str, Dict[str, int | bool]]]:
+        """
+        Slice each bucket for the requested page and return per-bucket pagination metadata.
+        """
+        if per_page is None:
+            paged = {name: values for name, values in buckets.items()}
+            meta = {
+                name: {
+                    "page": 1,
+                    "per_page": 0,
+                    "total_pages": 1,
+                    "has_prev": False,
+                    "has_next": False,
+                }
+                for name in buckets
+            }
+            return paged, meta
+
+        safe_per_page = max(1, per_page)
+        paged: Dict[str, List[KafiyaMatch]] = {}
+        meta: Dict[str, Dict[str, int | bool]] = {}
+        for name, values in buckets.items():
+            total_items = len(values)
+            total_pages = max(1, (total_items + safe_per_page - 1) // safe_per_page)
+            raw_page = page_by_bucket.get(name, 1)
+            page = min(max(1, raw_page), total_pages)
+            start = (page - 1) * safe_per_page
+            end = start + safe_per_page
+            paged[name] = values[start:end]
+            meta[name] = {
+                "page": page,
+                "per_page": safe_per_page,
+                "total_pages": total_pages,
+                "has_prev": page > 1,
+                "has_next": page < total_pages,
+            }
+
+        return paged, meta
 
     def _classify_open_guard_letter(self, ch: str) -> OpenGuardClass:
         """Classify a penultimate letter for 1-letter dictionary matching."""

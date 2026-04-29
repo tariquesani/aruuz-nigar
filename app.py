@@ -52,6 +52,7 @@ app.config['JSON_AS_ASCII'] = False  # Important for Urdu JSON
 API_HANDLERS = get_api_handlers()
 _KAFIYA_DICT: KafiyaDict | None = None
 _KAFIYA_LOAD_ERROR: str | None = None
+_KAFIYA_PER_PAGE_DEFAULT = 50
 
 
 def _resolve_kafiya_index_path() -> Path:
@@ -214,21 +215,33 @@ def kafiya():
     error = None
     result = None
 
-    if request.method == 'POST':
-        text_input = request.form.get('text', '').strip()
-        if not text_input:
-            error = "Please enter one Urdu word"
+    source = request.form if request.method == 'POST' else request.args
+    text_input = source.get('text', '').strip()
+    exact_page = max(1, source.get('exact_page', default=1, type=int) or 1)
+    close_page = max(1, source.get('close_page', default=1, type=int) or 1)
+    open_page = max(1, source.get('open_page', default=1, type=int) or 1)
+
+    if text_input:
+        kd, load_error = _get_kafiya_dict()
+        if load_error:
+            error = load_error
+        elif kd is None:
+            error = "Kafiya lookup is not available right now."
         else:
-            kd, load_error = _get_kafiya_dict()
-            if load_error:
-                error = load_error
-            elif kd is None:
-                error = "Kafiya lookup is not available right now."
-            else:
-                try:
-                    result = kd.lookup(text_input).to_dict()
-                except Exception as e:
-                    error = f"Error processing word: {str(e)}"
+            try:
+                result = kd.lookup(
+                    text_input,
+                    max_per_bucket=_KAFIYA_PER_PAGE_DEFAULT,
+                    page_by_bucket={
+                        "exact": exact_page,
+                        "close": close_page,
+                        "open": open_page,
+                    },
+                ).to_dict()
+            except Exception as e:
+                error = f"Error processing word: {str(e)}"
+    elif request.method == 'POST':
+        error = "Please enter one Urdu word"
 
     return render_template(
         'kafiya.html',
