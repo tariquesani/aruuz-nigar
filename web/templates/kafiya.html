@@ -22,12 +22,16 @@
     {% endif %}
 
     {% if result %}
+    {% set query_vazn_text = (result.query_vazn_codes | join(' | ')) if result.query_vazn_codes else '—' %}
     <div class="card mb-4">
         <div class="card-body py-3">
             <h5 class="text-center urdu-text mb-1" dir="rtl" lang="ur">
                 قافیہ for: {{ result.query | replace('_', ' ') }}
             </h5>
-            <p class="text-center text-muted small mb-0">Grouped by quality buckets: exact, close, open</p>
+            <p class="text-center small mb-1">
+                Vazn: <code class="text-dark">{{ query_vazn_text }}</code>
+            </p>
+            <p class="text-center text-muted small mb-0">Grouped by suffix length</p>
         </div>
     </div>
 
@@ -41,51 +45,124 @@
     {% for bucket_key, bucket_label, matches, suffix_len in buckets %}
         {% if matches %}
             {% set ns.has_any = true %}
-            {% set script_words = matches | selectattr('match_kind', 'equalto', 'script') | list %}
-            {% set phonetic_words = matches | selectattr('match_kind', 'equalto', 'phonetic') | list %}
+            {% set total_matches = result.total_counts.get(bucket_key, matches | length) %}
+            {% set simple_matches = matches | rejectattr('is_compound') | list %}
+            {% set compound_matches = matches | selectattr('is_compound') | list %}
+            {% set simple_script_words = simple_matches | selectattr('match_kind', 'equalto', 'script') | list %}
+            {% set simple_phonetic_words = simple_matches | selectattr('match_kind', 'equalto', 'phonetic') | list %}
+            {% set compound_script_words = compound_matches | selectattr('match_kind', 'equalto', 'script') | list %}
+            {% set compound_phonetic_words = compound_matches | selectattr('match_kind', 'equalto', 'phonetic') | list %}
+            {% if suffix_len == 1 %}
+            <div class="alert alert-light border mb-2 py-2" role="note">
+                <small class="text-muted">
+                    <strong class="d-block mb-1">Open (suffix length&nbsp;1)</strong>
+                    <span class="d-block mb-1">
+                        Single-character suffix matching can be affected by implicit vowel
+                        ambiguity in unvocalised Urdu script.
+                    </span>
+                    <span class="d-block mb-1">
+                        Words ending in naked consonants (e.g. ر، ن، ل) may be grouped
+                        together despite different short vowel sounds (<code>-ar</code>,
+                        <code>-ir</code>, <code>-ur</code>).
+                    </span>
+                    <span class="d-block">
+                        This is a known limitation without diacritised input or a curated
+                        pronunciation lexicon.
+                    </span>
+                </small>
+            </div>
+            {% endif %}
             <div class="card mb-4">
                 <div class="card-body py-3">
                     <h6 class="mb-3">
-                        {{ bucket_label }} | suffix length: {{ suffix_len }} ({{ matches | length }} words)
+                        Suffix length: {{ suffix_len }} (
+                        {% if total_matches == (matches | length) %}
+                            {{ total_matches }} words
+                        {% else %}
+                            {{ matches | length }} / {{ total_matches }} words
+                        {% endif %}
+                        )
                     </h6>
 
-                    {% if script_words %}
+                    {% if simple_matches %}
+                    <div class="mb-3">
+                        <strong class="d-block mb-2">Simple Words</strong>
+                    {% if simple_script_words %}
                     <div class="mb-3">
                         <strong class="d-block mb-1">Script</strong>
                         <div class="kafiya-word-list" lang="ur">
-                            {% for w in script_words %}
-                            {% if w.meaning %}
+                            {% for w in simple_script_words %}
+                            {% set word_vazn_text = (w.vazn_codes | join(' | ')) if w.vazn_codes else '—' %}
+                            {% set tooltip_text = word_vazn_text + (', ' + w.meaning if w.meaning else '') %}
                             <span
                                 class="kafiya-word urdu-text"
                                 data-bs-toggle="tooltip"
-                                data-bs-title="{{ w.meaning }}"
+                                data-bs-title="{{ tooltip_text }}"
                                 data-bs-placement="top"
                             >{{ w.word | replace('_', ' ') }}</span>
-                            {% else %}
-                            <span class="kafiya-word urdu-text">{{ w.word | replace('_', ' ') }}</span>
-                            {% endif %}
                             {% endfor %}
                         </div>
                     </div>
                     {% endif %}
 
-                    {% if phonetic_words %}
+                    {% if simple_phonetic_words %}
                     <div class="mb-0">
                         <strong class="d-block mb-1">Phonetic</strong>
                         <div class="kafiya-word-list" lang="ur">
-                            {% for w in phonetic_words %}
-                            {% if w.meaning %}
+                            {% for w in simple_phonetic_words %}
+                            {% set word_vazn_text = (w.vazn_codes | join(' | ')) if w.vazn_codes else '—' %}
+                            {% set tooltip_text = word_vazn_text + (', ' + w.meaning if w.meaning else '') %}
                             <span
                                 class="kafiya-word urdu-text"
                                 data-bs-toggle="tooltip"
-                                data-bs-title="{{ w.meaning }}"
+                                data-bs-title="{{ tooltip_text }}"
                                 data-bs-placement="top"
                             >{{ w.word | replace('_', ' ') }}</span>
-                            {% else %}
-                            <span class="kafiya-word urdu-text">{{ w.word | replace('_', ' ') }}</span>
-                            {% endif %}
                             {% endfor %}
                         </div>
+                    </div>
+                    {% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if compound_matches %}
+                    <div class="mb-0">
+                        <strong class="d-block mb-2">Compound Words</strong>
+                    {% if compound_script_words %}
+                    <div class="mb-3">
+                        <strong class="d-block mb-1">Script</strong>
+                        <div class="kafiya-word-list" lang="ur">
+                            {% for w in compound_script_words %}
+                            {% set word_vazn_text = (w.vazn_codes | join(' | ')) if w.vazn_codes else '—' %}
+                            {% set tooltip_text = word_vazn_text + (', ' + w.meaning if w.meaning else '') %}
+                            <span
+                                class="kafiya-word urdu-text"
+                                data-bs-toggle="tooltip"
+                                data-bs-title="{{ tooltip_text }}"
+                                data-bs-placement="top"
+                            >{{ w.word | replace('_', ' ') }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if compound_phonetic_words %}
+                    <div class="mb-0">
+                        <strong class="d-block mb-1">Phonetic</strong>
+                        <div class="kafiya-word-list" lang="ur">
+                            {% for w in compound_phonetic_words %}
+                            {% set word_vazn_text = (w.vazn_codes | join(' | ')) if w.vazn_codes else '—' %}
+                            {% set tooltip_text = word_vazn_text + (', ' + w.meaning if w.meaning else '') %}
+                            <span
+                                class="kafiya-word urdu-text"
+                                data-bs-toggle="tooltip"
+                                data-bs-title="{{ tooltip_text }}"
+                                data-bs-placement="top"
+                            >{{ w.word | replace('_', ' ') }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
                     </div>
                     {% endif %}
                 </div>
