@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import pickle
+import re
 from pathlib import Path
 from typing import Dict, List, Literal, Optional
 
@@ -39,6 +40,11 @@ class KafiyaMatch:
         "same_letter_count",
         "vazn_codes",
         "vazn_match",
+        "roman",
+        "roman_tail3",
+        "roman_tail2",
+        "roman_tail3_match",
+        "roman_tail2_match",
     )
 
     def __init__(
@@ -52,6 +58,11 @@ class KafiyaMatch:
         same_letter_count: bool = False,
         vazn_codes: Optional[List[str]] = None,
         vazn_match: bool = False,
+        roman: Optional[str] = None,
+        roman_tail3: Optional[str] = None,
+        roman_tail2: Optional[str] = None,
+        roman_tail3_match: bool = False,
+        roman_tail2_match: bool = False,
     ) -> None:
         self.word = word
         self.match_kind = match_kind
@@ -61,6 +72,11 @@ class KafiyaMatch:
         self.same_letter_count = same_letter_count
         self.vazn_codes = vazn_codes or []
         self.vazn_match = vazn_match
+        self.roman = roman
+        self.roman_tail3 = roman_tail3
+        self.roman_tail2 = roman_tail2
+        self.roman_tail3_match = roman_tail3_match
+        self.roman_tail2_match = roman_tail2_match
 
     def __repr__(self) -> str:
         return f"KafiyaMatch({self.word!r}, {self.match_kind!r})"
@@ -79,6 +95,16 @@ class KafiyaMatch:
             out["meaning"] = self.meaning
         if self.frequency_rank is not None:
             out["frequency_rank"] = self.frequency_rank
+        if self.roman:
+            out["roman"] = self.roman
+        if self.roman_tail3:
+            out["roman_tail3"] = self.roman_tail3
+        if self.roman_tail2:
+            out["roman_tail2"] = self.roman_tail2
+        if self.roman_tail3_match:
+            out["roman_tail3_match"] = self.roman_tail3_match
+        if self.roman_tail2_match:
+            out["roman_tail2_match"] = self.roman_tail2_match
         return out
 
 
@@ -316,14 +342,21 @@ class KafiyaDict:
         )
 
         query_vazn_codes = self._get_query_vazn_codes(script_query)
+        query_roman_tails = self._get_query_roman_tails(script_query)
         query_letter_count = len(script_query)
-        self._enrich_matches(exact_matches, query_letter_count, query_vazn_codes)
-        self._enrich_matches(close_matches, query_letter_count, query_vazn_codes)
-        self._enrich_matches(open_matches, query_letter_count, query_vazn_codes)
+        self._enrich_matches(
+            exact_matches, query_letter_count, query_vazn_codes, query_roman_tails
+        )
+        self._enrich_matches(
+            close_matches, query_letter_count, query_vazn_codes, query_roman_tails
+        )
+        self._enrich_matches(
+            open_matches, query_letter_count, query_vazn_codes, query_roman_tails
+        )
 
         self._sort_matches(exact_matches)
         self._sort_matches(close_matches)
-        self._sort_matches(open_matches)
+        self._sort_matches(open_matches, prioritize_roman_tail2=True)
 
         total_counts = {
             "exact": len(exact_matches),
@@ -380,6 +413,7 @@ class KafiyaDict:
         matches: List[KafiyaMatch],
         query_letter_count: int,
         query_vazn_codes: List[str],
+        query_roman_tails: dict[str, Optional[str]],
     ) -> None:
         """Attach metadata and ranking features used by the dictionary UI."""
         for match in matches:
@@ -402,12 +436,32 @@ class KafiyaDict:
             frequency_rank = entry.get("frequency_rank")
             if isinstance(frequency_rank, int):
                 match.frequency_rank = frequency_rank
+            roman = entry.get("roman")
+            if isinstance(roman, str) and roman.strip():
+                match.roman = roman.strip()
+                match.roman_tail3 = self._roman_tail(match.roman, 3)
+                match.roman_tail2 = self._roman_tail(match.roman, 2)
+                query_tail3 = query_roman_tails.get("tail3")
+                query_tail2 = query_roman_tails.get("tail2")
+                match.roman_tail3_match = (
+                    query_tail3 is not None and match.roman_tail3 == query_tail3
+                )
+                match.roman_tail2_match = (
+                    query_tail2 is not None and match.roman_tail2 == query_tail2
+                )
 
-    def _sort_matches(self, matches: List[KafiyaMatch]) -> None:
+    def _sort_matches(
+        self,
+        matches: List[KafiyaMatch],
+        *,
+        prioritize_roman_tail2: bool = False,
+    ) -> None:
         """Sort candidates by poetic usefulness for dictionary browsing."""
         matches.sort(
             key=lambda match: (
-                not match.vazn_match,
+                self._open_bucket_priority(match)
+                if prioritize_roman_tail2
+                else (0 if match.vazn_match else 1),
                 match.is_compound,
                 not match.same_letter_count,
                 0 if match.match_kind == "script" else 1,
@@ -418,6 +472,23 @@ class KafiyaDict:
             )
         )
 
+    def _open_bucket_priority(self, match: KafiyaMatch) -> int:
+        """
+        Rank only open-bucket matches with conservative Roman-tail boosting:
+        tail3+vazn, tail2+vazn, vazn-only, tail3-only, tail2-only, fallback.
+        """
+        if match.vazn_match and match.roman_tail3_match:
+            return 0
+        if match.vazn_match and match.roman_tail2_match:
+            return 1
+        if match.vazn_match:
+            return 2
+        if match.roman_tail3_match:
+            return 3
+        if match.roman_tail2_match:
+            return 4
+        return 5
+
     def _get_query_vazn_codes(self, query_word: str) -> List[str]:
         scanned = Words()
         scanned.word = query_word
@@ -426,6 +497,38 @@ class KafiyaDict:
         raw_codes = [code.strip() for code in scanned.code if isinstance(code, str)]
         non_empty_codes = [code for code in raw_codes if code]
         return list(dict.fromkeys(non_empty_codes))
+
+    def _normalize_roman_for_tail(self, roman: str) -> str:
+        """
+        Conservative Roman normalization for tail matching.
+
+        Only enforces ii/ee equivalence and strips non-alphanumeric chars.
+        """
+        normalized = re.sub(r"[^a-z0-9]", "", roman.lower())
+        normalized = normalized.replace("ee", "ii")
+        return normalized
+
+    def _roman_tail(self, roman: str, length: int) -> Optional[str]:
+        """Return normalized Roman-Urdu tail of requested length when available."""
+        normalized = self._normalize_roman_for_tail(roman)
+        if len(normalized) < length:
+            return None
+        return normalized[-length:]
+
+    def _get_query_roman_tails(self, script_query: str) -> dict[str, Optional[str]]:
+        """Read query Roman metadata and return comparable tail tokens."""
+        if not self._word_metadata:
+            return {"tail3": None, "tail2": None}
+        entry = self._word_metadata.get(script_query)
+        if not isinstance(entry, dict):
+            return {"tail3": None, "tail2": None}
+        roman = entry.get("roman")
+        if not isinstance(roman, str) or not roman.strip():
+            return {"tail3": None, "tail2": None}
+        return {
+            "tail3": self._roman_tail(roman, 3),
+            "tail2": self._roman_tail(roman, 2),
+        }
 
     def _get_vazn_codes_for_word(self, normalized_lookup_word: str) -> List[str]:
         direct = self._word_vazn_metadata.get(normalized_lookup_word)
