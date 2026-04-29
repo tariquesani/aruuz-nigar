@@ -17,13 +17,13 @@
         color: inherit;
         border-radius: 0.25rem;
     }
-    .word-cell.rhyme-kafiya-ok {
+    .word-cell.rhyme-qafiya-ok {
         /* Same green as radeef so valid qaafiya + radīf read as one rhyme band */
         background-color: rgba(25, 135, 84, 0.2);
         color: inherit;
         border-radius: 0.25rem;
     }
-    .word-cell.rhyme-kafiya-bad {
+    .word-cell.rhyme-qafiya-bad {
         background-color: rgba(220, 53, 69, 0.2);
         color: inherit;
         border-radius: 0.25rem;
@@ -89,7 +89,7 @@
         </div>
     </div>
 
-    <!-- Radeef / Kafiya (full poem); summary from first misra -->
+    <!-- Radeef / Qafiya (full poem); summary from first misra -->
     <div class="card mt-4" x-show="lineResults.length > 0">
         <div class="card-body py-3">
             <h6 class="text-center text-muted mb-2">ردیف / قافیہ</h6>
@@ -100,7 +100,7 @@
                 <span x-text="rhymeFooterRadeef || '—'"></span>
                 <span class="text-muted small mx-2">—</span>
                 <span class="text-muted small me-1">قافیہ (پہلا مصرع):</span>
-                <span x-text="rhymeFooterKafiya || '—'"></span>
+                <span x-text="rhymeFooterQafiya || '—'"></span>
             </div>
         </div>
     </div>
@@ -132,7 +132,7 @@
         API_ENDPOINTS: {
             ISLAH: '/api/islah',
             DOMINANT_METER: '/api/meter/dominant',
-            RADEEF_KAFIYA: '/api/radeefkafiya'
+            RADEEF_QAFIYA: '/api/radeefkafiya'
         }
     };
 
@@ -158,14 +158,14 @@
     }
 
     /**
-     * Per islah line index: radeef/kafiya ranges use word_index space from word_boundaries
+     * Per islah line index: radeef/qafiya ranges use word_index space from word_boundaries
      * (same as Row 1), so highlights match the scansion grid.
      */
     function buildRhymeLineMeta(text, payload, lineResults) {
         const empty = [];
         if (!payload || !payload.results) return empty;
         const r = payload.results.radeef;
-        const k = payload.results.kafiya;
+        const q = payload.results.kafiya;
         const nums = nonEmptyLineNumbers(text);
         const detected = (r && r.detected_radeef) ? String(r.detected_radeef).trim() : '';
 
@@ -176,13 +176,13 @@
             const v = lr.verse_index;
             if (v != null) lineResultsByVerse.set(Number(v), lr);
         });
-        const kafiyaMap = new Map();
-        const kafiyaByVerse = new Map();
-        (k && k.results || []).forEach((kr) => {
+        const qafiyaMap = new Map();
+        const qafiyaByVerse = new Map();
+        (q && q.results || []).forEach((kr) => {
             const physical = kr.line_no != null ? Number(kr.line_no) : NaN;
-            if (!Number.isNaN(physical)) kafiyaMap.set(physical, kr);
+            if (!Number.isNaN(physical)) qafiyaMap.set(physical, kr);
             const v = kr.verse_index;
-            if (v != null) kafiyaByVerse.set(Number(v), kr);
+            if (v != null) qafiyaByVerse.set(Number(v), kr);
         });
 
         return nums.map((ln, islahIdx) => {
@@ -197,12 +197,12 @@
                 radeefPass: !!(lr && lr.pass),
                 radeefStart: -1,
                 radeefEnd: -1,
-                kafiyaIndex: -1,
-                kafiyaStatus: null,
+                qafiyaIndex: -1,
+                qafiyaStatus: null,
             };
             if (!lr) {
-                const km0 = kafiyaByVerse.get(verseIdx) || kafiyaMap.get(Number(ln));
-                if (km0) meta.kafiyaStatus = km0.status;
+                const km0 = qafiyaByVerse.get(verseIdx) || qafiyaMap.get(Number(ln));
+                if (km0) meta.qafiyaStatus = km0.status;
                 return meta;
             }
 
@@ -219,19 +219,19 @@
                     meta.radeefStart = 0;
                     meta.radeefEnd = maxW;
                 }
-                if (meta.radeefStart > 0) meta.kafiyaIndex = meta.radeefStart - 1;
+                if (meta.radeefStart > 0) meta.qafiyaIndex = meta.radeefStart - 1;
             } else if (meta.relevant && maxW < 0) {
                 const words = String(lr.original || '').trim().split(/\s+/).filter((w) => w.length > 0);
                 if (words.length > 0 && nTok > 0) {
                     const end = words.length - 1;
                     meta.radeefEnd = end;
                     meta.radeefStart = Math.max(0, words.length - nTok);
-                    if (meta.radeefStart > 0) meta.kafiyaIndex = meta.radeefStart - 1;
+                    if (meta.radeefStart > 0) meta.qafiyaIndex = meta.radeefStart - 1;
                 }
             }
 
-            const km = kafiyaByVerse.get(verseIdx) || kafiyaMap.get(Number(ln));
-            if (km) meta.kafiyaStatus = km.status;
+            const km = qafiyaByVerse.get(verseIdx) || qafiyaMap.get(Number(ln));
+            if (km) meta.qafiyaStatus = km.status;
             return meta;
         });
     }
@@ -264,8 +264,8 @@
             return res.json();
         },
 
-        async fetchRadeefKafiya(fullText) {
-            const res = await fetch(CONFIG.API_ENDPOINTS.RADEEF_KAFIYA, {
+        async fetchRadeefQafiya(fullText) {
+            const res = await fetch(CONFIG.API_ENDPOINTS.RADEEF_QAFIYA, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text: fullText }),
@@ -332,7 +332,7 @@
                 return d ? String(d).trim() : '';
             },
 
-            get rhymeFooterKafiya() {
+            get rhymeFooterQafiya() {
                 const rows = this.rhymePayload?.results?.kafiya?.results;
                 if (!rows || !rows.length) return '';
                 const row = rows.find((r) => Number(r.verse_index) === 1)
@@ -507,10 +507,10 @@
                 if (m.radeefStart >= 0 && wordIndex >= m.radeefStart && wordIndex <= m.radeefEnd) {
                     parts.push(m.radeefPass ? 'rhyme-radeef-ok' : 'rhyme-radeef-bad');
                 }
-                if (m.kafiyaIndex === wordIndex && m.kafiyaStatus) {
-                    if (m.kafiyaStatus === 'flagged') parts.push('rhyme-kafiya-bad');
-                    else if (['match', 'phonetic_match', 'reference'].includes(m.kafiyaStatus)) {
-                        parts.push('rhyme-kafiya-ok');
+                if (m.qafiyaIndex === wordIndex && m.qafiyaStatus) {
+                    if (m.qafiyaStatus === 'flagged') parts.push('rhyme-qafiya-bad');
+                    else if (['match', 'phonetic_match', 'reference'].includes(m.qafiyaStatus)) {
+                        parts.push('rhyme-qafiya-ok');
                     }
                 }
                 return parts.join(' ');
@@ -618,10 +618,10 @@
                     this.rhymeLoading = true;
                     this.rhymeError = null;
                     try {
-                        this.rhymePayload = await IslahAPI.fetchRadeefKafiya(this.text);
+                        this.rhymePayload = await IslahAPI.fetchRadeefQafiya(this.text);
                         this.rhymeLineMeta = buildRhymeLineMeta(this.text, this.rhymePayload, this.lineResults);
                     } catch (err) {
-                        console.error('Radeef/kafiya:', err);
+                        console.error('Radeef/qafiya:', err);
                         this.rhymeError = err.message || 'Request failed';
                         this.rhymePayload = null;
                         this.rhymeLineMeta = [];

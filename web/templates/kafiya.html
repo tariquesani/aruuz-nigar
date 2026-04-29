@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Kafiya Dictionary — Aruuz Nigar{% endblock %}
+{% block title %}Qafiya Dictionary — Aruuz Nigar{% endblock %}
 
 {% block content %}
 <div class="container my-5">
-    <h1 class="text-center mb-4">Aruuz Nigar: Kafiya Dictionary</h1>
+    <h1 class="text-center mb-4">Aruuz Nigar: Qafiya Dictionary</h1>
 
     <div class="alert alert-light border mb-2 py-1" role="alert">
         <small class="text-muted">
@@ -94,8 +94,9 @@
                             {% for w in simple_script_words %}
                             {% set word_vazn_text = (w.vazn_codes | join(' | ')) if w.vazn_codes else '—' %}
                             {% set tooltip_text = word_vazn_text + (', ' + w.meaning if w.meaning else '') %}
+                            {% set open_color_class = (' kafiya-open-' + w.open_color_band) if bucket_key == 'open' and w.open_color_band else '' %}
                             <span
-                                class="kafiya-word urdu-text"
+                                class="kafiya-word urdu-text{{ open_color_class }}"
                                 data-bs-toggle="tooltip"
                                 data-bs-title="{{ tooltip_text }}"
                                 data-bs-placement="top"
@@ -112,8 +113,9 @@
                             {% for w in simple_phonetic_words %}
                             {% set word_vazn_text = (w.vazn_codes | join(' | ')) if w.vazn_codes else '—' %}
                             {% set tooltip_text = word_vazn_text + (', ' + w.meaning if w.meaning else '') %}
+                            {% set open_color_class = (' kafiya-open-' + w.open_color_band) if bucket_key == 'open' and w.open_color_band else '' %}
                             <span
-                                class="kafiya-word urdu-text"
+                                class="kafiya-word urdu-text{{ open_color_class }}"
                                 data-bs-toggle="tooltip"
                                 data-bs-title="{{ tooltip_text }}"
                                 data-bs-placement="top"
@@ -135,8 +137,9 @@
                             {% for w in compound_script_words %}
                             {% set word_vazn_text = (w.vazn_codes | join(' | ')) if w.vazn_codes else '—' %}
                             {% set tooltip_text = word_vazn_text + (', ' + w.meaning if w.meaning else '') %}
+                            {% set open_color_class = (' kafiya-open-' + w.open_color_band) if bucket_key == 'open' and w.open_color_band else '' %}
                             <span
-                                class="kafiya-word urdu-text"
+                                class="kafiya-word urdu-text{{ open_color_class }}"
                                 data-bs-toggle="tooltip"
                                 data-bs-title="{{ tooltip_text }}"
                                 data-bs-placement="top"
@@ -153,8 +156,9 @@
                             {% for w in compound_phonetic_words %}
                             {% set word_vazn_text = (w.vazn_codes | join(' | ')) if w.vazn_codes else '—' %}
                             {% set tooltip_text = word_vazn_text + (', ' + w.meaning if w.meaning else '') %}
+                            {% set open_color_class = (' kafiya-open-' + w.open_color_band) if bucket_key == 'open' and w.open_color_band else '' %}
                             <span
-                                class="kafiya-word urdu-text"
+                                class="kafiya-word urdu-text{{ open_color_class }}"
                                 data-bs-toggle="tooltip"
                                 data-bs-title="{{ tooltip_text }}"
                                 data-bs-placement="top"
@@ -172,7 +176,7 @@
 
     {% if not ns.has_any %}
     <div class="alert alert-warning">
-        No kafiya matches found for this word.
+        No qafiya matches found for this word.
     </div>
     {% endif %}
     {% endif %}
@@ -197,7 +201,7 @@
                     Please enter one Urdu word.
                 </div>
                 <button type="submit" class="btn btn-primary btn-lg w-100 py-2">
-                    Find Kafiya
+                    Find Qafiya
                 </button>
             </form>
         </div>

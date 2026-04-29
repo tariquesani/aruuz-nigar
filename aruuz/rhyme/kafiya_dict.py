@@ -24,6 +24,7 @@ from aruuz.scansion import Scansion
 
 MatchKind = Literal["script", "phonetic"]
 OpenGuardClass = Literal["vowel", "semi_vowel", "non_vowel"]
+OpenColorBand = Literal["green", "blue", "amber"]
 
 SEMI_VOWEL_LETTERS = frozenset({"و", "ی", "ے"})
 
@@ -45,6 +46,7 @@ class KafiyaMatch:
         "roman_tail2",
         "roman_tail3_match",
         "roman_tail2_match",
+        "open_color_band",
     )
 
     def __init__(
@@ -63,6 +65,7 @@ class KafiyaMatch:
         roman_tail2: Optional[str] = None,
         roman_tail3_match: bool = False,
         roman_tail2_match: bool = False,
+        open_color_band: Optional[OpenColorBand] = None,
     ) -> None:
         """
         Initialize a KafiyaMatch representing a candidate rhyme with provenance and optional enrichments.
@@ -95,6 +98,7 @@ class KafiyaMatch:
         self.roman_tail2 = roman_tail2
         self.roman_tail3_match = roman_tail3_match
         self.roman_tail2_match = roman_tail2_match
+        self.open_color_band = open_color_band
 
     def __repr__(self) -> str:
         """
@@ -150,6 +154,8 @@ class KafiyaMatch:
             out["roman_tail3_match"] = self.roman_tail3_match
         if self.roman_tail2_match:
             out["roman_tail2_match"] = self.roman_tail2_match
+        if self.open_color_band:
+            out["open_color_band"] = self.open_color_band
         return out
 
 
@@ -489,6 +495,8 @@ class KafiyaDict:
         self._sort_matches(exact_matches)
         self._sort_matches(close_matches)
         self._sort_matches(open_matches, prioritize_roman_tail2=True)
+        for match in open_matches:
+            match.open_color_band = self._open_color_band(match)
 
         total_counts = {
             "exact": len(exact_matches),
@@ -664,6 +672,22 @@ class KafiyaDict:
         if match.roman_tail2_match:
             return 4
         return 5
+
+    def _open_color_band(self, match: KafiyaMatch) -> Optional[OpenColorBand]:
+        """
+        Map open-bucket priorities to UI color bands.
+
+        Returns "green" for priority 0, "blue" for priority 1, "amber" for
+        priorities 2/3/4, and None for priority 5 (no color).
+        """
+        priority = self._open_bucket_priority(match)
+        if priority == 0:
+            return "green"
+        if priority == 1:
+            return "blue"
+        if priority in (2, 3, 4):
+            return "amber"
+        return None
 
     def _get_query_vazn_codes(self, query_word: str) -> List[str]:
         """
