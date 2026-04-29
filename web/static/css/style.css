@@ -93,7 +93,8 @@ body {
     display: flex;
     flex-wrap: wrap;
     gap: 0.85rem 1.5rem;
-    justify-content: flex-end;
+    justify-content: flex-start;
+    text-align: right;
     align-content: flex-start;
     direction: rtl;
     font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI', serif;
