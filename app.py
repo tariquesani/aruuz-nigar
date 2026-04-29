@@ -207,7 +207,7 @@ def islah():
     return render_template('islah.html')
 
 
-@app.route('/kafiya', methods=['GET', 'POST'])
+@app.route('/qafiya', methods=['GET', 'POST'])
 def kafiya():
     """Kafiya dictionary page: lookup one Urdu word and show grouped results."""
     text_input = ""
