@@ -64,6 +64,24 @@ class KafiyaMatch:
         roman_tail3_match: bool = False,
         roman_tail2_match: bool = False,
     ) -> None:
+        """
+        Initialize a KafiyaMatch representing a candidate rhyme with provenance and optional enrichments.
+        
+        Parameters:
+            word (str): The candidate word as stored in the dictionary index.
+            match_kind (MatchKind): The provenance of the match; typically "script" when script suffixes match or "phonetic" when only phonetic suffixes match.
+            meaning (Optional[str]): Human-readable meaning for the candidate, if available.
+            frequency_rank (Optional[int]): Lower values indicate higher corpus frequency; used for ranking when present.
+            is_compound (bool): True if the candidate appears to be a compound (contains space or underscore).
+            same_letter_count (bool): True if the candidate has the same script letter count as the query.
+            vazn_codes (Optional[List[str]]): List of scansion/vazn codes associated with the candidate; defaults to an empty list.
+            vazn_match (bool): True if at least one candidate vazn code is compatible with the query's vazn codes.
+            roman (Optional[str]): Romanized form of the candidate (normalized), if available from metadata.
+            roman_tail3 (Optional[str]): Last three characters of the normalized roman form, or None.
+            roman_tail2 (Optional[str]): Last two characters of the normalized roman form, or None.
+            roman_tail3_match (bool): True if `roman_tail3` matches the query's roman tail3.
+            roman_tail2_match (bool): True if `roman_tail2` matches the query's roman tail2.
+        """
         self.word = word
         self.match_kind = match_kind
         self.meaning = meaning
@@ -79,9 +97,36 @@ class KafiyaMatch:
         self.roman_tail2_match = roman_tail2_match
 
     def __repr__(self) -> str:
+        """
+        Produce a concise, unambiguous representation of the KafiyaMatch for debugging.
+        
+        Returns:
+            A string formatted as KafiyaMatch(<word>, <match_kind>) where <word> and <match_kind> are the object's stored values.
+        """
         return f"KafiyaMatch({self.word!r}, {self.match_kind!r})"
 
     def to_dict(self) -> Dict:
+        """
+        Serialize the match into a JSON-serializable dictionary including only populated fields.
+        
+        The returned mapping always contains:
+        - "word": the candidate word as stored.
+        - "match_kind": provenance, either "script" or "phonetic".
+        - "is_compound": whether the word appears compound (contains space or underscore).
+        - "same_letter_count": whether the candidate has the same script letter count as the query.
+        - "vazn_match": whether any vazn (scansion) code of the candidate is compatible with the query.
+        
+        The dictionary conditionally contains the following keys only when present on the match:
+        - "vazn_codes": list of vazn codes for the candidate.
+        - "meaning": human-readable meaning from word metadata.
+        - "frequency_rank": integer frequency rank when available.
+        - "roman": normalized Roman-Urdu form from metadata.
+        - "roman_tail3", "roman_tail2": last 3/2 characters of the normalized roman form (if available).
+        - "roman_tail3_match", "roman_tail2_match": boolean flags indicating tail matches against the query.
+        
+        Returns:
+            dict: A dictionary representation of the match suitable for downstream serialization.
+        """
         out = {
             "word": self.word,
             "match_kind": self.match_kind,
@@ -123,6 +168,18 @@ class KafiyaResult:
         close: List[KafiyaMatch],
         open_: List[KafiyaMatch],
     ) -> None:
+        """
+        Initialize a KafiyaResult that bundles lookup input, bucketed matches, and summary statistics.
+        
+        Parameters:
+        	query (str): Normalized query word in script form.
+        	query_vazn_codes (List[str]): Scansion/vazn codes identified for the query (deduplicated, in order).
+        	suffix_lengths (Dict[str, int]): Mapping of bucket names ("exact", "close", "open") to the suffix length used for that bucket.
+        	total_counts (Dict[str, int]): Total number of candidate matches found per bucket before any per-bucket limiting.
+        	exact (List[KafiyaMatch]): Matches classified as exact (longest shared suffix).
+        	close (List[KafiyaMatch]): Matches classified as close (medium-length shared suffix).
+        	open_ (List[KafiyaMatch]): Matches classified as open (one-letter suffix) — trailing underscore distinguishes the parameter name from the reserved word.
+        """
         self.query = query
         self.query_vazn_codes = query_vazn_codes
         self.suffix_lengths = suffix_lengths
@@ -132,6 +189,19 @@ class KafiyaResult:
         self.open = open_
 
     def to_dict(self) -> Dict:
+        """
+        Serialize the KafiyaResult into a plain dictionary for external consumption.
+        
+        Returns:
+            result (Dict): A mapping with the following keys:
+                - "query": The normalized script form of the original query.
+                - "query_vazn_codes": List[str] of scanned vazn codes for the query (may be empty).
+                - "suffix_lengths": Dict[str, int] mapping bucket names to the suffix length used.
+                - "total_counts": Dict[str, int] mapping bucket names to the total number of matches before limiting.
+                - "exact": List[Dict] serialized `KafiyaMatch` objects for the exact bucket.
+                - "close": List[Dict] serialized `KafiyaMatch` objects for the close bucket.
+                - "open": List[Dict] serialized `KafiyaMatch` objects for the open bucket.
+        """
         return {
             "query": self.query,
             "query_vazn_codes": self.query_vazn_codes,
@@ -162,6 +232,15 @@ class KafiyaDict:
         word_vazn_metadata: Optional[dict[str, list[str]]] = None,
         max_per_bucket: Optional[int] = 50,
     ) -> None:
+        """
+        Initialize a KafiyaDict lookup engine with a precomputed suffix index and optional metadata.
+        
+        Parameters:
+            index (dict): Mapping keyed by (suffix_length, phonetic_suffix) to sets of candidate words used for suffix lookups.
+            word_metadata (Optional[dict[str, dict[str, object | None]]]): Optional per-word metadata (meaning, frequency, roman, etc.) keyed by normalized script form.
+            word_vazn_metadata (Optional[dict[str, list[str]]]): Optional mapping of normalized words to lists of vazn (scansion) codes.
+            max_per_bucket (Optional[int]): Default maximum number of candidates to return per quality bucket; use None for no limit.
+        """
         self._index = index
         self._word_metadata = word_metadata or {}
         self._word_vazn_metadata = word_vazn_metadata or {}
@@ -177,7 +256,20 @@ class KafiyaDict:
         vazn_metadata_path: str | Path | None = None,
         max_per_bucket: Optional[int] = 50,
     ) -> "KafiyaDict":
-        """Load a pre-built index from a pickle file."""
+        """
+        Load a KafiyaDict from a serialized suffix index file and optional metadata.
+        
+        Loads the index pickle at `pickle_path`, optionally loads word metadata and word-vazn metadata (resolving a default vazn metadata path when `vazn_metadata_path` is None), and returns a configured KafiyaDict instance.
+        
+        Parameters:
+            pickle_path (str | Path): Path to the pickle file containing the pre-built suffix index.
+            metadata_path (str | Path | None): Optional path to a JSON file with word metadata; if None, no word metadata is loaded.
+            vazn_metadata_path (str | Path | None): Optional path to a JSON file with word vazn metadata; if None, a candidate path is resolved automatically.
+            max_per_bucket (Optional[int]): Default maximum number of matches to return per bucket when performing lookups.
+        
+        Returns:
+            KafiyaDict: An instance initialized with the loaded index and any loaded metadata.
+        """
         pickle_path = Path(pickle_path)
         with open(pickle_path, "rb") as fh:
             index = pickle.load(fh)
@@ -195,12 +287,19 @@ class KafiyaDict:
     @staticmethod
     def _resolve_word_vazn_metadata_path(pickle_path: Path) -> Path:
         """
-        Resolve word_vazn_metadata.json near the index path.
-
-        Priority:
-        1) WORD_VAZN_METADATA_PATH environment override
-        2) sibling of index pickle
-        3) repo-level aruuz/database fallback derived from index location
+        Locate the word_vazn_metadata.json file related to the given index pickle path.
+        
+        Search order (first match is returned):
+        1. Path from the WORD_VAZN_METADATA_PATH environment variable (if set).
+        2. A sibling file next to the provided pickle path: `<pickle_path.parent>/word_vazn_metadata.json`.
+        3. A repository-level fallback: `<pickle_path.parent.parent>/aruuz/database/word_vazn_metadata.json`.
+        If none of the candidate files exist, the sibling path (item 2) is returned as the default.
+        
+        Parameters:
+            pickle_path (Path): Path to the index pickle file used as the anchor for locating metadata.
+        
+        Returns:
+            Path: The chosen metadata file path (existing file when found, otherwise the sibling candidate).
         """
         env_override = os.getenv("WORD_VAZN_METADATA_PATH", "").strip()
         if env_override:
@@ -219,7 +318,19 @@ class KafiyaDict:
     def _load_word_metadata(
         metadata_path: str | Path | None,
     ) -> Optional[dict[str, dict[str, object | None]]]:
-        """Load optional word metadata used to enrich dictionary results."""
+        """
+        Load word metadata from a JSON file for enriching lookup results.
+        
+        Parameters:
+            metadata_path (str | Path | None): Path to a JSON file containing a mapping
+                from normalized words to metadata objects. If `None`, no metadata is loaded.
+        
+        Returns:
+            Optional[dict[str, dict[str, object | None]]]: The loaded mapping when the file
+            exists and the top-level JSON value is an object; otherwise `None` (returned
+            when `metadata_path` is `None`, the file is missing, the top-level JSON is not
+            an object, or an error occurs while loading).
+        """
         if metadata_path is None:
             return None
 
@@ -247,7 +358,15 @@ class KafiyaDict:
     def _load_word_vazn_metadata(
         metadata_path: str | Path | None,
     ) -> Optional[dict[str, list[str]]]:
-        """Load optional normalized-word -> list[vazn code] metadata."""
+        """
+        Load a mapping from normalized words to lists of vazn codes from a JSON file.
+        
+        If `metadata_path` is None or the file does not exist or cannot be parsed, returns `None`.
+        On success returns a dict where each key is a string (normalized word) and each value is a list
+        of non-empty, whitespace-trimmed vazn code strings. Codes are deduplicated while preserving
+        their original order. Entries whose key is not a string or whose value is not a list are ignored;
+        within each list, only string items that remain non-empty after trimming are kept.
+        """
         if metadata_path is None:
             return None
 
@@ -285,7 +404,20 @@ class KafiyaDict:
         max_per_bucket: Optional[int] = None,
     ) -> KafiyaResult:
         """
-        Find kafiya matches for *query* grouped into three quality buckets.
+        Return candidate kafiya matches for a query, grouped into three quality buckets: exact, close, and open.
+        
+        Parameters:
+        	query (str): The input word in any orthography to search for kafiya.
+        	max_per_bucket (Optional[int]): If provided, limit the number of returned matches per bucket.
+        
+        Returns:
+        	KafiyaResult: Result object containing:
+        		- the normalized script query,
+        		- `query_vazn_codes`: scansion codes computed for the query,
+        		- `suffix_lengths`: chosen suffix lengths for each bucket (`exact`, `close`, `open`),
+        		- `total_counts`: counts found per bucket before applying `max_per_bucket`,
+        		- `exact`, `close`, `open_`: lists of `KafiyaMatch` objects for each bucket.
+        		If the query is too short to produce suffixes, returns a `KafiyaResult` with empty buckets and zeroed statistics.
         """
         limit = max_per_bucket if max_per_bucket is not None else self.max_per_bucket
 
@@ -389,11 +521,12 @@ class KafiyaDict:
 
     def _passes_open_guard(self, query_word: str, candidate_word: str) -> bool:
         """
-        Filter 1-letter suffix matches using the query word as the guard source.
-
-        Semi-vowels such as و / ی / ے are allowed to match either side of the
-        implicit-a non-vowel class, which keeps common Urdu rhyme spellings
-        discoverable without opening the bucket completely.
+        Decide whether a candidate with a 1-letter suffix is allowed based on penultimate-letter compatibility.
+        
+        Rejects if either word has fewer than two characters. Classifies the penultimate script letter of each word (vowel, semi_vowel, or non_vowel) and permits the candidate only when its class is compatible with the query's class (semi-vowels bridge vowel and non-vowel classes to allow common Urdu rhyme spellings).
+        
+        Returns:
+            `true` if the candidate's penultimate-letter class is compatible with the query's, `false` otherwise.
         """
         if len(query_word) < 2 or len(candidate_word) < 2:
             return False
@@ -415,7 +548,26 @@ class KafiyaDict:
         query_vazn_codes: List[str],
         query_roman_tails: dict[str, Optional[str]],
     ) -> None:
-        """Attach metadata and ranking features used by the dictionary UI."""
+        """
+        Enrich each KafiyaMatch in `matches` with metadata and ranking flags used by the UI.
+        
+        Parameters:
+            matches (List[KafiyaMatch]): Mutable list of matches to update in-place.
+            query_letter_count (int): Number of letters in the normalized query script form; used to set `same_letter_count`.
+            query_vazn_codes (List[str]): Vazn codes computed for the query; used to populate `vazn_match`.
+            query_roman_tails (dict[str, Optional[str]]): Dict with keys `"tail3"` and `"tail2"` containing the query's normalized Roman tails or `None`; used to compute roman-tail match flags.
+        
+        Side effects:
+            For each match sets or updates these attributes:
+              - is_compound
+              - same_letter_count
+              - vazn_codes
+              - vazn_match
+              - meaning (if available in word metadata)
+              - frequency_rank (if available)
+              - roman, roman_tail3, roman_tail2 (if available)
+              - roman_tail3_match, roman_tail2_match (if query tails are present)
+        """
         for match in matches:
             match.is_compound = "_" in match.word or " " in match.word
             lookup_word = match.word.replace("_", " ")
@@ -456,7 +608,21 @@ class KafiyaDict:
         *,
         prioritize_roman_tail2: bool = False,
     ) -> None:
-        """Sort candidates by poetic usefulness for dictionary browsing."""
+        """
+        Sort candidate matches in-place to prioritize most useful poetic rhymes for browsing.
+        
+        When `prioritize_roman_tail2` is False the primary sort favors matches with compatible vazn codes; when True the primary sort uses an open-bucket priority that elevates combinations of vazn and Roman-tail matches. Subsequent tie-breakers (in order) prefer:
+        - non-compound words over compound words,
+        - candidates whose letter count equals the query's,
+        - script-suffix matches over phonetic-only matches,
+        - entries that have a frequency rank (and lower numeric ranks first),
+        - entries that have a recorded meaning,
+        - finally lexicographic order of the candidate word.
+        
+        Parameters:
+            matches: List of KafiyaMatch objects to sort in-place.
+            prioritize_roman_tail2: If True, use the open-bucket priority that gives extra weight to Roman-tail2/3 and vazn combinations; otherwise prioritize simple vazn compatibility.
+        """
         matches.sort(
             key=lambda match: (
                 self._open_bucket_priority(match)
@@ -474,8 +640,18 @@ class KafiyaDict:
 
     def _open_bucket_priority(self, match: KafiyaMatch) -> int:
         """
-        Rank only open-bucket matches with conservative Roman-tail boosting:
-        tail3+vazn, tail2+vazn, vazn-only, tail3-only, tail2-only, fallback.
+        Assign a priority rank for open-bucket matches based on vazn and Roman-tail matches.
+        
+        Lower values indicate higher priority when sorting open-bucket candidates; the ranking favors combined vazn+roman-tail matches, then vazn-only, then roman-tail-only, then neither.
+        
+        Returns:
+            priority (int): Priority code where
+                0 = both vazn match and 3-character roman tail match,
+                1 = vazn match and 2-character roman tail match,
+                2 = vazn match only,
+                3 = 3-character roman tail match only,
+                4 = 2-character roman tail match only,
+                5 = neither match.
         """
         if match.vazn_match and match.roman_tail3_match:
             return 0
@@ -490,6 +666,15 @@ class KafiyaDict:
         return 5
 
     def _get_query_vazn_codes(self, query_word: str) -> List[str]:
+        """
+        Extract the unique scansion (vazn) codes for a query word.
+        
+        Assigns scansion to the provided word, collects string codes with surrounding whitespace removed,
+        drops empty entries, preserves the original order, and removes duplicate codes.
+        
+        Returns:
+            List[str]: Vazn code strings in original order with whitespace trimmed and duplicates removed.
+        """
         scanned = Words()
         scanned.word = query_word
         scanned.taqti = []
@@ -500,23 +685,40 @@ class KafiyaDict:
 
     def _normalize_roman_for_tail(self, roman: str) -> str:
         """
-        Conservative Roman normalization for tail matching.
-
-        Only enforces ii/ee equivalence and strips non-alphanumeric chars.
+        Normalize a Romanized Urdu string for tail comparison.
+        
+        Parameters:
+            roman (str): Romanized form of a word.
+        
+        Returns:
+            str: Lowercased string with non-alphanumeric characters removed and "ee" normalized to "ii".
         """
         normalized = re.sub(r"[^a-z0-9]", "", roman.lower())
         normalized = normalized.replace("ee", "ii")
         return normalized
 
     def _roman_tail(self, roman: str, length: int) -> Optional[str]:
-        """Return normalized Roman-Urdu tail of requested length when available."""
+        """
+        Get the last `length` characters of the input Roman-Urdu string after normalization.
+        
+        Returns:
+            tail (Optional[str]): The last `length` characters of the normalized Roman-Urdu string, or `None` if the normalized string has fewer than `length` characters.
+        """
         normalized = self._normalize_roman_for_tail(roman)
         if len(normalized) < length:
             return None
         return normalized[-length:]
 
     def _get_query_roman_tails(self, script_query: str) -> dict[str, Optional[str]]:
-        """Read query Roman metadata and return comparable tail tokens."""
+        """
+        Obtain normalized Roman-tail tokens for the query word to enable tail-based comparisons.
+        
+        Parameters:
+            script_query (str): Normalized Urdu script form of the query used as a lookup key in the word metadata.
+        
+        Returns:
+            dict[str, Optional[str]]: A mapping with keys "tail3" and "tail2" whose values are the last 3 and last 2 characters of the normalized Roman transliteration respectively, or `None` for each when no valid Roman form is available.
+        """
         if not self._word_metadata:
             return {"tail3": None, "tail2": None}
         entry = self._word_metadata.get(script_query)
@@ -531,6 +733,15 @@ class KafiyaDict:
         }
 
     def _get_vazn_codes_for_word(self, normalized_lookup_word: str) -> List[str]:
+        """
+        Retrieve the vazn (scansion) codes for a normalized lookup word.
+        
+        Parameters:
+            normalized_lookup_word (str): The normalized lookup form of the word (spaces preserved). A fallback with spaces replaced by underscores is attempted if the direct key is not present.
+        
+        Returns:
+            List[str]: A list of vazn code strings for the word if found; otherwise an empty list.
+        """
         direct = self._word_vazn_metadata.get(normalized_lookup_word)
         if isinstance(direct, list):
             return direct
@@ -542,7 +753,16 @@ class KafiyaDict:
         return []
 
     def _is_compatible_vazn_code_pair(self, query_code: str, candidate_code: str) -> bool:
-        """Match vazn codes with x treated as flexible on either side."""
+        """
+        Determine whether two vazn codes are compatible, treating the character `'x'` in either code as a wildcard that matches any character.
+        
+        Parameters:
+            query_code (str): Vazn code for the query; must be the same length as candidate_code.
+            candidate_code (str): Vazn code for the candidate; must be the same length as query_code.
+        
+        Returns:
+            `true` if both codes have equal length and every position either matches exactly or contains `'x'` in at least one code, `false` otherwise.
+        """
         if len(query_code) != len(candidate_code):
             return False
 
@@ -558,6 +778,19 @@ class KafiyaDict:
         query_codes: List[str],
         candidate_codes: List[str],
     ) -> bool:
+        """
+        Determine whether any vazn code from the query is compatible with any vazn code from the candidate.
+        
+        Parameters:
+            query_codes (List[str]): Vazn codes derived for the query word.
+            candidate_codes (List[str]): Vazn codes associated with the candidate word.
+        
+        Returns:
+            `true` if at least one query code is compatible with a candidate code, `false` otherwise.
+        
+        Notes:
+            Compatibility requires codes of equal length and allows the character `'x'` to act as a wildcard at any position.
+        """
         if not query_codes or not candidate_codes:
             return False
         for query_code in query_codes:
@@ -574,14 +807,22 @@ class KafiyaDict:
         exclude: set[str],
     ) -> List[KafiyaMatch]:
         """
-        Return index words that share a *phonetic* suffix of length *suffix_len* with
-        the query, dropping *exclude* (the query and any words from stronger buckets).
-
-        For *suffix_len* == 1 (the "open" bucket), the index key is the last character
-        of *phonetic_query* (``full_normalize``; homophones share a bucket). Each
-        candidate must also pass ``_passes_open_guard``, which compares the
-        penultimate *script* letter class (vowel / semi_vowel / non_vowel) to cut
-        spurious 1-letter matches. The open bucket is high recall, not full qāfiya.
+        Find candidate words that share a phonetic suffix of the given length with the query.
+        
+        Returns words from the precomputed suffix index that match the phonetic suffix taken from
+        the end of `phonetic_query`, excluding any entries in `exclude`. For `suffix_len == 1`
+        (the "open" bucket), candidates are additionally filtered by `_passes_open_guard` which
+        compares penultimate script-letter classes to reduce spurious single-letter matches.
+        
+        Parameters:
+            phonetic_query: The fully-normalized phonetic form of the query used to extract the suffix.
+            script_query: The normalized script form of the query used for script-suffix comparison.
+            suffix_len: Length of the suffix to match; if less than or equal to 0 an empty list is returned.
+            exclude: Set of words to omit from results (e.g., the query and words already returned by stronger buckets).
+        
+        Returns:
+            matches: List of `KafiyaMatch` objects for words that share the requested phonetic suffix,
+            with `match_kind` set to `"script"` when the script suffix also matches, or `"phonetic"` otherwise.
         """
         if suffix_len <= 0:
             return []
