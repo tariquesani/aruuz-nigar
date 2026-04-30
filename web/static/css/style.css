@@ -109,17 +109,20 @@ body {
 }
 
 /* Open-group quality color bands (priority 5 intentionally uncolored) */
-.kafiya-word-list .kafiya-word.kafiya-open-green {
+.kafiya-word-list .kafiya-word.kafiya-open-green,
+.kafiya-word.kafiya-open-green {
     background-color: #d8f3dc;
     border-radius: 0.3rem;
 }
 
-.kafiya-word-list .kafiya-word.kafiya-open-blue {
+.kafiya-word-list .kafiya-word.kafiya-open-blue,
+.kafiya-word.kafiya-open-blue {
     background-color: #dbeafe;
     border-radius: 0.3rem;
 }
 
-.kafiya-word-list .kafiya-word.kafiya-open-amber {
+.kafiya-word-list .kafiya-word.kafiya-open-amber,
+.kafiya-word.kafiya-open-amber {
     background-color: #fef3c7;
     border-radius: 0.3rem;
 }
