@@ -93,6 +93,7 @@
                             {% set next_page = current_page + 1 %}
                             <a
                                 class="btn btn-outline-secondary kafiya-page-link{% if not page_meta.get('has_prev') %} disabled{% endif %}"
+                                {% if page_meta.get('has_prev') %}
                                 href="{{ url_for(
                                     'kafiya',
                                     text=text_input,
@@ -100,12 +101,16 @@
                                     close_page=(prev_page if bucket_key == 'close' else result.pagination.get('close', {}).get('page', 1)),
                                     open_page=(prev_page if bucket_key == 'open' else result.pagination.get('open', {}).get('page', 1)),
                                 ) }}"
-                                aria-disabled="{{ 'true' if not page_meta.get('has_prev') else 'false' }}"
+                                {% else %}
+                                tabindex="-1"
+                                aria-disabled="true"
+                                {% endif %}
                             >
                                 Previous
                             </a>
                             <a
                                 class="btn btn-outline-secondary kafiya-page-link{% if not page_meta.get('has_next') %} disabled{% endif %}"
+                                {% if page_meta.get('has_next') %}
                                 href="{{ url_for(
                                     'kafiya',
                                     text=text_input,
@@ -113,7 +118,10 @@
                                     close_page=(next_page if bucket_key == 'close' else result.pagination.get('close', {}).get('page', 1)),
                                     open_page=(next_page if bucket_key == 'open' else result.pagination.get('open', {}).get('page', 1)),
                                 ) }}"
-                                aria-disabled="{{ 'true' if not page_meta.get('has_next') else 'false' }}"
+                                {% else %}
+                                tabindex="-1"
+                                aria-disabled="true"
+                                {% endif %}
                             >
                                 Next
                             </a>
@@ -324,9 +332,15 @@
                     headers: { 'X-Requested-With': 'XMLHttpRequest' },
                     body: body
                 }).then(function (resp) {
+                    if (!resp.ok) {
+                        throw new Error('Network response was not ok');
+                    }
                     return resp.text();
                 }).then(function (html) {
                     replaceContentFromHtml(html, true);
+                }).catch(function (error) {
+                    console.error('Fetch error:', error);
+                    form.submit();
                 });
             });
         }
@@ -338,9 +352,15 @@
                 fetch(link.href, {
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 }).then(function (resp) {
+                    if (!resp.ok) {
+                        throw new Error('Network response was not ok');
+                    }
                     return resp.text();
                 }).then(function (html) {
                     replaceContentFromHtml(html, false);
+                }).catch(function (error) {
+                    console.error('Fetch error:', error);
+                    window.location = link.href;
                 });
             });
         });
@@ -357,18 +377,18 @@
         bindAjaxHandlers();
         if (pushState) {
             var textInput = document.getElementById('text');
-            var searchParams = new URLSearchParams({
-                text: textInput ? textInput.value : '',
-                exact_page: '1',
-                close_page: '1',
-                open_page: '1'
-            });
+            var form = document.getElementById('qafiya-form');
+            var searchParams = new URLSearchParams(window.location.search);
+            searchParams.set('text', textInput ? textInput.value : '');
+            searchParams.set('exact_page', '1');
+            searchParams.set('close_page', '1');
+            searchParams.set('open_page', '1');
             history.pushState({}, '', '/qafiya?' + searchParams.toString());
         } else {
             var activeForm = document.getElementById('qafiya-form');
             if (activeForm) {
                 var query = new URLSearchParams(new FormData(activeForm));
-                history.pushState({}, '', '/qafiya?' + query.toString());
+                history.replaceState({}, '', '/qafiya?' + query.toString());
             }
         }
     }
@@ -377,9 +397,22 @@
         fetch(location.pathname + location.search, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         }).then(function (resp) {
+            if (!resp.ok) {
+                throw new Error('Network response was not ok');
+            }
             return resp.text();
         }).then(function (html) {
-            replaceContentFromHtml(html, false);
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(html, 'text/html');
+            var next = doc.getElementById('qafiya-content');
+            var current = document.getElementById('qafiya-content');
+            if (!next || !current) return;
+            current.replaceWith(next);
+            initializeTooltips(next);
+            bindAjaxHandlers();
+        }).catch(function (error) {
+            console.error('Fetch error:', error);
+            window.location.reload();
         });
     });
 

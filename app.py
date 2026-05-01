@@ -257,7 +257,10 @@ def kafiya():
                     },
                 ).to_dict()
             except Exception as e:
-                error = f"Error processing word: {str(e)}"
+                logging.getLogger(__name__).exception(
+                    "Error processing kafiya lookup for word: %s", text_input
+                )
+                error = "An unexpected error occurred while processing the word."
     elif request.method == 'POST':
         error = "Please enter one Urdu word"
 
