@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## 1.1.0 - 2026-05-01
+
+### Highlights
+- Improved qafiya results with clearer grouping, better on-page navigation, and richer summary information.
+- Expanded qafiya word support with better meanings and matching context for more useful lookup results.
+- Improved rhyme-check reliability for short-suffix and open-matching edge cases.
+
+### Notable Changes
+- Updated user-facing terminology from "kafiya" to "qafiya" for consistency across pages and routes.
+- Added pagination for qafiya results and improved handling for dynamic result updates.
+- Improved qafiya match sorting and display details, including stronger classification and count summaries.
+- Refined UI presentation (layout, direction, and color guidance) for easier reading of rhyme groups.
+- Fixed tooltip/lookup edge cases to improve meaning display consistency.
+- Expanded supporting documentation and inline help text around qafiya behavior.
+
 ## 1.0.2 - 2026-04-12
 
 ### Highlights
