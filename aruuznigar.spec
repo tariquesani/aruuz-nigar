@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 # pyinstaller spec file for Aruuz Nigar
 # Run with: pyinstaller --clean --noconfirm aruuznigar.spec
+# Read RELEASING.md before compiling
 
 block_cipher = None
 
