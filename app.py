@@ -210,7 +210,25 @@ def islah():
 
 @app.route('/qafiya', methods=['GET', 'POST'])
 def kafiya():
-    """Kafiya dictionary page: lookup one Urdu word and show grouped results."""
+    """
+    Render the Kafiya dictionary lookup page for a single Urdu word.
+    
+    Reads input from the request form (on POST) or query parameters (on GET). Recognized inputs:
+    - text: the Urdu word to look up (trimmed).
+    - exact_page, close_page, open_page: 1-based page numbers (integers, clamped to at least 1) for pagination of exact, close, and open-match buckets.
+    
+    Behavior:
+    - If `text` is provided, attempts to load the kafiya index and perform a paginated lookup; on success the lookup result is returned in the template context as `result`.
+    - If the kafiya index fails to load or is unavailable, an appropriate user-facing `error` message is provided.
+    - If the request is a POST with an empty `text`, sets `error` to "Please enter one Urdu word".
+    - If an exception occurs during lookup, sets `error` to "Error processing word: <exception message>".
+    
+    Returns:
+        Rendered template response for 'kafiya.html' with context variables:
+        - text_input (str): the submitted word (possibly empty),
+        - error (str | None): user-facing error message if any,
+        - result (dict | None): lookup results (when available).
+    """
     text_input = ""
     error = None
     result = None

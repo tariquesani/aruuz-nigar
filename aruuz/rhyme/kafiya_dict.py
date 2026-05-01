@@ -176,16 +176,17 @@ class KafiyaResult:
         open_: List[KafiyaMatch],
     ) -> None:
         """
-        Initialize a KafiyaResult that bundles lookup input, bucketed matches, and summary statistics.
+        Bundle lookup inputs, per-bucket suffix settings, pagination metadata, and the bucketed candidate lists into a KafiyaResult.
         
         Parameters:
-        	query (str): Normalized query word in script form.
-        	query_vazn_codes (List[str]): Scansion/vazn codes identified for the query (deduplicated, in order).
-        	suffix_lengths (Dict[str, int]): Mapping of bucket names ("exact", "close", "open") to the suffix length used for that bucket.
-        	total_counts (Dict[str, int]): Total number of candidate matches found per bucket before any per-bucket limiting.
-        	exact (List[KafiyaMatch]): Matches classified as exact (longest shared suffix).
-        	close (List[KafiyaMatch]): Matches classified as close (medium-length shared suffix).
-        	open_ (List[KafiyaMatch]): Matches classified as open (one-letter suffix) — trailing underscore distinguishes the parameter name from the reserved word.
+            query (str): Normalized query word in script form.
+            query_vazn_codes (List[str]): Deduplicated, ordered scansion/vazn codes for the query.
+            suffix_lengths (Dict[str, int]): Mapping of bucket names ("exact", "close", "open") to the suffix length used for that bucket.
+            total_counts (Dict[str, int]): Total number of candidate matches found per bucket before pagination/limiting.
+            pagination (Dict[str, Dict[str, int | bool]]): Per-bucket pagination metadata (keys: page, per_page, total_pages, has_prev, has_next).
+            exact (List[KafiyaMatch]): Matches classified as exact (longest shared suffix).
+            close (List[KafiyaMatch]): Matches classified as close (medium-length shared suffix).
+            open_ (List[KafiyaMatch]): Matches classified as open (one-letter suffix); parameter name includes trailing underscore to avoid the reserved word.
         """
         self.query = query
         self.query_vazn_codes = query_vazn_codes
@@ -198,17 +199,18 @@ class KafiyaResult:
 
     def to_dict(self) -> Dict:
         """
-        Serialize the KafiyaResult into a plain dictionary for external consumption.
+        Serialize the KafiyaResult into a JSON-serializable dictionary for external consumption.
+        
+        The result dictionary contains these keys:
+        - "query": normalized script form of the original query.
+        - "query_vazn_codes": list of scanned vazn codes for the query (may be empty).
+        - "suffix_lengths": mapping of bucket names ("exact", "close", "open") to the suffix length used for that bucket.
+        - "total_counts": mapping of bucket names to the total number of matches found for that bucket before pagination/limiting.
+        - "pagination": per-bucket pagination metadata with keys `page`, `per_page`, `total_pages`, `has_prev`, and `has_next`.
+        - "exact", "close", "open": lists of serialized KafiyaMatch objects for each quality bucket.
         
         Returns:
-            result (Dict): A mapping with the following keys:
-                - "query": The normalized script form of the original query.
-                - "query_vazn_codes": List[str] of scanned vazn codes for the query (may be empty).
-                - "suffix_lengths": Dict[str, int] mapping bucket names to the suffix length used.
-                - "total_counts": Dict[str, int] mapping bucket names to the total number of matches before limiting.
-                - "exact": List[Dict] serialized `KafiyaMatch` objects for the exact bucket.
-                - "close": List[Dict] serialized `KafiyaMatch` objects for the close bucket.
-                - "open": List[Dict] serialized `KafiyaMatch` objects for the open bucket.
+            dict: The serialized KafiyaResult containing the keys described above.
         """
         return {
             "query": self.query,
@@ -414,20 +416,15 @@ class KafiyaDict:
         page_by_bucket: Optional[Dict[str, int]] = None,
     ) -> KafiyaResult:
         """
-        Return candidate kafiya matches for a query, grouped into three quality buckets: exact, close, and open.
+        Look up kafiya (rhyming) candidates for a query and return them grouped into three quality buckets: exact, close, and open.
         
         Parameters:
-        	query (str): The input word in any orthography to search for kafiya.
-        	max_per_bucket (Optional[int]): If provided, limit the number of returned matches per bucket.
+        	query (str): The input word to search for kafiya; may be in any orthography.
+        	max_per_bucket (Optional[int]): If provided, limit the number of returned matches per bucket (applied after sorting). If None, the instance default is used.
+        	page_by_bucket (Optional[Dict[str, int]]): Optional mapping of bucket names ("exact", "close", "open") to 1-based page numbers to return for each bucket when pagination is enabled.
         
         Returns:
-        	KafiyaResult: Result object containing:
-        		- the normalized script query,
-        		- `query_vazn_codes`: scansion codes computed for the query,
-        		- `suffix_lengths`: chosen suffix lengths for each bucket (`exact`, `close`, `open`),
-        		- `total_counts`: counts found per bucket before applying `max_per_bucket`,
-        		- `exact`, `close`, `open_`: lists of `KafiyaMatch` objects for each bucket.
-        		If the query is too short to produce suffixes, returns a `KafiyaResult` with empty buckets and zeroed statistics.
+        	KafiyaResult: Contains the normalized `query`, `query_vazn_codes` (scansion codes for the query), `suffix_lengths` chosen for each bucket, `total_counts` found per bucket before pagination, `pagination` metadata per bucket, and the bucketed lists `exact`, `close`, and `open` of `KafiyaMatch` objects.
         """
         limit = max_per_bucket if max_per_bucket is not None else self.max_per_bucket
         page_map = page_by_bucket or {}
@@ -538,7 +535,26 @@ class KafiyaDict:
         page_by_bucket: Dict[str, int],
     ) -> tuple[Dict[str, List[KafiyaMatch]], Dict[str, Dict[str, int | bool]]]:
         """
-        Slice each bucket for the requested page and return per-bucket pagination metadata.
+        Compute paginated slices for each quality bucket and return the sliced buckets along with per-bucket pagination metadata.
+        
+        Parameters:
+            buckets (Dict[str, List[KafiyaMatch]]): Mapping of bucket name to full list of matches.
+            per_page (Optional[int]): Number of items per page. If `None`, all items are returned for every bucket.
+            page_by_bucket (Dict[str, int]): Requested page numbers keyed by bucket name; missing entries default to page 1.
+        
+        Returns:
+            tuple[Dict[str, List[KafiyaMatch]], Dict[str, Dict[str, int | bool]]]:
+                - First element: mapping of bucket name to the list of matches for the resolved page.
+                - Second element: per-bucket pagination metadata dictionaries containing:
+                    - "page" (int): resolved page number (clamped to [1, total_pages]).
+                    - "per_page" (int): effective items per page (0 when `per_page` is `None`).
+                    - "total_pages" (int): number of available pages (minimum 1).
+                    - "has_prev" (bool): whether a previous page exists.
+                    - "has_next" (bool): whether a next page exists.
+        
+        Behavior notes:
+            - When `per_page` is not `None`, it is clamped to at least 1.
+            - If a bucket has zero items, `total_pages` is 1 and the returned slice is empty.
         """
         if per_page is None:
             paged = {name: values for name, values in buckets.items()}
@@ -576,7 +592,15 @@ class KafiyaDict:
         return paged, meta
 
     def _classify_open_guard_letter(self, ch: str) -> OpenGuardClass:
-        """Classify a penultimate letter for 1-letter dictionary matching."""
+        """
+        Classify a penultimate Urdu letter as a vowel, semi-vowel, or non-vowel for open-bucket compatibility checks.
+        
+        Parameters:
+        	ch (str): A single Urdu character (penultimate letter) to classify.
+        
+        Returns:
+        	'semi_vowel' if the character is one of the semi-vowel letters, 'vowel' if it is an Urdu vowel letter, 'non_vowel' otherwise.
+        """
         if ch in SEMI_VOWEL_LETTERS:
             return "semi_vowel"
         if is_urdu_vowel_letter(ch):
