@@ -14,6 +14,7 @@
         </small>
     </div>
 
+    <div id="qafiya-content">
     {% if error %}
     <div class="alert alert-danger alert-dismissible fade show">
         <strong>Error</strong> {{ error }}
@@ -46,6 +47,9 @@
         {% if matches %}
             {% set ns.has_any = true %}
             {% set total_matches = result.total_counts.get(bucket_key, matches | length) %}
+            {% set page_meta = result.pagination.get(bucket_key, {}) %}
+            {% set current_page = page_meta.get('page', 1) %}
+            {% set total_pages = page_meta.get('total_pages', 1) %}
             {% set simple_matches = matches | rejectattr('is_compound') | list %}
             {% set compound_matches = matches | selectattr('is_compound') | list %}
             {% set simple_script_words = simple_matches | selectattr('match_kind', 'equalto', 'script') | list %}
@@ -63,6 +67,9 @@
                         <code>-ir</code>, <code>-ur</code>). This is a known limitation without diacritised input or a curated
                         pronunciation lexicon.
                     </span>
+                    <span class="d-block mb-0">
+                        <strong>Color guide:</strong> <span class="kafiya-word kafiya-open-green"> green </span> = strongest (vazn + long-tail), <span class="kafiya-word kafiya-open-blue"> blue </span> = strong (vazn + short-tail), <span class="kafiya-word kafiya-open-amber"> amber </span> = partial (vazn or tail match).
+                    </span>
                 </small>
             </div>
             {% endif %}
@@ -77,6 +84,49 @@
                         {% endif %}
                         )
                     </h6>
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <small class="text-muted">
+                            Page {{ current_page }} of {{ total_pages }}
+                        </small>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="{{ bucket_label }} pagination">
+                            {% set prev_page = current_page - 1 %}
+                            {% set next_page = current_page + 1 %}
+                            <a
+                                class="btn btn-outline-secondary kafiya-page-link{% if not page_meta.get('has_prev') %} disabled{% endif %}"
+                                {% if page_meta.get('has_prev') %}
+                                href="{{ url_for(
+                                    'kafiya',
+                                    text=text_input,
+                                    exact_page=(prev_page if bucket_key == 'exact' else result.pagination.get('exact', {}).get('page', 1)),
+                                    close_page=(prev_page if bucket_key == 'close' else result.pagination.get('close', {}).get('page', 1)),
+                                    open_page=(prev_page if bucket_key == 'open' else result.pagination.get('open', {}).get('page', 1)),
+                                ) }}"
+                                {% else %}
+                                tabindex="-1"
+                                aria-disabled="true"
+                                {% endif %}
+                            >
+                                Previous
+                            </a>
+                            <a
+                                class="btn btn-outline-secondary kafiya-page-link{% if not page_meta.get('has_next') %} disabled{% endif %}"
+                                {% if page_meta.get('has_next') %}
+                                href="{{ url_for(
+                                    'kafiya',
+                                    text=text_input,
+                                    exact_page=(next_page if bucket_key == 'exact' else result.pagination.get('exact', {}).get('page', 1)),
+                                    close_page=(next_page if bucket_key == 'close' else result.pagination.get('close', {}).get('page', 1)),
+                                    open_page=(next_page if bucket_key == 'open' else result.pagination.get('open', {}).get('page', 1)),
+                                ) }}"
+                                {% else %}
+                                tabindex="-1"
+                                aria-disabled="true"
+                                {% endif %}
+                            >
+                                Next
+                            </a>
+                        </div>
+                    </div>
 
                     {% if simple_matches %}
                     <div class="mb-3">
@@ -177,7 +227,10 @@
 
     <div class="card mb-3">
         <div class="card-body py-3">
-            <form method="POST" action="/qafiya" class="needs-validation" novalidate>
+            <form id="qafiya-form" method="POST" action="/qafiya" class="needs-validation" novalidate>
+                <input type="hidden" name="exact_page" value="1" />
+                <input type="hidden" name="close_page" value="1" />
+                <input type="hidden" name="open_page" value="1" />
                 <label for="text" class="form-label">Enter one Urdu word</label>
                 <input
                     type="text"
@@ -199,6 +252,7 @@
                 </button>
             </form>
         </div>
+    </div>
     </div>
 </div>
 {% endblock %}
@@ -231,7 +285,8 @@
         });
     }
 
-    function initializeTooltips() {
+    function initializeTooltips(root) {
+        root = root || document;
         var existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
         existingTooltips.forEach(function (el) {
             var tooltipInstance = bootstrap.Tooltip.getInstance(el);
@@ -240,7 +295,7 @@
             }
         });
 
-        var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        var tooltipTriggerList = root.querySelectorAll('[data-bs-toggle="tooltip"]');
         Array.prototype.slice.call(tooltipTriggerList).forEach(function (tooltipTriggerEl) {
             new bootstrap.Tooltip(tooltipTriggerEl, {
                 container: 'body',
@@ -262,10 +317,113 @@
         });
     }
 
+    function bindAjaxHandlers() {
+        var content = document.getElementById('qafiya-content');
+        if (!content) return;
+
+        var form = document.getElementById('qafiya-form');
+        if (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) return;
+                event.preventDefault();
+                var body = new URLSearchParams(new FormData(form));
+                fetch('/qafiya', {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: body
+                }).then(function (resp) {
+                    if (!resp.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return resp.text();
+                }).then(function (html) {
+                    replaceContentFromHtml(html, true);
+                }).catch(function (error) {
+                    console.error('Fetch error:', error);
+                    form.submit();
+                });
+            });
+        }
+
+        var links = content.querySelectorAll('a.kafiya-page-link:not(.disabled)');
+        links.forEach(function (link) {
+            link.addEventListener('click', function (event) {
+                event.preventDefault();
+                fetch(link.href, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                }).then(function (resp) {
+                    if (!resp.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return resp.text();
+                }).then(function (html) {
+                    replaceContentFromHtml(html, false);
+                }).catch(function (error) {
+                    console.error('Fetch error:', error);
+                    window.location = link.href;
+                });
+            });
+        });
+    }
+
+    function replaceContentFromHtml(html, pushState) {
+        var parser = new DOMParser();
+        var doc = parser.parseFromString(html, 'text/html');
+        var next = doc.getElementById('qafiya-content');
+        var current = document.getElementById('qafiya-content');
+        if (!next || !current) return;
+        current.replaceWith(next);
+        initializeTooltips(next);
+        bindAjaxHandlers();
+        if (pushState) {
+            var textInput = document.getElementById('text');
+            var form = document.getElementById('qafiya-form');
+            var searchParams = new URLSearchParams(window.location.search);
+            searchParams.set('text', textInput ? textInput.value : '');
+            searchParams.set('exact_page', '1');
+            searchParams.set('close_page', '1');
+            searchParams.set('open_page', '1');
+            history.pushState({}, '', '/qafiya?' + searchParams.toString());
+        } else {
+            var activeForm = document.getElementById('qafiya-form');
+            if (activeForm) {
+                var query = new URLSearchParams(new FormData(activeForm));
+                history.replaceState({}, '', '/qafiya?' + query.toString());
+            }
+        }
+    }
+
+    window.addEventListener('popstate', function () {
+        fetch(location.pathname + location.search, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (resp) {
+            if (!resp.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return resp.text();
+        }).then(function (html) {
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(html, 'text/html');
+            var next = doc.getElementById('qafiya-content');
+            var current = document.getElementById('qafiya-content');
+            if (!next || !current) return;
+            current.replaceWith(next);
+            initializeTooltips(next);
+            bindAjaxHandlers();
+        }).catch(function (error) {
+            console.error('Fetch error:', error);
+            window.location.reload();
+        });
+    });
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeTooltips);
+        document.addEventListener('DOMContentLoaded', function () {
+            initializeTooltips(document);
+            bindAjaxHandlers();
+        });
     } else {
-        initializeTooltips();
+        initializeTooltips(document);
+        bindAjaxHandlers();
     }
 })();
 </script>

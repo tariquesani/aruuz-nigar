@@ -52,6 +52,7 @@ app.config['JSON_AS_ASCII'] = False  # Important for Urdu JSON
 API_HANDLERS = get_api_handlers()
 _KAFIYA_DICT: KafiyaDict | None = None
 _KAFIYA_LOAD_ERROR: str | None = None
+_KAFIYA_PER_PAGE_DEFAULT = 50
 
 
 def _resolve_kafiya_index_path() -> Path:
@@ -209,26 +210,59 @@ def islah():
 
 @app.route('/qafiya', methods=['GET', 'POST'])
 def kafiya():
-    """Kafiya dictionary page: lookup one Urdu word and show grouped results."""
+    """
+    Render the Kafiya dictionary lookup page for a single Urdu word.
+    
+    Reads input from the request form (on POST) or query parameters (on GET). Recognized inputs:
+    - text: the Urdu word to look up (trimmed).
+    - exact_page, close_page, open_page: 1-based page numbers (integers, clamped to at least 1) for pagination of exact, close, and open-match buckets.
+    
+    Behavior:
+    - If `text` is provided, attempts to load the kafiya index and perform a paginated lookup; on success the lookup result is returned in the template context as `result`.
+    - If the kafiya index fails to load or is unavailable, an appropriate user-facing `error` message is provided.
+    - If the request is a POST with an empty `text`, sets `error` to "Please enter one Urdu word".
+    - If an exception occurs during lookup, sets `error` to "Error processing word: <exception message>".
+    
+    Returns:
+        Rendered template response for 'kafiya.html' with context variables:
+        - text_input (str): the submitted word (possibly empty),
+        - error (str | None): user-facing error message if any,
+        - result (dict | None): lookup results (when available).
+    """
     text_input = ""
     error = None
     result = None
 
-    if request.method == 'POST':
-        text_input = request.form.get('text', '').strip()
-        if not text_input:
-            error = "Please enter one Urdu word"
+    source = request.form if request.method == 'POST' else request.args
+    text_input = source.get('text', '').strip()
+    exact_page = max(1, source.get('exact_page', default=1, type=int) or 1)
+    close_page = max(1, source.get('close_page', default=1, type=int) or 1)
+    open_page = max(1, source.get('open_page', default=1, type=int) or 1)
+
+    if text_input:
+        kd, load_error = _get_kafiya_dict()
+        if load_error:
+            error = load_error
+        elif kd is None:
+            error = "Kafiya lookup is not available right now."
         else:
-            kd, load_error = _get_kafiya_dict()
-            if load_error:
-                error = load_error
-            elif kd is None:
-                error = "Kafiya lookup is not available right now."
-            else:
-                try:
-                    result = kd.lookup(text_input).to_dict()
-                except Exception as e:
-                    error = f"Error processing word: {str(e)}"
+            try:
+                result = kd.lookup(
+                    text_input,
+                    max_per_bucket=_KAFIYA_PER_PAGE_DEFAULT,
+                    page_by_bucket={
+                        "exact": exact_page,
+                        "close": close_page,
+                        "open": open_page,
+                    },
+                ).to_dict()
+            except Exception as e:
+                logging.getLogger(__name__).exception(
+                    "Error processing kafiya lookup for word: %s", text_input
+                )
+                error = "An unexpected error occurred while processing the word."
+    elif request.method == 'POST':
+        error = "Please enter one Urdu word"
 
     return render_template(
         'kafiya.html',
