@@ -143,7 +143,7 @@
             
             <li class="nav-item" data-bs-level="1"><a href="#changelog" class="nav-link">Changelog</a>
               <ul class="nav flex-column">
-            <li class="nav-item" data-bs-level="2"><a href="#102-2026-04-12" class="nav-link">1.0.2 - 2026-04-12</a>
+            <li class="nav-item" data-bs-level="2"><a href="#110-2026-05-01" class="nav-link">1.1.0 - 2026-05-01</a>
               <ul class="nav flex-column">
             <li class="nav-item" data-bs-level="3"><a href="#highlights" class="nav-link">Highlights</a>
               <ul class="nav flex-column">
@@ -155,7 +155,7 @@
             </li>
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#101-2026-02-28" class="nav-link">1.0.1 - 2026-02-28</a>
+            <li class="nav-item" data-bs-level="2"><a href="#102-2026-04-12" class="nav-link">1.0.2 - 2026-04-12</a>
               <ul class="nav flex-column">
             <li class="nav-item" data-bs-level="3"><a href="#highlights_1" class="nav-link">Highlights</a>
               <ul class="nav flex-column">
@@ -167,7 +167,7 @@
             </li>
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#10-2026-02-03" class="nav-link">1.0 - 2026-02-03</a>
+            <li class="nav-item" data-bs-level="2"><a href="#101-2026-02-28" class="nav-link">1.0.1 - 2026-02-28</a>
               <ul class="nav flex-column">
             <li class="nav-item" data-bs-level="3"><a href="#highlights_2" class="nav-link">Highlights</a>
               <ul class="nav flex-column">
@@ -179,7 +179,7 @@
             </li>
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#101-beta-2026-01-28" class="nav-link">1.0.1-beta - 2026-01-28</a>
+            <li class="nav-item" data-bs-level="2"><a href="#10-2026-02-03" class="nav-link">1.0 - 2026-02-03</a>
               <ul class="nav flex-column">
             <li class="nav-item" data-bs-level="3"><a href="#highlights_3" class="nav-link">Highlights</a>
               <ul class="nav flex-column">
@@ -191,13 +191,25 @@
             </li>
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#100-beta-2026-01-23" class="nav-link">1.0.0-beta - 2026-01-23</a>
+            <li class="nav-item" data-bs-level="2"><a href="#101-beta-2026-01-28" class="nav-link">1.0.1-beta - 2026-01-28</a>
               <ul class="nav flex-column">
             <li class="nav-item" data-bs-level="3"><a href="#highlights_4" class="nav-link">Highlights</a>
               <ul class="nav flex-column">
               </ul>
             </li>
             <li class="nav-item" data-bs-level="3"><a href="#notable-changes_4" class="nav-link">Notable Changes</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#100-beta-2026-01-23" class="nav-link">1.0.0-beta - 2026-01-23</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="3"><a href="#highlights_5" class="nav-link">Highlights</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#notable-changes_5" class="nav-link">Notable Changes</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -212,14 +224,30 @@
 
 <h1 id="changelog">Changelog</h1>
 <p>All notable changes to this project are documented in this file.</p>
-<h2 id="102-2026-04-12">1.0.2 - 2026-04-12</h2>
+<h2 id="110-2026-05-01">1.1.0 - 2026-05-01</h2>
 <h3 id="highlights">Highlights</h3>
+<ul>
+<li>Improved qafiya results with clearer grouping, better on-page navigation, and richer summary information.</li>
+<li>Expanded qafiya word support with better meanings and matching context for more useful lookup results.</li>
+<li>Improved rhyme-check reliability for short-suffix and open-matching edge cases.</li>
+</ul>
+<h3 id="notable-changes">Notable Changes</h3>
+<ul>
+<li>Updated user-facing terminology from "kafiya" to "qafiya" for consistency across pages and routes.</li>
+<li>Added pagination for qafiya results and improved handling for dynamic result updates.</li>
+<li>Improved qafiya match sorting and display details, including stronger classification and count summaries.</li>
+<li>Refined UI presentation (layout, direction, and color guidance) for easier reading of rhyme groups.</li>
+<li>Fixed tooltip/lookup edge cases to improve meaning display consistency.</li>
+<li>Expanded supporting documentation and inline help text around qafiya behavior.</li>
+</ul>
+<h2 id="102-2026-04-12">1.0.2 - 2026-04-12</h2>
+<h3 id="highlights_1">Highlights</h3>
 <ul>
 <li>Added a full kafiya dictionary workflow for Urdu rhyme lookup, including phonetic normalization and ranked rhyme quality groups.</li>
 <li>Introduced strict radeef + kafiya analysis for ghazals via <code>/api/radeefkafiya</code>.</li>
 <li>Improved <code>islah</code> feedback with better rhyme visualization and verse-level diagnostics.</li>
 </ul>
-<h3 id="notable-changes">Notable Changes</h3>
+<h3 id="notable-changes_1">Notable Changes</h3>
 <ul>
 <li>Added a new rhyme utilities module and stricter Urdu-script rhyme checks.</li>
 <li>Added scripts to build and check radeef and kafiya assets.</li>
@@ -227,25 +255,25 @@
 <li>Removed deprecated <code>islah_refactored.html</code>.</li>
 </ul>
 <h2 id="101-2026-02-28">1.0.1 - 2026-02-28</h2>
-<h3 id="highlights_1">Highlights</h3>
+<h3 id="highlights_2">Highlights</h3>
 <ul>
 <li>Improved meter summary output and template display for clearer scansion interpretation.</li>
 <li>Added a development heartbeat/status indicator for local environment visibility.</li>
 <li>Improved API compatibility by enhancing module discovery with <code>pkgutil</code>.</li>
 </ul>
-<h3 id="notable-changes_1">Notable Changes</h3>
+<h3 id="notable-changes_2">Notable Changes</h3>
 <ul>
 <li>Added <code>gunicorn</code> to requirements for Unix/Linux deployments.</li>
 <li>Refreshed documentation with demo links and updated interface screenshot.</li>
 </ul>
 <h2 id="10-2026-02-03">1.0 - 2026-02-03</h2>
-<h3 id="highlights_2">Highlights</h3>
+<h3 id="highlights_3">Highlights</h3>
 <ul>
 <li>Major islah UI overhaul with multi-line results, better grid layout, and stronger responsiveness.</li>
 <li>Added dominant meter API + UI support, including richer foot and meter details.</li>
 <li>Introduced alignment and diff utilities to compare text against closest bahr patterns.</li>
 </ul>
-<h3 id="notable-changes_2">Notable Changes</h3>
+<h3 id="notable-changes_3">Notable Changes</h3>
 <ul>
 <li>Added <code>/api/scan</code> route with discovery-based API routing.</li>
 <li>Added debounce and performance/memoization improvements in UI.</li>
@@ -253,26 +281,26 @@
 <li>Applied naming and structure refactors for clearer API and UI internals.</li>
 </ul>
 <h2 id="101-beta-2026-01-28">1.0.1-beta - 2026-01-28</h2>
-<h3 id="highlights_3">Highlights</h3>
+<h3 id="highlights_4">Highlights</h3>
 <ul>
 <li>Added word-level tooltip explanations for scansion output.</li>
 <li>Refined meter selection logic and fallback explanations for non-muarrab words.</li>
 <li>Expanded UI polish with theme updates, server status indicator, and logo/about/download improvements.</li>
 </ul>
-<h3 id="notable-changes_3">Notable Changes</h3>
+<h3 id="notable-changes_4">Notable Changes</h3>
 <ul>
 <li>Introduced <code>get_scansion</code> simplification and explanation-builder improvements.</li>
 <li>Improved handling around nasal coda and final vowel weakening edge cases.</li>
 <li>Improved documentation wording and clarity.</li>
 </ul>
 <h2 id="100-beta-2026-01-23">1.0.0-beta - 2026-01-23</h2>
-<h3 id="highlights_4">Highlights</h3>
+<h3 id="highlights_5">Highlights</h3>
 <ul>
 <li>First public beta foundation with core Urdu scansion analysis workflows.</li>
 <li>Initial architecture for detailed explanation and trace generation during scansion.</li>
 <li>Early documentation and packaging groundwork.</li>
 </ul>
-<h3 id="notable-changes_4">Notable Changes</h3>
+<h3 id="notable-changes_5">Notable Changes</h3>
 <ul>
 <li>Established explanation-builder and tracing model used by later releases.</li>
 <li>Simplified routes and cleanup before beta tagging.</li>
