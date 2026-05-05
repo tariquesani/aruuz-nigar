@@ -28,6 +28,32 @@
         color: inherit;
         border-radius: 0.25rem;
     }
+    .line-result-row {
+        position: relative;
+    }
+    .line-primary-rail {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 24px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .line-primary-checkbox {
+        appearance: auto;
+        -webkit-appearance: checkbox;
+        width: 16px;
+        height: 16px;
+        display: inline-block;
+        margin-top: 0.2rem;
+        cursor: pointer;
+    }
+    .line-result-main {
+        min-width: 0;
+        padding-right: 34px;
+    }
 </style>
 {% endblock %}
 
@@ -46,32 +72,44 @@
     <div :style="updatingResults ? 'opacity: 0; pointer-events: none; transition: opacity 0.15s ease' : 'opacity: 1; transition: opacity 0.15s ease'">
     <template x-for="(lineData, idx) in lineResults" :key="'line-' + idx">
         <div class="my-5">
-            <!-- Loading -->
-            <div class="text-center py-3 text-muted" x-show="lineData.loading" x-text="'Scanning line ' + (idx + 1) + '…'"></div>
-            <!-- Error -->
-            <div class="alert alert-danger py-2" x-show="lineData.error && !lineData.loading" x-text="'Line ' + (idx + 1) + ': ' + lineData.error"></div>
-            <!-- Result: memoized getters return stable array refs for same result, reducing re-renders -->
-            <div x-show="lineData.result" :class="{'opacity-50': lineData.loading}">
-                <h5 class="text-center urdu-text mb-4" dir="rtl" lang="ur" x-text="lineData.result?.original_line || lineData.lineText || ''"></h5>
-                <div class="scansion-grid-wrapper">
-                    <div class="scansion-row words-row">
-                        <template x-for="wordData in wordsForLine(lineData, idx)" :key="'line-' + idx + '-word-' + wordData.word_index">
-                            <div class="word-cell" :class="wordData.rhymeClass" :style="'grid-column: span ' + wordData.span" x-text="wordData.word"></div>
-                        </template>
-                    </div>
-                    <div class="scansion-row">
-                        <template x-for="(syllable, i) in syllablesForLine(lineData)" :key="'line-' + idx + '-syll-' + i">
-                            <span class="syllable" :class="syllable.deviationType || ''" x-text="syllable.char || ''"></span>
-                        </template>
-                    </div>
-                    <div class="scansion-row feet-row">
-                        <template x-for="(footData, footIndex) in feetForLine(lineData)" :key="'line-' + idx + '-foot-' + footData.start">
-                            <div class="foot-cell" :class="{ 'foot-cell-alt': footIndex % 2 === 1 }" :style="'grid-column: span ' + footData.span" x-text="footData.foot"></div>
-                        </template>
+            <div class="line-result-row">
+                <div class="line-result-main">
+                    <!-- Loading -->
+                    <div class="text-center py-3 text-muted" x-show="lineData.loading" x-text="'Scanning line ' + (idx + 1) + '…'"></div>
+                    <!-- Error -->
+                    <div class="alert alert-danger py-2" x-show="lineData.error && !lineData.loading" x-text="'Line ' + (idx + 1) + ': ' + lineData.error"></div>
+                    <!-- Result: memoized getters return stable array refs for same result, reducing re-renders -->
+                    <div x-show="lineData.result" :class="{'opacity-50': lineData.loading}">
+                        <h5 class="text-center urdu-text mb-4" dir="rtl" lang="ur" x-text="lineData.result?.original_line || lineData.lineText || ''"></h5>
+                        <div class="scansion-grid-wrapper">
+                            <div class="scansion-row words-row">
+                                <template x-for="wordData in wordsForLine(lineData, idx)" :key="'line-' + idx + '-word-' + wordData.word_index">
+                                    <div class="word-cell" :class="wordData.rhymeClass" :style="'grid-column: span ' + wordData.span" x-text="wordData.word"></div>
+                                </template>
+                            </div>
+                            <div class="scansion-row">
+                                <template x-for="(syllable, i) in syllablesForLine(lineData)" :key="'line-' + idx + '-syll-' + i">
+                                    <span class="syllable" :class="syllable.deviationType || ''" x-text="syllable.char || ''"></span>
+                                </template>
+                            </div>
+                            <div class="scansion-row feet-row">
+                                <template x-for="(footData, footIndex) in feetForLine(lineData)" :key="'line-' + idx + '-foot-' + footData.start">
+                                    <div class="foot-cell" :class="{ 'foot-cell-alt': footIndex % 2 === 1 }" :style="'grid-column: span ' + footData.span" x-text="footData.foot"></div>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3" x-show="getBahrLabel(lineData.result) && getBahrName(lineData.result)">
+                            <h6><span x-text="getBahrLabel(lineData.result)"></span><span dir="rtl" lang="ur" class="urdu-text" :data-bs-title="getBahrTooltip(lineData.result) || ''" :data-bs-toggle="getBahrTooltip(lineData.result) ? 'tooltip' : null" data-bs-placement="top" x-text="getBahrName(lineData.result)"></span><span class="small text-muted" x-show="getDeviationsExplanationLine(lineData.result)" x-text="getDeviationsExplanationLine(lineData.result) ? '. ' + getDeviationsExplanationLine(lineData.result) : ''"></span></h6>
+                        </div>
                     </div>
                 </div>
-                <div class="text-center mt-3" x-show="getBahrLabel(lineData.result) && getBahrName(lineData.result)">
-                    <h6><span x-text="getBahrLabel(lineData.result)"></span><span dir="rtl" lang="ur" class="urdu-text" :data-bs-title="getBahrTooltip(lineData.result) || ''" :data-bs-toggle="getBahrTooltip(lineData.result) ? 'tooltip' : null" data-bs-placement="top" x-text="getBahrName(lineData.result)"></span><span class="small text-muted" x-show="getDeviationsExplanationLine(lineData.result)" x-text="getDeviationsExplanationLine(lineData.result) ? '. ' + getDeviationsExplanationLine(lineData.result) : ''"></span></h6>
+                <div class="line-primary-rail" x-show="lineData.result && !lineData.loading && !lineData.error">
+                    <input
+                        type="checkbox"
+                        class="line-primary-checkbox"
+                        :id="'primary-line-' + idx"
+                        :aria-label="'Use line ' + (idx + 1) + ' as primary bahr'"
+                    >
                 </div>
             </div>
         </div>
