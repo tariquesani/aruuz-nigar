@@ -33,6 +33,10 @@ markdown_extensions:
   - meta
   - attr_list
 
+plugins:
+  - search
+  - swagger-ui-tag
+
 # plugins:
 #   - open-in-new-tab
 extra_javascript:

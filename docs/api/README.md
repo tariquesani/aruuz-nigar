@@ -1,1 +1,3 @@
-Auto-generated API documentation will live here.
+# API Documentation
+
+<swagger-ui src="openapi.yml" supportedSubmitMethods="[]"/>
