@@ -41,7 +41,6 @@ from aruuz.tree.code_tree import CodeTree
 from aruuz.meters import METERS, METERS_VARIED, RUBAI_METERS, NUM_METERS, NUM_VARIED_METERS, NUM_RUBAI_METERS, USAGE, METER_NAMES, METERS_VARIED_NAMES, RUBAI_METER_NAMES, afail, afail_list
 from aruuz.utils.araab import remove_araab
 
-# Test text (same as test_tree.py)
 # text = "رنجش ہی سہی دل ہی دکھانے کے لیے آ"
 text = "دستک دیتی یاد تری جب  دروازے پے آتی ہے"
 
