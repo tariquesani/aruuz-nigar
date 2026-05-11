@@ -1,0 +1,237 @@
+"""
+Aruuz Nigar MCP Server
+A FastMCP wrapper for the Aruuz Nigar poetry meter analysis API.
+
+Usage:
+    python aruuz_nigar_mcp.py
+
+Requirements:
+    pip install fastmcp httpx
+
+Start servers before opening Claude Desktop:
+    python aruuz_nigar.py        # your Aruuz Nigar app
+    python aruuz_nigar_mcp.py    # this MCP server
+
+Or use a startup script:
+    #!/bin/bash
+    python /path/to/aruuz_nigar_app.py &
+    python /path/to/aruuz_nigar_mcp.py &
+
+Testing without Claude (recommended before wiring into Claude Desktop):
+    fastmcp dev aruuz_nigar_mcp.py
+    # opens inspector UI at http://localhost:5173
+
+Claude Desktop config (~/.config/claude/claude_desktop_config.json on Linux,
+~/Library/Application Support/Claude/claude_desktop_config.json on macOS):
+
+    {
+        "mcpServers": {
+            "aruuz-nigar": {
+                "url": "http://127.0.0.1:8765/sse"
+            }
+        }
+    }
+"""
+
+import httpx
+from fastmcp import FastMCP
+
+# --- Configuration -----------------------------------------------------------
+
+ARUUZ_NIGAR_BASE_URL = "http://127.0.0.1:5000"
+
+# --- Server ------------------------------------------------------------------
+
+mcp = FastMCP(
+    name="aruuz-nigar",
+    instructions="""
+    This server provides meter (bahr) analysis for Urdu poetry lines (misra)
+    using the Aruuz Nigar engine. Use it during ghazal islah to validate and
+    compare meter. Tools available: scan, compare, help.
+    """
+)
+
+# --- Helpers -----------------------------------------------------------------
+
+def _post(endpoint: str, payload: dict) -> dict:
+    """Make a synchronous POST request to Aruuz Nigar."""
+    url = f"{ARUUZ_NIGAR_BASE_URL}{endpoint}"
+    try:
+        response = httpx.post(url, json=payload, timeout=10.0)
+        response.raise_for_status()
+        return response.json()
+    except httpx.ConnectError:
+        return {"error": "Cannot reach Aruuz Nigar. Is it running?"}
+    except httpx.HTTPStatusError as e:
+        return {"error": f"API error {e.response.status_code}: {e.response.text}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _format_scan_result(data: dict) -> dict:
+    """
+    Transform IslahResponse into a clean, LLM-friendly result.
+    v0.1 — returns match status and bahr name only.
+    """
+    if "error" in data:
+        return data
+
+    analysis_level = data.get("analysis_level")
+    conforms_exactly = data.get("summary", {}).get("conforms_exactly", False)
+    original_line = data.get("original_line", "")
+
+    # Did not reach meter level — serious metrical issue
+    if analysis_level in ("syllables", "feet"):
+        return {
+            "misra": original_line,
+            "result": "no bahr matched",
+            "detail": "Meter could not be identified. The line may have significant metrical issues."
+        }
+
+    # Exact match
+    meters = data.get("meters", [])
+    if conforms_exactly and meters:
+        return {
+            "misra": original_line,
+            "result": "exactly matched",
+            "bahr": meters[0].get("meter_roman", ""),
+            "bahr_urdu": meters[0].get("meter_name", ""),
+        }
+
+    # Inferred / close match
+    inferred = data.get("inferred_meter")
+    if inferred:
+        return {
+            "misra": original_line,
+            "result": "almost matched",
+            "bahr": inferred.get("meter_roman", ""),
+            "bahr_urdu": inferred.get("meter_name", ""),
+        }
+
+    # Reached meter level but nothing matched
+    return {
+        "misra": original_line,
+        "result": "no bahr matched",
+        "detail": "Line was analyzed but did not match or approximate any known bahr."
+    }
+
+
+def _format_compare_result(line1_data: dict, line2_data: dict) -> dict:
+    """
+    Compare meter of two misra.
+    v0.1 — reports whether they share the same bahr.
+    """
+    if "error" in line1_data:
+        return {"error": f"Error scanning first misra: {line1_data['error']}"}
+    if "error" in line2_data:
+        return {"error": f"Error scanning second misra: {line2_data['error']}"}
+
+    def get_bahr(data):
+        if data.get("result") == "exactly matched":
+            return data.get("bahr"), data.get("bahr_urdu")
+        if data.get("result") == "almost matched":
+            return data.get("bahr"), data.get("bahr_urdu")
+        return None, None
+
+    bahr1, bahr1_urdu = get_bahr(line1_data)
+    bahr2, bahr2_urdu = get_bahr(line2_data)
+
+    if not bahr1 and not bahr2:
+        return {
+            "result": "neither misra matched a known bahr",
+            "misra_1_bahr": None,
+            "misra_2_bahr": None,
+        }
+
+    if bahr1 == bahr2:
+        return {
+            "result": "same bahr",
+            "bahr": bahr1,
+            "bahr_urdu": bahr1_urdu,
+        }
+
+    return {
+        "result": "different bahr",
+        "misra_1_bahr": bahr1 or "unidentified",
+        "misra_1_bahr_urdu": bahr1_urdu or "",
+        "misra_2_bahr": bahr2 or "unidentified",
+        "misra_2_bahr_urdu": bahr2_urdu or "",
+    }
+
+
+# --- Tools -------------------------------------------------------------------
+
+@mcp.tool()
+def scan(misra: str) -> dict:
+    """
+    Scan a single Urdu misra and return its meter (bahr) analysis.
+
+    Returns whether the line exactly matches, approximately matches,
+    or does not match any known bahr.
+
+    Args:
+        misra: A single line of Urdu poetry in Urdu script or Roman Urdu.
+
+    Returns:
+        A dict with 'result' (exactly matched / almost matched / no bahr matched),
+        and 'bahr' / 'bahr_urdu' when a match is found.
+    """
+    raw = _post("/api/islah", {"text": misra})
+    return _format_scan_result(raw)
+
+
+@mcp.tool()
+def compare(misra: str, reference_misra: str) -> dict:
+    """
+    Compare the meter of two Urdu misra.
+
+    Scans both lines and reports whether they share the same bahr,
+    which matters for consistency within a ghazal.
+
+    Args:
+        misra: The line to check, in Urdu script or Roman Urdu.
+        reference_misra: The reference line to compare against,
+                         typically the first misra of the matla.
+
+    Returns:
+        A dict with 'result' (same bahr / different bahr / neither matched),
+        and bahr names for each line where available.
+    """
+    line1 = _format_scan_result(_post("/api/islah", {"text": reference_misra}))
+    line2 = _format_scan_result(_post("/api/islah", {"text": misra}))
+    return _format_compare_result(line1, line2)
+
+
+@mcp.tool()
+def help() -> str:
+    """
+    Describe what this MCP server can do.
+
+    Returns a plain text description of available tools.
+    """
+    return """
+    Aruuz Nigar MCP server provides meter (bahr) analysis for Urdu poetry.
+    
+    Available tools:
+    
+    scan(misra)
+        Scans a single Urdu misra and returns whether it exactly matches,
+        approximately matches, or does not match any known bahr.
+    
+    compare(misra, reference_misra)
+        Compares two Urdu misra and reports whether they share the same bahr.
+        Useful for checking consistency between lines in a ghazal.
+    
+    help()
+        Shows this description.
+    
+    Note: All meter analysis is performed by Aruuz Nigar running locally.
+    Results should be treated as informed suggestions — use your own
+    judgment as the poet.
+    """
+
+
+# --- Entry point -------------------------------------------------------------
+
+if __name__ == "__main__":
+    mcp.run(transport="sse", host="127.0.0.1", port=8765)
