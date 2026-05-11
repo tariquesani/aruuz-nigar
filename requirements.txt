@@ -8,3 +8,7 @@ pytest>=7.0.0
 # pip install --only-binary :all: Flask
 Flask>=2.3.0
 gunicorn>=21.0.0   # Unix/Linux only; use waitress on Windows
+
+# MCP server dependencies
+fastmcp
+httpx
