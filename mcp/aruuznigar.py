@@ -68,7 +68,7 @@ def _post(endpoint: str, payload: dict) -> dict:
         return {"error": str(e)}
 
 
-def _format_scan_result(data: dict) -> dict:
+def _format_islah_scan_result(data: dict) -> dict:
     """
     Transform IslahResponse into a clean, LLM-friendly result.
     v0.1 — returns match status and bahr name only.
@@ -113,6 +113,53 @@ def _format_scan_result(data: dict) -> dict:
         "misra": original_line,
         "result": "no bahr matched",
         "detail": "Line was analyzed but did not match or approximate any known bahr."
+    }
+
+
+def _format_scan_line_result(line_result: dict) -> dict:
+    """Transform one /api/scan line_result into MCP scan output shape."""
+    original_line = line_result.get("original_line", "")
+    meters = line_result.get("meters", []) or []
+
+    if not meters:
+        return {
+            "misra": original_line,
+            "result": "no bahr matched",
+            "detail": "No meter candidates found for this line.",
+        }
+
+    primary = meters[0]
+    return {
+        "misra": original_line,
+        "result": "exactly matched",
+        "bahr": primary.get("meter_roman", ""),
+        "bahr_urdu": primary.get("meter_name", ""),
+        "candidate_count": len(meters),
+    }
+
+
+def _format_scan_api_result(data: dict) -> dict:
+    """
+    Transform /api/scan response into MCP scan output.
+    - Single-line input returns a single result object (backward compatible).
+    - Multi-line input returns {"results": [...]} preserving line order.
+    """
+    if "error" in data:
+        return data
+
+    line_results = data.get("line_results")
+    if not isinstance(line_results, list):
+        return {
+            "error": "Unexpected /api/scan response: missing line_results list."
+        }
+
+    formatted = [_format_scan_line_result(lr) for lr in line_results]
+    if len(formatted) == 1:
+        return formatted[0]
+
+    return {
+        "num_lines": len(formatted),
+        "results": formatted,
     }
 
 
@@ -164,20 +211,21 @@ def _format_compare_result(line1_data: dict, line2_data: dict) -> dict:
 @mcp.tool()
 def scan(misra: str) -> dict:
     """
-    Scan a single Urdu misra and return its meter (bahr) analysis.
+    Scan one or more Urdu misra and return meter (bahr) analysis.
 
-    Returns whether the line exactly matches, approximately matches,
-    or does not match any known bahr.
+    For single-line input, returns one result object.
+    For multiline input (newline-separated), returns a per-line result list.
 
     Args:
-        misra: A single line of Urdu poetry in Urdu script or Roman Urdu.
+        misra: One or more lines of Urdu poetry in Urdu script or Roman Urdu.
+               Separate multiple lines using newlines.
 
     Returns:
-        A dict with 'result' (exactly matched / almost matched / no bahr matched),
-        and 'bahr' / 'bahr_urdu' when a match is found.
+        Single line: {'result', 'bahr', 'bahr_urdu', ...}
+        Multiple lines: {'num_lines', 'results': [ ... per-line outputs ... ]}
     """
-    raw = _post("/api/islah", {"text": misra})
-    return _format_scan_result(raw)
+    raw = _post("/api/scan", {"text": misra})
+    return _format_scan_api_result(raw)
 
 
 @mcp.tool()
@@ -197,8 +245,8 @@ def compare(misra: str, reference_misra: str) -> dict:
         A dict with 'result' (same bahr / different bahr / neither matched),
         and bahr names for each line where available.
     """
-    line1 = _format_scan_result(_post("/api/islah", {"text": reference_misra}))
-    line2 = _format_scan_result(_post("/api/islah", {"text": misra}))
+    line1 = _format_islah_scan_result(_post("/api/islah", {"text": reference_misra}))
+    line2 = _format_islah_scan_result(_post("/api/islah", {"text": misra}))
     return _format_compare_result(line1, line2)
 
 
@@ -215,8 +263,8 @@ def help() -> str:
     Available tools:
     
     scan(misra)
-        Scans a single Urdu misra and returns whether it exactly matches,
-        approximately matches, or does not match any known bahr.
+        Scans one or more Urdu misra (newline-separated text).
+        Single-line input returns one result; multiline input returns per-line results.
     
     compare(misra, reference_misra)
         Compares two Urdu misra and reports whether they share the same bahr.
