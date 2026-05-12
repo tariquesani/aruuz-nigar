@@ -128,13 +128,50 @@ def _format_scan_line_result(line_result: dict) -> dict:
             "detail": "No meter candidates found for this line.",
         }
 
-    primary = meters[0]
-    return {
+    primary = next((meter for meter in meters if meter.get("is_default")), meters[0])
+    full_code = primary.get("full_code", "")
+    word_codes = primary.get("word_codes", []) or []
+    syllables = [
+        {"index": index, "code": code}
+        for index, code in enumerate(full_code)
+    ]
+    syllable_breakdown = []
+    syllable_index = 0
+    for word_code in word_codes:
+        word_syllables = []
+        for code in word_code.get("code", ""):
+            word_syllables.append({"index": syllable_index, "code": code})
+            syllable_index += 1
+        syllable_breakdown.append(
+            {
+                "word": word_code.get("word", ""),
+                "code": word_code.get("code", ""),
+                "syllables": word_syllables,
+            }
+        )
+
+    base_result = {
         "misra": original_line,
+        "full_code": full_code,
+        "syllables": syllables,
+        "syllable_breakdown": syllable_breakdown,
+        "word_codes": word_codes,
+        "feet_list": primary.get("feet_list", []) or [],
+        "candidate_count": len(meters),
+    }
+
+    if primary.get("meter_name") == "No meter match found":
+        return {
+            **base_result,
+            "result": "no bahr matched",
+            "detail": "Line was scanned but did not match any known bahr.",
+        }
+
+    return {
+        **base_result,
         "result": "exactly matched",
         "bahr": primary.get("meter_roman", ""),
         "bahr_urdu": primary.get("meter_name", ""),
-        "candidate_count": len(meters),
     }
 
 
