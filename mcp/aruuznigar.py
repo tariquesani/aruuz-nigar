@@ -1,4 +1,4 @@
-"""
+r"""
 Aruuz Nigar MCP Server
 A FastMCP wrapper for the Aruuz Nigar poetry meter analysis API.
 
