@@ -3,22 +3,17 @@ Aruuz Nigar MCP Server
 A FastMCP wrapper for the Aruuz Nigar poetry meter analysis API.
 
 Usage:
-    python aruuz_nigar_mcp.py
+    python .\mcp\aruuznigar.py
 
 Requirements:
     pip install fastmcp httpx
 
 Start servers before opening Claude Desktop:
-    python aruuz_nigar.py        # your Aruuz Nigar app
-    python aruuz_nigar_mcp.py    # this MCP server
-
-Or use a startup script:
-    #!/bin/bash
-    python /path/to/aruuz_nigar_app.py &
-    python /path/to/aruuz_nigar_mcp.py &
+    python .\app.py        # your Aruuz Nigar app
+    python .\mcp\aruuznigar.py    # this MCP server
 
 Testing without Claude (recommended before wiring into Claude Desktop):
-    fastmcp dev aruuz_nigar_mcp.py
+    fastmcp dev inspector .\mcp\aruuznigar.py:mcp
     # opens inspector UI at http://localhost:5173
 
 Claude Desktop config (~/.config/claude/claude_desktop_config.json on Linux,
@@ -27,7 +22,8 @@ Claude Desktop config (~/.config/claude/claude_desktop_config.json on Linux,
     {
         "mcpServers": {
             "aruuz-nigar": {
-                "url": "http://127.0.0.1:8765/sse"
+                "command": "npx",
+                "args": ["mcp-remote", "http://127.0.0.1:8765/sse"]
             }
         }
     }
