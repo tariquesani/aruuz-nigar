@@ -68,6 +68,7 @@ def _format_islah_scan_result(data: dict) -> dict:
     """
     Transform IslahResponse into a clean, LLM-friendly result.
     v0.1 — returns match status and bahr name only.
+    Used by the scan tool for simple bahr identification.
     """
     if "error" in data:
         return data
@@ -109,6 +110,70 @@ def _format_islah_scan_result(data: dict) -> dict:
         "misra": original_line,
         "result": "no bahr matched",
         "detail": "Line was analyzed but did not match or approximate any known bahr."
+    }
+
+
+def _format_islah_for_compare(data: dict) -> dict:
+    """
+    Transform IslahResponse into a rich, compare-ready result.
+    Preserves full_code, meter_pattern, alignment, deviations, and word_codes
+    so the compare tool can do structural comparison.
+    """
+    if "error" in data:
+        return data
+
+    analysis_level = data.get("analysis_level")
+    conforms_exactly = data.get("summary", {}).get("conforms_exactly", False)
+    original_line = data.get("original_line", "")
+
+    base = {
+        "misra": original_line,
+        "full_code": data.get("full_code", ""),
+        "word_codes": data.get("word_codes", []),
+        "feet_list": data.get("feet_list", []),
+    }
+
+    if analysis_level in ("syllables", "feet"):
+        return {
+            **base,
+            "result": "no bahr matched",
+            "detail": "Meter could not be identified. The line may have significant metrical issues.",
+        }
+
+    meters = data.get("meters", [])
+    if conforms_exactly and meters:
+        primary = meters[0]
+        return {
+            **base,
+            "result": "exactly matched",
+            "bahr": primary.get("meter_roman", ""),
+            "bahr_urdu": primary.get("meter_name", ""),
+            "meter_id": primary.get("meter_id"),
+            "meter_pattern": data.get("meter_pattern", ""),
+            "distance": 0,
+            "deviations": [],
+        }
+
+    inferred = data.get("inferred_meter")
+    if inferred:
+        alignment = data.get("alignment") or {}
+        return {
+            **base,
+            "result": "almost matched",
+            "bahr": inferred.get("meter_roman", ""),
+            "bahr_urdu": inferred.get("meter_name", ""),
+            "meter_id": inferred.get("meter_id"),
+            "score": inferred.get("score"),
+            "meter_pattern": data.get("meter_pattern", ""),
+            "distance": alignment.get("distance"),
+            "edit_ops": alignment.get("edit_ops", []),
+            "deviations": data.get("deviations", []),
+        }
+
+    return {
+        **base,
+        "result": "no bahr matched",
+        "detail": "Line was analyzed but did not match or approximate any known bahr.",
     }
 
 
@@ -196,10 +261,63 @@ def _format_scan_api_result(data: dict) -> dict:
     }
 
 
+def _build_line_detail(data: dict, label: str) -> dict:
+    """Extract the per-line detail block from a rich islah result."""
+    detail = {
+        "label": label,
+        "misra": data.get("misra", ""),
+        "result": data.get("result", ""),
+        "full_code": data.get("full_code", ""),
+        "word_codes": data.get("word_codes", []),
+        "feet_list": data.get("feet_list", []),
+    }
+    if data.get("bahr"):
+        detail["bahr"] = data["bahr"]
+        detail["bahr_urdu"] = data.get("bahr_urdu", "")
+    if data.get("meter_pattern"):
+        detail["meter_pattern"] = data["meter_pattern"]
+    if data.get("distance") is not None:
+        detail["distance"] = data["distance"]
+    if data.get("deviations"):
+        detail["deviations"] = data["deviations"]
+    if data.get("edit_ops"):
+        detail["edit_ops"] = data["edit_ops"]
+    if data.get("detail"):
+        detail["detail"] = data["detail"]
+    return detail
+
+
+def _meter_distance(source_code: str, target: dict) -> dict:
+    """
+    Call /api/meter/distance to get proper alignment-based edit distance,
+    edit_ops, and deviations for source_code against a target bahr.
+    """
+    payload = {"source_code": source_code, "target": target}
+    raw = _post("/api/meter/distance", payload)
+    if "error" in raw:
+        return raw
+    return {
+        "distance": raw.get("distance"),
+        "meter_pattern": raw.get("target", {}).get("meter_pattern", ""),
+        "edit_ops": raw.get("alignment", {}).get("edit_ops", []),
+        "deviations": raw.get("deviations", []),
+    }
+
+
+def _build_target_from_islah(data: dict) -> dict:
+    """Build a /api/meter/distance target descriptor from a rich islah result."""
+    return {
+        "meter_name": data.get("bahr_urdu", ""),
+        "meter_id": data.get("meter_id"),
+        "meter_pattern": data.get("meter_pattern", ""),
+    }
+
+
 def _format_compare_result(line1_data: dict, line2_data: dict) -> dict:
     """
-    Compare meter of two misra.
-    v0.1 — reports whether they share the same bahr.
+    Compare meter of two misra with full structural detail.
+    Uses /api/meter/distance for proper alignment-based comparison
+    against the reference bahr (same engine as the web UI).
     """
     if "error" in line1_data:
         return {"error": f"Error scanning first misra: {line1_data['error']}"}
@@ -207,36 +325,66 @@ def _format_compare_result(line1_data: dict, line2_data: dict) -> dict:
         return {"error": f"Error scanning second misra: {line2_data['error']}"}
 
     def get_bahr(data):
-        if data.get("result") == "exactly matched":
-            return data.get("bahr"), data.get("bahr_urdu")
-        if data.get("result") == "almost matched":
+        if data.get("result") in ("exactly matched", "almost matched"):
             return data.get("bahr"), data.get("bahr_urdu")
         return None, None
 
     bahr1, bahr1_urdu = get_bahr(line1_data)
     bahr2, bahr2_urdu = get_bahr(line2_data)
 
+    ref_detail = _build_line_detail(line1_data, "reference_misra")
+    misra_detail = _build_line_detail(line2_data, "misra")
+
     if not bahr1 and not bahr2:
-        return {
-            "result": "neither misra matched a known bahr",
-            "misra_1_bahr": None,
-            "misra_2_bahr": None,
+        verdict = "neither misra matched a known bahr"
+    elif bahr1 == bahr2:
+        verdict = "same bahr"
+    else:
+        verdict = "different bahr"
+
+    result: dict = {"result": verdict}
+
+    if verdict == "same bahr":
+        result["bahr"] = bahr1
+        result["bahr_urdu"] = bahr1_urdu
+
+    if verdict == "different bahr":
+        result["reference_bahr"] = bahr1 or "unidentified"
+        result["reference_bahr_urdu"] = bahr1_urdu or ""
+        result["misra_bahr"] = bahr2 or "unidentified"
+        result["misra_bahr_urdu"] = bahr2_urdu or ""
+
+    # Distance from own bahr for each line
+    ref_dist = line1_data.get("distance")
+    misra_dist = line2_data.get("distance")
+    if ref_dist is not None or misra_dist is not None:
+        result["distance_from_own_bahr"] = {
+            "reference_distance": ref_dist,
+            "misra_distance": misra_dist,
         }
 
-    if bahr1 == bahr2:
-        return {
-            "result": "same bahr",
-            "bahr": bahr1,
-            "bahr_urdu": bahr1_urdu,
-        }
+    # Measure the misra against the *reference* bahr using the alignment engine.
+    # This is the key comparison — exactly how the web UI checkbox works.
+    misra_code = line2_data.get("full_code", "")
+    ref_has_bahr = bahr1 is not None
+    if ref_has_bahr and misra_code:
+        ref_target = _build_target_from_islah(line1_data)
+        dist = _meter_distance(misra_code, ref_target)
+        if "error" not in dist:
+            result["distance_from_reference_bahr"] = {
+                "reference_bahr": bahr1,
+                "reference_bahr_urdu": bahr1_urdu or "",
+                "meter_pattern": dist["meter_pattern"],
+                "misra_code": misra_code,
+                "distance": dist["distance"],
+                "edit_ops": dist["edit_ops"],
+                "deviations": dist["deviations"],
+            }
 
-    return {
-        "result": "different bahr",
-        "misra_1_bahr": bahr1 or "unidentified",
-        "misra_1_bahr_urdu": bahr1_urdu or "",
-        "misra_2_bahr": bahr2 or "unidentified",
-        "misra_2_bahr_urdu": bahr2_urdu or "",
-    }
+    result["reference_misra"] = ref_detail
+    result["misra"] = misra_detail
+
+    return result
 
 
 # --- Tools -------------------------------------------------------------------
@@ -264,10 +412,14 @@ def scan(misra: str) -> dict:
 @mcp.tool()
 def compare(misra: str, reference_misra: str) -> dict:
     """
-    Compare the meter of two Urdu misra.
+    Compare the meter of two Urdu misra with full structural detail.
 
-    Scans both lines and reports whether they share the same bahr,
-    which matters for consistency within a ghazal.
+    Scans both lines via the islah engine and returns:
+    - Bahr match verdict (same / different / neither matched)
+    - Per-line detail: full_code, word_codes, feet_list, meter_pattern,
+      distance from bahr, deviations, and edit_ops
+    - Positional code comparison showing where the two lines diverge
+    - Distance summary showing how far each line is from its closest bahr
 
     Args:
         misra: The line to check, in Urdu script or Roman Urdu.
@@ -275,11 +427,11 @@ def compare(misra: str, reference_misra: str) -> dict:
                          typically the first misra of the matla.
 
     Returns:
-        A dict with 'result' (same bahr / different bahr / neither matched),
-        and bahr names for each line where available.
+        A dict with 'result' verdict, 'code_comparison' positional diff,
+        'distance_summary', and full 'reference_misra' / 'misra' detail blocks.
     """
-    line1 = _format_islah_scan_result(_post("/api/islah", {"text": reference_misra}))
-    line2 = _format_islah_scan_result(_post("/api/islah", {"text": misra}))
+    line1 = _format_islah_for_compare(_post("/api/islah", {"text": reference_misra}))
+    line2 = _format_islah_for_compare(_post("/api/islah", {"text": misra}))
     return _format_compare_result(line1, line2)
 
 
@@ -300,8 +452,10 @@ def help() -> str:
         Single-line input returns one result; multiline input returns per-line results.
     
     compare(misra, reference_misra)
-        Compares two Urdu misra and reports whether they share the same bahr.
-        Useful for checking consistency between lines in a ghazal.
+        Compares two Urdu misra with full structural detail: bahr match verdict,
+        per-line scansion (full_code, word_codes, feet, meter_pattern), distance
+        from the closest bahr, deviations, and a positional code diff showing
+        exactly where the two lines diverge from each other.
     
     help()
         Shows this description.
