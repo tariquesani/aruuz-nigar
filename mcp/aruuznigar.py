@@ -64,55 +64,6 @@ def _post(endpoint: str, payload: dict) -> dict:
         return {"error": str(e)}
 
 
-def _format_islah_scan_result(data: dict) -> dict:
-    """
-    Transform IslahResponse into a clean, LLM-friendly result.
-    v0.1 — returns match status and bahr name only.
-    Used by the scan tool for simple bahr identification.
-    """
-    if "error" in data:
-        return data
-
-    analysis_level = data.get("analysis_level")
-    conforms_exactly = data.get("summary", {}).get("conforms_exactly", False)
-    original_line = data.get("original_line", "")
-
-    # Did not reach meter level — serious metrical issue
-    if analysis_level in ("syllables", "feet"):
-        return {
-            "misra": original_line,
-            "result": "no bahr matched",
-            "detail": "Meter could not be identified. The line may have significant metrical issues."
-        }
-
-    # Exact match
-    meters = data.get("meters", [])
-    if conforms_exactly and meters:
-        return {
-            "misra": original_line,
-            "result": "exactly matched",
-            "bahr": meters[0].get("meter_roman", ""),
-            "bahr_urdu": meters[0].get("meter_name", ""),
-        }
-
-    # Inferred / close match
-    inferred = data.get("inferred_meter")
-    if inferred:
-        return {
-            "misra": original_line,
-            "result": "almost matched",
-            "bahr": inferred.get("meter_roman", ""),
-            "bahr_urdu": inferred.get("meter_name", ""),
-        }
-
-    # Reached meter level but nothing matched
-    return {
-        "misra": original_line,
-        "result": "no bahr matched",
-        "detail": "Line was analyzed but did not match or approximate any known bahr."
-    }
-
-
 def _format_islah_for_compare(data: dict) -> dict:
     """
     Transform IslahResponse into a rich, compare-ready result.
@@ -427,8 +378,9 @@ def compare(misra: str, reference_misra: str) -> dict:
                          typically the first misra of the matla.
 
     Returns:
-        A dict with 'result' verdict, 'code_comparison' positional diff,
-        'distance_summary', and full 'reference_misra' / 'misra' detail blocks.
+        A dict with 'result' verdict, 'distance_from_own_bahr',
+        'distance_from_reference_bahr', and full 'reference_misra' / 'misra'
+        detail blocks.
     """
     line1 = _format_islah_for_compare(_post("/api/islah", {"text": reference_misra}))
     line2 = _format_islah_for_compare(_post("/api/islah", {"text": misra}))
