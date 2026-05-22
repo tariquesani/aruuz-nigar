@@ -1,3 +1,4 @@
+import importlib.util
 import threading
 import time
 import webbrowser
@@ -14,12 +15,13 @@ else:
 
 print(f"[launcher] BASE_DIR = {BASE_DIR}")
 
-# When running from source, `python/` is the app directory.
-# When running from PyInstaller onefile, `BASE_DIR` is the extraction root.
-if hasattr(sys, "_MEIPASS"):
-    PROJECT_ROOT = BASE_DIR
-else:
-    PROJECT_ROOT = BASE_DIR.parent
+# App root is `python/` in dev and the PyInstaller extraction root when frozen.
+# (Same convention as app.py `_resolve_project_root`.)
+PROJECT_ROOT = BASE_DIR
+
+MCP_SCRIPT = PROJECT_ROOT / "mcp" / "aruuznigar.py"
+MCP_SSE_URL = "http://127.0.0.1:8765/sse"
+FLASK_URL = "http://127.0.0.1:5000"
 
 # ------------------------------------------------------------
 # Optional safety checks (fail fast if bundle is incomplete)
@@ -34,13 +36,30 @@ for d in REQUIRED_DIRS:
     if not d.exists():
         raise RuntimeError(f"Required bundled directory missing: {d}")
 
+if not MCP_SCRIPT.exists():
+    raise RuntimeError(f"Required MCP script missing: {MCP_SCRIPT}")
+
 # ------------------------------------------------------------
 # Import Flask app AFTER paths are resolved
 # ------------------------------------------------------------
-from app import app   # <-- change 'myapp' to your Flask module
+from app import app
 
 # ------------------------------------------------------------
-# Flask runner (no reloader, no debug)
+# Load MCP server module (unique name avoids shadowing PyPI `mcp`)
+# ------------------------------------------------------------
+def _load_aruuz_mcp_module():
+    spec = importlib.util.spec_from_file_location("aruuznigar_mcp", MCP_SCRIPT)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Could not load MCP module from {MCP_SCRIPT}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+aruuz_mcp = _load_aruuz_mcp_module()
+
+# ------------------------------------------------------------
+# Server runners (no reloader, no debug)
 # ------------------------------------------------------------
 def run_flask():
     print("[launcher] Starting Flask server...")
@@ -51,22 +70,28 @@ def run_flask():
         use_reloader=False,
     )
 
+
+def run_mcp():
+    print(f"[launcher] Starting MCP server (SSE {MCP_SSE_URL})...")
+    aruuz_mcp.mcp.run(transport="sse", host="127.0.0.1", port=8765)
+
 # ------------------------------------------------------------
 # Main entry point
 # ------------------------------------------------------------
 if __name__ == "__main__":
     print("[launcher] Launching Aruuz Nigar")
 
-    # Start Flask in background thread
-    t = threading.Thread(target=run_flask, daemon=True)
-    t.start()
+    flask_thread = threading.Thread(target=run_flask, daemon=True, name="flask")
+    flask_thread.start()
 
-    # Give Flask a moment to start
+    # Flask must be up before MCP tools call the API
     time.sleep(1.5)
 
-    url = "http://127.0.0.1:5000"
-    print(f"[launcher] Opening browser at {url}")
-    webbrowser.open(url)
+    mcp_thread = threading.Thread(target=run_mcp, daemon=True, name="mcp")
+    mcp_thread.start()
+
+    print(f"[launcher] Opening browser at {FLASK_URL}")
+    webbrowser.open(FLASK_URL)
 
     # Keep the process alive (console stays open)
-    t.join()
+    flask_thread.join()

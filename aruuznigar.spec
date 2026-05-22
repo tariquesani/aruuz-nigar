@@ -3,7 +3,11 @@
 # Run with: pyinstaller --clean --noconfirm aruuznigar.spec
 # Read RELEASING.md before compiling
 
+from PyInstaller.utils.hooks import collect_submodules
+
 block_cipher = None
+
+_mcp_hiddenimports = collect_submodules("mcp") + collect_submodules("fastmcp")
 
 a = Analysis(
     ["launcher.py"],
@@ -13,6 +17,7 @@ a = Analysis(
         ("web\\templates", "web\\templates"),
         ("web\\static", "web\\static"),
         ("aruuz", "aruuz"),
+        ("mcp\\aruuznigar.py", "mcp"),
     ],
     hiddenimports=[
         "flask",
@@ -23,7 +28,17 @@ a = Analysis(
         "web.api.islah",
         "web.api.radeefkafiya",
         "pkgutil",
-    ],
+        "httpx",
+        "httpcore",
+        "h11",
+        "anyio",
+        "starlette",
+        "uvicorn",
+        "sse_starlette",
+        "pydantic",
+        "pydantic_core",
+    ]
+    + _mcp_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -42,5 +57,5 @@ exe = EXE(
     name="aruuznigar",
     debug=False,
     console=True,   # set True temporarily if you want a console
-    icon = "aruuznigar.ico"
+    icon="aruuznigar.ico",
 )
