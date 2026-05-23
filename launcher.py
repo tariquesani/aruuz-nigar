@@ -73,7 +73,14 @@ def run_flask():
 
 def run_mcp():
     print(f"[launcher] Starting MCP server (SSE {MCP_SSE_URL})...")
-    aruuz_mcp.mcp.run(transport="sse", host="127.0.0.1", port=8765)
+    # Rich banner tables break under PyInstaller (dynamic unicode data modules).
+    show_banner = not hasattr(sys, "_MEIPASS")
+    aruuz_mcp.mcp.run(
+        transport="sse",
+        host="127.0.0.1",
+        port=8765,
+        show_banner=show_banner,
+    )
 
 # ------------------------------------------------------------
 # Main entry point
