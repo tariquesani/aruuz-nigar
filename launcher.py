@@ -48,6 +48,17 @@ from app import app
 # Load MCP server module (unique name avoids shadowing PyPI `mcp`)
 # ------------------------------------------------------------
 def _load_aruuz_mcp_module():
+    """
+    Load and return the bundled MCP module from the resolved MCP_SCRIPT path.
+    
+    Attempts to create an import spec for the file at MCP_SCRIPT, execute it as a module, and return the loaded module object.
+    
+    Returns:
+        module: The imported module object created from MCP_SCRIPT.
+    
+    Raises:
+        RuntimeError: If a module spec or loader cannot be created for MCP_SCRIPT.
+    """
     spec = importlib.util.spec_from_file_location("aruuznigar_mcp", MCP_SCRIPT)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Could not load MCP module from {MCP_SCRIPT}")
@@ -62,6 +73,11 @@ aruuz_mcp = _load_aruuz_mcp_module()
 # Server runners (no reloader, no debug)
 # ------------------------------------------------------------
 def run_flask():
+    """
+    Start the bundled Flask application bound to 127.0.0.1:5000.
+    
+    Runs the imported Flask `app` with debug and the reloader disabled.
+    """
     print("[launcher] Starting Flask server...")
     app.run(
         host="127.0.0.1",
@@ -72,6 +88,11 @@ def run_flask():
 
 
 def run_mcp():
+    """
+    Start the bundled MCP server configured to use SSE on the local interface.
+    
+    Starts the MCP server provided by the bundled aruuz MCP module, using Server-Sent Events transport bound to 127.0.0.1:8765. When running from a PyInstaller bundle (detected via sys._MEIPASS), suppress the rich banner to avoid unicode/module issues.
+    """
     print(f"[launcher] Starting MCP server (SSE {MCP_SSE_URL})...")
     # Rich banner tables break under PyInstaller (dynamic unicode data modules).
     show_banner = not hasattr(sys, "_MEIPASS")

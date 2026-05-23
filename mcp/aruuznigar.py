@@ -50,7 +50,16 @@ mcp = FastMCP(
 # --- Helpers -----------------------------------------------------------------
 
 def _post(endpoint: str, payload: dict) -> dict:
-    """Make a synchronous POST request to Aruuz Nigar."""
+    """
+    Send a JSON POST to the Aruuz Nigar API and return the parsed JSON response.
+    
+    Parameters:
+        endpoint (str): Path appended to the configured Aruuz Nigar base URL (e.g., "/api/scan").
+        payload (dict): JSON-serializable request body to send.
+    
+    Returns:
+        dict: The parsed JSON response on success. On failure returns a dict with an `"error"` key describing the problem (e.g., connection failure, HTTP error with status code and response text, or other exception message).
+    """
     url = f"{ARUUZ_NIGAR_BASE_URL}{endpoint}"
     try:
         response = httpx.post(url, json=payload, timeout=10.0)
@@ -66,9 +75,23 @@ def _post(endpoint: str, payload: dict) -> dict:
 
 def _format_islah_for_compare(data: dict) -> dict:
     """
-    Transform IslahResponse into a rich, compare-ready result.
-    Preserves full_code, meter_pattern, alignment, deviations, and word_codes
-    so the compare tool can do structural comparison.
+    Convert an /api/islah response into a compare-ready result describing the line's metrical match status and related metadata.
+    
+    The returned dictionary always includes at least:
+    - `misra`: original line text
+    - `full_code`, `word_codes`, `feet_list`: structural code data used for alignment/comparison
+    - `result`: one of `"exactly matched"`, `"almost matched"`, or `"no bahr matched"`
+    
+    Depending on `result`, additional fields are present:
+    - For `"exactly matched"`: `bahr`, `bahr_urdu`, `meter_id`, `meter_pattern`, `distance` (0), and `deviations` (empty list).
+    - For `"almost matched"`: `bahr`, `bahr_urdu`, `meter_id`, `score`, `meter_pattern`, `distance`, `edit_ops`, and `deviations`.
+    - For `"no bahr matched"`: `detail` with a short explanatory message.
+    
+    Parameters:
+        data (dict): Raw JSON-like response from the Aruuz Nigar `/api/islah` endpoint.
+    
+    Returns:
+        dict: A normalized, compare-oriented representation of the analysis suitable for downstream comparison and distance computations.
     """
     if "error" in data:
         return data
@@ -129,7 +152,24 @@ def _format_islah_for_compare(data: dict) -> dict:
 
 
 def _format_scan_line_result(line_result: dict) -> dict:
-    """Transform one /api/scan line_result into MCP scan output shape."""
+    """
+    Format a single /api/scan line_result into the MCP scan response structure.
+    
+    If no meter candidates are present, the result will be `"no bahr matched"` with a `detail` explaining that no candidates were found. If the selected primary meter has the name `"No meter match found"`, the result will likewise be `"no bahr matched"` with a different explanatory `detail`. Otherwise the result will be `"exactly matched"` and include the matched bahr identifiers.
+    
+    Parameters:
+        line_result (dict): One element from the /api/scan `line_results` list.
+    
+    Returns:
+        dict: Formatted line object including:
+            - `misra`: original input line
+            - `result`: one of `"exactly matched"` or `"no bahr matched"`
+            - `detail`: explanatory text when no match
+            - `full_code`, `word_codes`, `syllables`, `syllable_breakdown`
+            - `feet_list`
+            - `candidate_count`
+            - when exactly matched: `bahr` (roman) and `bahr_urdu` (name)
+    """
     original_line = line_result.get("original_line", "")
     meters = line_result.get("meters", []) or []
 
@@ -189,9 +229,13 @@ def _format_scan_line_result(line_result: dict) -> dict:
 
 def _format_scan_api_result(data: dict) -> dict:
     """
-    Transform /api/scan response into MCP scan output.
-    - Single-line input returns a single result object (backward compatible).
-    - Multi-line input returns {"results": [...]} preserving line order.
+    Convert an /api/scan response into the MCP scan output structure.
+    
+    Returns:
+        A single formatted result dict when the input contains one line.
+        Otherwise a dict with keys `num_lines` (int) and `results` (list of formatted result dicts).
+        If `data` contains an `"error"` key, that dict is returned unchanged.
+        If `line_results` is missing or not a list, returns `{"error": "Unexpected /api/scan response: missing line_results list."}`.
     """
     if "error" in data:
         return data
@@ -213,7 +257,28 @@ def _format_scan_api_result(data: dict) -> dict:
 
 
 def _build_line_detail(data: dict, label: str) -> dict:
-    """Extract the per-line detail block from a rich islah result."""
+    """
+    Builds a compact per-line detail dictionary used in compare results.
+    
+    Parameters:
+        data (dict): Formatted islah line structure containing keys like `misra`, `result`, `full_code`, `word_codes`, `feet_list`, and optionally `bahr`, `bahr_urdu`, `meter_pattern`, `distance`, `deviations`, `edit_ops`, `detail`.
+        label (str): Human-readable label to attach to the detail block (e.g., "reference" or "misra").
+    
+    Returns:
+        dict: Detail dictionary with keys:
+            - label (str)
+            - misra (str)
+            - result (str)
+            - full_code (str)
+            - word_codes (list)
+            - feet_list (list)
+            - bahr (str) and bahr_urdu (str) — included if `data` contains `bahr`
+            - meter_pattern (str) — included if present
+            - distance (numeric) — included if present and not None
+            - deviations (list) — included if present
+            - edit_ops (list) — included if present
+            - detail (str) — included if present
+    """
     detail = {
         "label": label,
         "misra": data.get("misra", ""),
@@ -240,8 +305,19 @@ def _build_line_detail(data: dict, label: str) -> dict:
 
 def _meter_distance(source_code: str, target: dict) -> dict:
     """
-    Call /api/meter/distance to get proper alignment-based edit distance,
-    edit_ops, and deviations for source_code against a target bahr.
+    Compute alignment-based distance and alignment details between a source meter code and a target bahr descriptor.
+    
+    Parameters:
+        source_code (str): The encoded meter string for the misra to compare.
+        target (dict): A bahr descriptor containing at least `meter_pattern`/`meter_id`/`meter_name` used by the distance API.
+    
+    Returns:
+        dict: On success, a dictionary with keys:
+            - `distance` (number|None): Alignment distance between source and target.
+            - `meter_pattern` (str): The target's meter pattern.
+            - `edit_ops` (list): List of edit operations from the alignment.
+            - `deviations` (list): Any deviations reported by the API.
+        If the API call failed, returns the original error dictionary returned by the POST helper (contains an `error` key).
     """
     payload = {"source_code": source_code, "target": target}
     raw = _post("/api/meter/distance", payload)
@@ -256,7 +332,18 @@ def _meter_distance(source_code: str, target: dict) -> dict:
 
 
 def _build_target_from_islah(data: dict) -> dict:
-    """Build a /api/meter/distance target descriptor from a rich islah result."""
+    """
+    Constructs the target descriptor required by the /api/meter/distance endpoint from an islah-derived line structure.
+    
+    Parameters:
+        data (dict): The islah-formatted line dictionary; expected to contain keys `bahr_urdu`, `meter_id`, and `meter_pattern` when available.
+    
+    Returns:
+        dict: A target descriptor with keys:
+            - `meter_name` (str): Urdu name of the meter taken from `bahr_urdu` or empty string if missing.
+            - `meter_id` (any): Meter identifier taken from `meter_id` (may be None).
+            - `meter_pattern` (str): Meter pattern string taken from `meter_pattern` or empty string if missing.
+    """
     return {
         "meter_name": data.get("bahr_urdu", ""),
         "meter_id": data.get("meter_id"),
@@ -266,9 +353,21 @@ def _build_target_from_islah(data: dict) -> dict:
 
 def _format_compare_result(line1_data: dict, line2_data: dict) -> dict:
     """
-    Compare meter of two misra with full structural detail.
-    Uses /api/meter/distance for proper alignment-based comparison
-    against the reference bahr (same engine as the web UI).
+    Compare two formatted misra analyses and produce a structured comparison verdict and details.
+    
+    Parameters:
+        line1_data (dict): Formatted islah result for the reference misra (compare-oriented structure).
+        line2_data (dict): Formatted islah result for the misra under test (compare-oriented structure).
+    
+    Returns:
+        dict: A comparison result containing:
+            - result (str): One of "neither misra matched a known bahr", "same bahr", or "different bahr".
+            - For "same bahr": `bahr` and `bahr_urdu`.
+            - For "different bahr": `reference_bahr`, `reference_bahr_urdu`, `misra_bahr`, `misra_bahr_urdu` (uses "unidentified" or empty string when missing).
+            - distance_from_own_bahr (dict, optional): { "reference_distance": <number|null>, "misra_distance": <number|null> } when either input supplies a distance.
+            - distance_from_reference_bahr (dict, optional): alignment result when the reference has an identified bahr and the misra has a full code, containing `reference_bahr`, `reference_bahr_urdu`, `meter_pattern`, `misra_code`, `distance`, `edit_ops`, and `deviations`.
+            - reference_misra (dict): Per-line detail block for the reference (as produced by _build_line_detail).
+            - misra (dict): Per-line detail block for the tested misra (as produced by _build_line_detail).
     """
     if "error" in line1_data:
         return {"error": f"Error scanning first misra: {line1_data['error']}"}
@@ -276,6 +375,17 @@ def _format_compare_result(line1_data: dict, line2_data: dict) -> dict:
         return {"error": f"Error scanning second misra: {line2_data['error']}"}
 
     def get_bahr(data):
+        """
+        Extracts the bahr identifiers from a formatted line result when a bahr match is present.
+        
+        Parameters:
+            data (dict): A formatted result dictionary that may contain the keys
+                `"result"`, `"bahr"`, and `"bahr_urdu"`.
+        
+        Returns:
+            tuple: `(bahr, bahr_urdu)` when `data["result"]` is `"exactly matched"` or
+            `"almost matched"`, `(None, None)` otherwise.
+        """
         if data.get("result") in ("exactly matched", "almost matched"):
             return data.get("bahr"), data.get("bahr_urdu")
         return None, None
@@ -343,18 +453,15 @@ def _format_compare_result(line1_data: dict, line2_data: dict) -> dict:
 @mcp.tool()
 def scan(misra: str) -> dict:
     """
-    Scan one or more Urdu misra and return meter (bahr) analysis.
-
-    For single-line input, returns one result object.
-    For multiline input (newline-separated), returns a per-line result list.
-
-    Args:
-        misra: One or more lines of Urdu poetry in Urdu script or Roman Urdu.
-               Separate multiple lines using newlines.
-
+    Scan one or more Urdu misra and produce meter (bahr) analysis.
+    
+    Accepts a single line or multiple newline-separated lines. Single-line input yields a single formatted result object; multiline input yields a dictionary with `num_lines` and `results` preserving input order.
+    
+    Parameters:
+        misra (str): One or more lines of Urdu poetry (Urdu script or Roman Urdu). Use newlines to separate multiple lines.
+    
     Returns:
-        Single line: {'result', 'bahr', 'bahr_urdu', ...}
-        Multiple lines: {'num_lines', 'results': [ ... per-line outputs ... ]}
+        dict: For a single line, a formatted result object containing keys such as `result`, `bahr`, `bahr_urdu`, `full_code`, and related analysis fields. For multiple lines, `{'num_lines': <count>, 'results': [<per-line result objects>]}`.
     """
     raw = _post("/api/scan", {"text": misra})
     return _format_scan_api_result(raw)
@@ -363,24 +470,14 @@ def scan(misra: str) -> dict:
 @mcp.tool()
 def compare(misra: str, reference_misra: str) -> dict:
     """
-    Compare the meter of two Urdu misra with full structural detail.
-
-    Scans both lines via the islah engine and returns:
-    - Bahr match verdict (same / different / neither matched)
-    - Per-line detail: full_code, word_codes, feet_list, meter_pattern,
-      distance from bahr, deviations, and edit_ops
-    - Positional code comparison showing where the two lines diverge
-    - Distance summary showing how far each line is from its closest bahr
-
-    Args:
-        misra: The line to check, in Urdu script or Roman Urdu.
-        reference_misra: The reference line to compare against,
-                         typically the first misra of the matla.
-
+    Compare two Urdu misra and produce a structured verdict with per-line meter analysis.
+    
     Returns:
-        A dict with 'result' verdict, 'distance_from_own_bahr',
-        'distance_from_reference_bahr', and full 'reference_misra' / 'misra'
-        detail blocks.
+        result (str): Verdict string: one of "same bahr", "different bahr", or "neither misra matched a known bahr".
+        reference_misra (dict): Detail block for the reference line containing keys such as `misra`, `misra_code`/`full_code`, `word_codes`, `feet_list`, and, when available, `bahr`, `bahr_urdu`, `meter_pattern`, `distance`, `deviations`, `edit_ops`, or `detail`.
+        misra (dict): Detail block for the compared line with the same structure as `reference_misra`.
+        distance_from_own_bahr (dict, optional): When available, includes `reference_distance` and/or `misra_distance` showing each line's distance from its own closest matched bahr.
+        distance_from_reference_bahr (dict, optional): When computed, contains the reference bahr identifiers and `meter_pattern`, the `misra_code` used for alignment, and alignment results: `distance`, `edit_ops`, and `deviations`.
     """
     line1 = _format_islah_for_compare(_post("/api/islah", {"text": reference_misra}))
     line2 = _format_islah_for_compare(_post("/api/islah", {"text": misra}))
@@ -390,9 +487,17 @@ def compare(misra: str, reference_misra: str) -> dict:
 @mcp.tool()
 def help() -> str:
     """
-    Describe what this MCP server can do.
-
-    Returns a plain text description of available tools.
+    List available MCP tools and summarize their behavior.
+    
+    Provides a concise, human-readable description of the server's tools:
+    - scan(misra): Scans one or more Urdu misra (newline-separated). Single-line input returns one formatted result; multiline input returns per-line results.
+    - compare(misra, reference_misra): Compares two misra producing a verdict (same/different/unidentified bahr), per-line scansion details (full_code, word_codes, feet, meter_pattern), distance metrics, deviations, and alignment edit operations.
+    - help(): Shows this description.
+    
+    Note: Meter analysis is performed by a locally running Aruuz Nigar service; results are analytical suggestions and may require user judgement.
+    
+    Returns:
+        description (str): A multi-line human-readable help message describing available tools and notes.
     """
     return """
     Aruuz Nigar MCP server provides meter (bahr) analysis for Urdu poetry.
