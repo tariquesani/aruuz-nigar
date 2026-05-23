@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## 1.2.0 - 2026-05-23
+
+### Highlights
+- Added Aruuz Nigar MCP server support for programmatic Urdu poetry meter analysis from compatible tools. Tested with Claude Desktop. Release page has a .mcpb file for easy installation
+- Improved islah with stronger bahr matching feedback, including line-level meter distance and clearer result layout.
+- Added Docker packaging and a unified launcher for running the web app and MCP server together.
+
+### Notable Changes
+- Extended scan workflows to support multiple Urdu misra inputs with improved result formatting.
+- Added Swagger UI for easier API exploration and documentation.
+- Added detailed meter comparison helpers for deeper analysis use cases.
+- Improved Windows packaging with an updated PyInstaller build configuration.
+- Added a CodeTree visualization utility for exploring meter pattern matching.
+- Launcher now checks Flask readiness before starting dependent services.
+
 ## 1.1.0 - 2026-05-01
 
 ### Highlights
