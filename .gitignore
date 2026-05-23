@@ -105,3 +105,4 @@ CHANGELOG.release-draft.md
 RELEASING.md
 scripts/ghazal*.txt
 site/CHANGELOG/index.html
+Dockerfile.release
