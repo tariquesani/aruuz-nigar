@@ -1,0 +1,27 @@
+# CasaOS Custom App — Aruuz Nigar (main line, public GHCR image)
+#
+# Import this file in CasaOS (Settings → Compose → Custom App), or:
+#   docker compose pull && docker compose up -d
+#
+# Public image: no docker login required on CasaOS.
+# Web UI:  http://<host-ip>:5000
+# MCP SSE: http://<host-ip>:8765/sse
+
+services:
+  aruuz-nigar:
+    image: ghcr.io/tariquesani/aruuz-nigar:main
+    container_name: aruuz-nigar-main
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+      - "8765:8765"
+    environment:
+      ARUUZ_GIT_REPO: https://github.com/tariquesani/aruuz-nigar.git
+      ARUUZ_GIT_REF: main
+      # GIT_TOKEN: ""   # only if the git repo is private
+    volumes:
+      # Cached clone; entrypoint git pull runs here on every start/restart
+      - aruuz-src:/app/src
+
+volumes:
+  aruuz-src:
