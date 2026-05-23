@@ -9,7 +9,7 @@
 
 ## What is Aruuz Nigar?
 
-Aruuz Nigar is an Urdu poetry tool that helps poets and readers work with **arūz** and **ghazal rhyme**. For meter, it infers the taqti of individual lines and matches them against known **bahrs**. For ghazals, it can check **radeef** and **kafiya** (strict Urdu-script radeef detection, kafiya consistency against the matla, plus phonetic hints where applicable). It also ships with a **basic kafiya dictionary**: look up an Urdu word and browse rhyming words grouped by match quality.
+Aruuz Nigar is an Urdu poetry tool that helps poets and readers work with **arūz** and **ghazal rhyme**. For meter, it infers the taqti of individual lines and matches them against known **bahrs**. For ghazals, it can check **radeef** and **kafiya** (strict Urdu-script radeef detection, kafiya consistency against the matla, plus phonetic hints where applicable). It also ships with a **basic kafiya dictionary**: look up an Urdu word and browse rhyming words grouped by match quality. An **MCP server** exposes the same scansion and analysis capabilities to compatible AI assistants and editors.
 
 The project has two parts: **Aruuz**, a reusable Python library (scansion, meter matching, and rhyme utilities), and **Nigar**, a Flask-based web frontend that exposes scansion, islah-style radeef/kafiya feedback, and the dictionary UI.
 
@@ -21,10 +21,9 @@ Aruuz Nigar was created for my understanding of Urdu arūz. While tools such as 
 
 ### For Windows end-users
 
-Download the executable file from [**HERE**](https://github.com/tariquesani/aruuz-nigar/releases). Save and double click on `aruuznigar.exe`. A browser with the Web interface will launch, if it doesn't, open `http://127.0.0.1:5000` in your browser. **No install, setup or python needed!**
+Download the executable from [**HERE**](https://github.com/tariquesani/aruuz-nigar/releases). Save and double-click `aruuznigar.exe`. It starts the web UI and the MCP server together, then opens your browser. If it does not, open `http://127.0.0.1:5000` manually. **No install, setup, or Python needed.**
 
-**Note**: The Windows executable runs a local Flask web server and opens the interface in your browser.
-All processing happens locally on your machine, and no external network access is required.
+**Note**: The executable runs locally: Flask on port **5000** (web UI and API) and the MCP server on port **8765** (SSE at `http://127.0.0.1:8765/sse`). All processing stays on your machine; no external network access is required for normal use. To connect a compatible AI assistant, point it at that MCP endpoint (some releases also include a `.mcpb` bundle for tools such as Claude Desktop).
 
 ### For everyone else
 
@@ -56,20 +55,21 @@ All processing happens locally on your machine, and no external network access i
    pip install -r requirements.txt
    ```
 
-3. **Run the Flask web application (Nigar):**
+3. **Run Aruuz Nigar (web + MCP):**
    ```bash
-   python app.py
+   python launcher.py
    ```
-   Then open your browser to: `http://127.0.0.1:5000`
+   This starts the Flask app at `http://127.0.0.1:5000` and the MCP server at `http://127.0.0.1:8765/sse` (same behavior as the Windows executable).
 
-   The web app provides:
-   - RTL (right-to-left) text input for Urdu poetry
-   - RTL display of scansion codes
-   - Meter matching and identification
-   - Ghazal **radeef** and **kafiya** checks (e.g. in islah), via `/api/radeefkafiya`
-   - A **Kafiya** dictionary lookup for rhyming words
+   For development you can run services separately: `python app.py` for the web UI only, and `python mcp/aruuznigar.py` for MCP after Flask is up. See `mcp/README.md` for the FastMCP dev inspector workflow.
 
-4. **For developers, use as a Python library (Aruuz):**
+4. **Docker (optional):**
+   ```bash
+   docker compose up -d
+   ```
+   Web UI: `http://<host>:5000`, MCP: `http://<host>:8765/sse`
+
+5. **For developers, use as a Python library (Aruuz):**
 
    ```python
    from aruuz.scansion import Scansion
@@ -83,52 +83,30 @@ All processing happens locally on your machine, and no external network access i
 
 ## Project Structure
 
-- `aruuz/` - Main package (Aruuz library)
-  - `scansion/` - Core scansion engine modules
-    - `core.py` - Main scansion engine
-    - `word_analysis.py` - Word-level analysis
-    - `word_scansion_assigner.py` - Word scansion assignment
-    - `code_assignment.py` - Code assignment logic
-    - `length_scanners.py` - Length scanning functions
-    - `meter_matching.py` - Meter matching algorithms
-    - `prosodic_rules.py` - Prosodic rules and adjustments
-    - `scoring.py` - Scoring mechanisms
-    - `explanation_builder.py` - Explanation generation
-  - `tree/` - Pattern matching trees
-    - `code_tree.py` - Code tree implementation
-    - `pattern_tree.py` - Pattern tree matching
-    - `state_machine.py` - State machine for pattern matching
-  - `database/` - Database functionality
-    - `word_lookup.py` - Word lookup from database
-    - `aruuz_nigar.db` - SQLite database
-    - `kafiya_index.pkl` - Binary index for the kafiya dictionary (build scripts populate this)
-  - `rhyme/` - Ghazal rhyme utilities
-    - `radeef.py` - Strict radeef detection
-    - `kafiya.py` - Kafiya checking (composes with radeef)
-    - `kafiya_dict.py` - Dictionary lookup API (`KafiyaDict`)
-    - `text_utils.py` - Shared Urdu normalization for rhyme
-  - `utils/` - Utility functions
-    - `text.py` - Text processing utilities
-    - `araab.py` - Diacritical marks handling
-    - `logging_config.py` - Logging configuration
-  - `meters.py` - Meter definitions (bahrs)
-  - `models.py` - Data models (Lines, Words, etc.)
-- `app.py` - Flask web application (Nigar frontend)
-- `web/templates/` - Flask HTML templates
-  - `index.html` - Main scansion interface
-  - `islah.html` - Meter check with radeef/kafiya feedback
-  - `kafiya.html` - Kafiya dictionary lookup
-- `web/api/` - JSON API handlers (including radeef/kafiya)
-- `web/static/` - Static web assets (CSS, JS, images)
-- `scripts/` - CLI scripts and utilities
-  - `scan_poetry.py` - Poetry scanning script
-  - `scan_word.py` - Word scanning script
-- `tests/` - Test suite
-  - `legacy/` - Legacy test files
-  - `test_canonical_sher_to_bahr_mapping.py` - Canonical test mappings
-- `docs/` - Documentation files
-- `setup.py` - Package setup configuration
-- `requirements.txt` - Python dependencies
+- `aruuz/` — Core Python library (scansion, meters, rhyme, trees)
+  - `scansion/` — Scansion engine (`core.py`, word analysis/assignment, length scanners, meter matching, prosodic rules, scoring, `explanation_builder.py`)
+  - `tree/` — Pattern matching (`code_tree.py`, `pattern_tree.py`, `state_machine.py`)
+  - `database/` — Word lookup and metadata (`word_lookup.py`, `word_metadata.json`, `word_vazn_metadata.json`; `aruuz_nigar.db` and `kafiya_index.pkl` are built or supplied at runtime)
+  - `rhyme/` — Ghazal rhyme (`radeef.py`, `kafiya.py`, `kafiya_dict.py`, `text_utils.py`)
+  - `utils/` — Text/diacritics, logging, alignment (`text.py`, `araab.py`, `aligner.py`, `meter_align.py`, `meter_summaries.py`, `logging_config.py`)
+  - `meters.py`, `models.py` — Bahr definitions and data models
+- `app.py` — Flask application (Nigar web UI and `/api` routes)
+- `launcher.py` — Starts Flask + MCP together (used by `aruuznigar.exe` and recommended for local runs)
+- `serve_flask_mcp.py` — Alternate subprocess launcher for Flask + MCP
+- `mcp/` — MCP server (`aruuznigar.py`) for AI tool integration; see `mcp/README.md`
+- `web/` — Frontend
+  - `templates/` — `index.html` (scansion), `islah.html`, `kafiya.html` (qafiya dictionary UI)
+  - `api/` — JSON handlers (`scan.py`, `islah.py`, `meter_dominant.py`, `meter_distance.py`, `radeefkafiya.py`; discovery-based routing)
+  - `static/` — CSS, JS, fonts, images
+- `scripts/` — CLI and maintenance tools
+  - Scansion: `scan_poetry.py`, `scan_word.py`, `show_tree.py`
+  - Rhyme/qafiya: `check_kafiya.py`, `check_radeef.py`, `get_kafiya.py`, `build_words_index.py`
+  - Metadata: `build_word_metadata_json.py`, `build_word_vazn_json.py`
+- `tests/` — `test_canonical_sher_to_bahr_mapping.py`, `test_aligner.py`, `legacy/` (older suites)
+- `docs/` — MkDocs site (`index.md`, `CHANGELOG.md`, `guides/`, `api/openapi.yml`)
+- `docker-compose.yml`, `Dockerfile.main`, `Dockerfile.release` — Container deployment
+- `aruuznigar.spec` — PyInstaller spec for Windows `aruuznigar.exe`
+- `setup.py`, `requirements.txt` — Package install and dependencies
 
 
 ## Notes
