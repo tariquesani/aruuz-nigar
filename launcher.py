@@ -1,6 +1,8 @@
 import importlib.util
 import threading
 import time
+import urllib.error
+import urllib.request
 import webbrowser
 import sys
 from pathlib import Path
@@ -22,6 +24,9 @@ PROJECT_ROOT = BASE_DIR
 MCP_SCRIPT = PROJECT_ROOT / "mcp" / "aruuznigar.py"
 MCP_SSE_URL = "http://127.0.0.1:8765/sse"
 FLASK_URL = "http://127.0.0.1:5000"
+FLASK_HEALTH_URL = f"{FLASK_URL}/heartbeat"
+FLASK_READY_TIMEOUT_S = 30.0
+FLASK_READY_POLL_INTERVAL_S = 0.25
 
 # ------------------------------------------------------------
 # Optional safety checks (fail fast if bundle is incomplete)
@@ -71,6 +76,35 @@ def run_flask():
     )
 
 
+def wait_for_flask_ready() -> None:
+    """Poll Flask /heartbeat until it responds or timeout elapses."""
+    deadline = time.monotonic() + FLASK_READY_TIMEOUT_S
+    attempt = 0
+    last_error: str | None = None
+
+    while time.monotonic() < deadline:
+        attempt += 1
+        try:
+            with urllib.request.urlopen(FLASK_HEALTH_URL, timeout=2) as resp:
+                if resp.status == 200:
+                    print(
+                        f"[launcher] Flask ready at {FLASK_HEALTH_URL} "
+                        f"(attempt {attempt})"
+                    )
+                    return
+                last_error = f"HTTP {resp.status}"
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last_error = str(exc)
+
+        print(f"[launcher] Flask not ready (attempt {attempt}): {last_error}")
+        time.sleep(FLASK_READY_POLL_INTERVAL_S)
+
+    raise RuntimeError(
+        f"Flask did not become ready within {FLASK_READY_TIMEOUT_S:.0f}s "
+        f"({FLASK_HEALTH_URL}); last error: {last_error}"
+    )
+
+
 def run_mcp():
     print(f"[launcher] Starting MCP server (SSE {MCP_SSE_URL})...")
     # Rich banner tables break under PyInstaller (dynamic unicode data modules).
@@ -92,7 +126,7 @@ if __name__ == "__main__":
     flask_thread.start()
 
     # Flask must be up before MCP tools call the API
-    time.sleep(1.5)
+    wait_for_flask_ready()
 
     mcp_thread = threading.Thread(target=run_mcp, daemon=True, name="mcp")
     mcp_thread.start()
