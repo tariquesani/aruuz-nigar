@@ -1,0 +1,2 @@
+docker-entrypoint-main.sh text eol=lf
+Dockerfile.main text eol=lf
