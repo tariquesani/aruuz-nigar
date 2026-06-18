@@ -66,6 +66,9 @@
             <span class="ms-2"><code class="text-dark">–</code> short syllable</span>
             <span class="ms-3"><code class="text-dark">=</code> long syllable</span>
             <span class="ms-3"><code class="text-dark">X</code> flexible (short or long)</span>
+            <span class="ms-3"><span class="d-inline-block align-middle rounded px-1" style="background-color: rgba(25, 135, 84, 0.2);">word</span> Radeef/Qafiya match</span>
+            <span class="ms-3"><span class="d-inline-block align-middle rounded px-1" style="background-color: rgba(220, 53, 69, 0.25);">word</span> Radeef/Qafiya mismatch</span>
+            <span class="ms-3">Select different primary bahr by clicking the checkbox</span>
         </small>
     </div>
     <!-- One block per line: hidden during batch update to prevent flicker -->
@@ -142,7 +145,7 @@
                 <span class="text-muted small me-1">ردیف:</span>
                 <span x-text="rhymeFooterRadeef || '—'"></span>
                 <span class="text-muted small mx-2">—</span>
-                <span class="text-muted small me-1">قافیہ (پہلا مصرع):</span>
+                <span class="text-muted small me-1" x-text="hasMatla ? 'قافیہ (پہلا مصرع):' : 'قافیہ (حوالہ):'"></span>
                 <span x-text="rhymeFooterQafiya || '—'"></span>
             </div>
         </div>
@@ -152,6 +155,11 @@
     <div class="card mb-3 mt-4">
         <div class="card-body py-3">
             <form @submit.prevent="submit">
+                <div class="form-check mb-2">
+                    <input type="checkbox" class="form-check-input" id="has-matla" x-model="hasMatla"
+                        @change="rhymePayload = null; rhymeLineMeta = []; silentUpdate()">
+                    <label class="form-check-label" for="has-matla">Has Matla</label>
+                </div>
                 <label for="islah-text" class="form-label">Enter Urdu Poetry Lines (one per line)</label>
                 <textarea id="islah-text" class="form-control form-control-lg urdu-input mb-3" dir="rtl" lang="ur" rows="5"
                     placeholder="Start typing your poetry here..." x-model="text" :disabled="loading"
@@ -201,11 +209,23 @@
         return m;
     }
 
+    /** Word index for the kafiya token returned by the rhyme API (matches scansion grid). */
+    function wordIndexForQafiyaWord(islahRes, qafiyaWord) {
+        if (!islahRes?.original_line || !qafiyaWord) return -1;
+        const target = String(qafiyaWord).trim();
+        if (!target) return -1;
+        const words = islahRes.original_line.trim().split(/\s+/).filter((w) => w.length > 0);
+        for (let i = words.length - 1; i >= 0; i--) {
+            if (words[i] === target) return i;
+        }
+        return -1;
+    }
+
     /**
      * Per islah line index: radeef/qafiya ranges use word_index space from word_boundaries
      * (same as Row 1), so highlights match the scansion grid.
      */
-    function buildRhymeLineMeta(text, payload, lineResults) {
+    function buildRhymeLineMeta(text, payload, lineResults, hasMatla) {
         const empty = [];
         if (!payload || !payload.results) return empty;
         const r = payload.results.radeef;
@@ -246,7 +266,11 @@
             };
             if (!lr) {
                 const km0 = qafiyaByVerse.get(verseIdx) || qafiyaMap.get(Number(ln));
-                if (km0) meta.qafiyaStatus = km0.status;
+                if (km0 && (hasMatla || meta.relevant)) {
+                    meta.qafiyaStatus = km0.status;
+                    const qIdx = wordIndexForQafiyaWord(islahRes, km0.word);
+                    if (qIdx >= 0) meta.qafiyaIndex = qIdx;
+                }
                 return meta;
             }
 
@@ -275,7 +299,15 @@
             }
 
             const km = qafiyaByVerse.get(verseIdx) || qafiyaMap.get(Number(ln));
-            if (km) meta.qafiyaStatus = km.status;
+            if (km && (hasMatla || meta.relevant)) {
+                meta.qafiyaStatus = km.status;
+                const qIdx = wordIndexForQafiyaWord(islahRes, km.word);
+                if (qIdx >= 0) {
+                    meta.qafiyaIndex = qIdx;
+                } else if (meta.qafiyaIndex < 0 && meta.radeefStart > 0) {
+                    meta.qafiyaIndex = meta.radeefStart - 1;
+                }
+            }
             return meta;
         });
     }
@@ -308,11 +340,11 @@
             return res.json();
         },
 
-        async fetchRadeefQafiya(fullText) {
+        async fetchRadeefQafiya(fullText, hasMatla) {
             const res = await fetch(CONFIG.API_ENDPOINTS.RADEEF_QAFIYA, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: fullText }),
+                body: JSON.stringify({ text: fullText, has_matla: !!hasMatla }),
             });
             const raw = await res.text();
             if (!res.ok) throw new Error(raw || `HTTP ${res.status}`);
@@ -373,6 +405,7 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('islahApp', () => ({
             text: '',
+            hasMatla: false,
             lineResults: [],
             previousLines: [],
             loading: false,
@@ -398,11 +431,16 @@
             get rhymeFooterQafiya() {
                 const rows = this.rhymePayload?.results?.kafiya?.results;
                 if (!rows || !rows.length) return '';
-                const row = rows.find((r) => Number(r.verse_index) === 1)
-                    || rows.find((r) => {
-                        const nums = nonEmptyLineNumbers(this.text);
-                        return nums.length && Number(r.line_no) === nums[0];
-                    });
+                const refs = rows
+                    .filter((r) => r.status === 'reference')
+                    .sort((a, b) => Number(a.verse_index) - Number(b.verse_index));
+                if (this.hasMatla) {
+                    const row = refs.find((r) => Number(r.verse_index) === 1)
+                        || refs.find((r) => Number(r.verse_index) === 2)
+                        || refs[0];
+                    return row && row.word ? String(row.word) : '';
+                }
+                const row = refs.find((r) => Number(r.verse_index) >= 2) || refs[0];
                 return row && row.word ? String(row.word) : '';
             },
 
@@ -841,8 +879,10 @@
                     this.rhymeLoading = true;
                     this.rhymeError = null;
                     try {
-                        this.rhymePayload = await IslahAPI.fetchRadeefQafiya(this.text);
-                        this.rhymeLineMeta = buildRhymeLineMeta(this.text, this.rhymePayload, this.lineResults);
+                        this.rhymePayload = await IslahAPI.fetchRadeefQafiya(this.text, this.hasMatla);
+                        this.rhymeLineMeta = buildRhymeLineMeta(
+                            this.text, this.rhymePayload, this.lineResults, this.hasMatla
+                        );
                     } catch (err) {
                         console.error('Radeef/qafiya:', err);
                         this.rhymeError = err.message || 'Request failed';
