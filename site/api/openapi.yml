@@ -1,0 +1,791 @@
+openapi: 3.1.0
+info:
+  title: Aruuz Nigar API
+  version: 1.0.0
+  description: |
+    OpenAPI specification for the current Flask API implementation in `web/api`.
+    Endpoints document request formats accepted by handlers and response structures
+    guaranteed by code.
+
+servers:
+  - url: /
+    description: Relative server root
+
+tags:
+  - name: Health
+  - name: Scansion
+  - name: Meter
+  - name: Radeef/Kafiya
+  - name: Islah
+
+paths:
+  /heartbeat:
+    get:
+      tags: [Health]
+      summary: Health check endpoint
+      responses:
+        '200':
+          description: Server is up
+
+  /api/scan:
+    post:
+      tags: [Scansion]
+      summary: Scan one or more Urdu poetry lines
+      description: |
+        Accepts input as JSON, form-data, or raw text. JSON/form variants use a `text` field.
+        Returns comprehensive scansion output from `Scansion.get_scansion()`, with each
+        line candidate list exposed as `meters` (renamed from internal `results`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TextInput'
+            examples:
+              json:
+                value:
+                  text: "دل ہی تو ہے\nسنگ و خشت"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TextInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TextInput'
+          text/plain:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Scansion response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResponse'
+        '400':
+          description: Input validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidTextType:
+                  value: { error: "Field 'text' must be a string" }
+                emptyText:
+                  value: { error: "Please enter at least one line of Urdu poetry" }
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal processing error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                processing:
+                  value: { error: "Error processing lines" }
+
+  /api/meter/distance:
+    post:
+      tags: [Meter]
+      summary: Compute alignment distance against a target meter
+      description: |
+        Resolves target pattern from `target.meter_pattern`, `target.meter_id`,
+        or `target.meter_name`; then aligns `source_code` and reports edit distance,
+        edit operations, leverage intervals, and normalized deviations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeterDistanceRequest'
+      responses:
+        '200':
+          description: Distance and alignment result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeterDistanceResponse'
+        '400':
+          description: Invalid request body or unresolved target
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/meter/dominant:
+    post:
+      tags: [Meter]
+      summary: Resolve dominant meter from a list of candidates
+      description: |
+        Expects `results` array with `meter_name` and `feet` for each item.
+        Returns either an empty object when unresolved or one dominant object.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeterDominantRequest'
+      responses:
+        '200':
+          description: Dominant meter object or empty object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeterDominantResponse'
+        '400':
+          description: Validation error in `results`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/radeefkafiya:
+    post:
+      tags: [Radeef/Kafiya]
+      summary: Analyze radeef and kafiya for ghazal text
+      description: |
+        Accepts JSON/form/raw text input. Returns top-level `results` with
+        `radeef` and `kafiya` payloads from rhyme engine functions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TextInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TextInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TextInput'
+          text/plain:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Radeef/kafiya analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RadeefKafiyaResponse'
+        '400':
+          description: Input validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidTextType:
+                  value: { error: "Field 'text' must be a string" }
+                emptyText:
+                  value: { error: "Please enter ghazal text" }
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal processing error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                processing:
+                  value: { error: "Error processing ghazal text" }
+
+  /api/islah:
+    post:
+      tags: [Islah]
+      summary: Progressive poetic analysis by level
+      description: |
+        Returns analysis in one of three levels:
+        - `syllables`
+        - `feet`
+        - `meter`
+
+        Meter-level responses include exact matches or inferred closest meter with
+        alignment and deviations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TextInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TextInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TextInput'
+          text/plain:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Progressive analysis payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IslahResponse'
+        '400':
+          description: Input validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidTextType:
+                  value: { error: "Field 'text' must be a string" }
+                emptyText:
+                  value: { error: "Please enter at least one line of Urdu poetry" }
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal processing error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                processing:
+                  value: { error: "Error processing line" }
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    TextInput:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+
+    MeterCandidateInput:
+      type: object
+      required: [meter_name, feet]
+      properties:
+        meter_name:
+          type: string
+        feet:
+          type: string
+      additionalProperties: true
+
+    WordCode:
+      type: object
+      required: [word, code]
+      properties:
+        word:
+          type: string
+        code:
+          type: string
+        explanation:
+          type: string
+      additionalProperties: false
+
+    ScanFeetItem:
+      type: object
+      required: [foot, code]
+      properties:
+        foot:
+          type: string
+        code:
+          type: string
+      additionalProperties: false
+
+    ScanMeterResult:
+      type: object
+      required:
+        - meter_name
+        - meter_roman
+        - feet
+        - word_codes
+        - full_code
+        - original_line
+        - feet_list
+        - is_default
+      properties:
+        meter_name:
+          type: string
+        meter_roman:
+          type: string
+        feet:
+          type: string
+        word_codes:
+          type: array
+          items:
+            $ref: '#/components/schemas/WordCode'
+        full_code:
+          type: string
+        original_line:
+          type: string
+        feet_list:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanFeetItem'
+        meter_pattern:
+          type: [string, 'null']
+        is_default:
+          type: boolean
+        meter_id:
+          type: [integer, 'null']
+      additionalProperties: false
+
+    ScanLineResult:
+      type: object
+      required: [line_index, original_line, meters]
+      properties:
+        line_index:
+          type: integer
+          minimum: 0
+        original_line:
+          type: string
+        meters:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanMeterResult'
+      additionalProperties: false
+
+    DominantBahrInfo:
+      type: object
+      required: [name, roman, bahr_short, bahr_meaning, summary]
+      properties:
+        name:
+          type: string
+        roman:
+          type: string
+        bahr_short:
+          type: string
+        bahr_meaning:
+          type: string
+        summary:
+          type: string
+      additionalProperties: false
+
+    ScanResponse:
+      type: object
+      required:
+        - line_results
+        - poem_dominant_bahrs
+        - poem_dominant_bahrs_roman
+        - poem_dominant_bahrs_info
+        - num_lines
+        - fuzzy_mode
+        - free_verse_mode
+        - error_param
+      properties:
+        line_results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanLineResult'
+        poem_dominant_bahrs:
+          type: array
+          items:
+            type: string
+        poem_dominant_bahrs_roman:
+          type: array
+          items:
+            type: string
+        poem_dominant_bahrs_info:
+          type: array
+          items:
+            $ref: '#/components/schemas/DominantBahrInfo'
+        num_lines:
+          type: integer
+          minimum: 0
+        fuzzy_mode:
+          type: boolean
+        free_verse_mode:
+          type: boolean
+        error_param:
+          type: number
+      additionalProperties: false
+
+    MeterTargetInput:
+      type: object
+      properties:
+        meter_pattern:
+          type: string
+        meter_id:
+          type: integer
+        meter_name:
+          type: string
+      additionalProperties: true
+
+    MeterDistanceRequest:
+      type: object
+      required: [source_code]
+      properties:
+        source_code:
+          type: string
+          minLength: 1
+        target:
+          $ref: '#/components/schemas/MeterTargetInput'
+      additionalProperties: false
+
+    EditOp:
+      type: object
+      required: [op, pattern_pos, code_pos, pattern_char, code_char]
+      properties:
+        op:
+          type: string
+          enum: [match, substitute, insert, delete]
+        pattern_pos:
+          type: integer
+        code_pos:
+          type: integer
+        pattern_char:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 1
+        code_char:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 1
+      additionalProperties: false
+
+    Deviation:
+      type: object
+      required: [type, code_pos, pattern_pos, current, expected]
+      properties:
+        type:
+          type: string
+          enum: [substitute, insert, delete]
+        code_pos:
+          type: integer
+        pattern_pos:
+          type: integer
+        current:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 1
+        expected:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 1
+      additionalProperties: false
+
+    MeterDistanceTargetResolved:
+      type: object
+      required: [meter_name, meter_id, meter_pattern]
+      properties:
+        meter_name:
+          type: string
+        meter_id:
+          type: [integer, 'null']
+        meter_pattern:
+          type: string
+      additionalProperties: false
+
+    MeterDistanceAlignment:
+      type: object
+      required: [distance, edit_ops, leverage]
+      properties:
+        distance:
+          type: integer
+          minimum: 0
+        edit_ops:
+          type: array
+          items:
+            $ref: '#/components/schemas/EditOp'
+        leverage:
+          type: array
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              type: integer
+      additionalProperties: false
+
+    MeterDistanceResponse:
+      type: object
+      required: [source_code, target, distance, alignment, deviations]
+      properties:
+        source_code:
+          type: string
+        target:
+          $ref: '#/components/schemas/MeterDistanceTargetResolved'
+        distance:
+          type: integer
+          minimum: 0
+        alignment:
+          $ref: '#/components/schemas/MeterDistanceAlignment'
+        deviations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Deviation'
+      additionalProperties: false
+
+    MeterDominantRequest:
+      type: object
+      additionalProperties: false
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MeterCandidateInput'
+
+    MeterDominantResolved:
+      type: object
+      required: [meter_name, feet, is_dominant]
+      properties:
+        meter_name:
+          type: string
+        meter_roman:
+          type: string
+        id:
+          type: integer
+        feet:
+          type: string
+        is_dominant:
+          type: boolean
+      additionalProperties: false
+
+    MeterDominantResponse:
+      oneOf:
+        - type: object
+          maxProperties: 0
+          description: Empty object when dominant meter cannot be resolved.
+        - $ref: '#/components/schemas/MeterDominantResolved'
+
+    SyllableItem:
+      type: object
+      required: [index, code]
+      properties:
+        index:
+          type: integer
+          minimum: 0
+        code:
+          type: string
+          minLength: 1
+          maxLength: 1
+      additionalProperties: false
+
+    WordBoundary:
+      type: object
+      required: [word_index, code_start, code_end]
+      properties:
+        word_index:
+          type: integer
+          minimum: 0
+        code_start:
+          type: integer
+          minimum: 0
+        code_end:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+
+    IslahWordCode:
+      type: object
+      required: [word, code]
+      properties:
+        word:
+          type: string
+        code:
+          type: string
+      additionalProperties: false
+
+    IslahFeetSegment:
+      type: object
+      required: [foot, code, start, end]
+      properties:
+        foot:
+          type: string
+        code:
+          type: string
+        start:
+          type: integer
+          minimum: 0
+        end:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+
+    IslahSummary:
+      type: object
+      required: [text, conforms_exactly]
+      properties:
+        text:
+          type: string
+        conforms_exactly:
+          type: boolean
+      additionalProperties: false
+
+    IslahMeter:
+      type: object
+      required: [meter_name, meter_roman, meter_id, feet, full_code, feet_list]
+      properties:
+        meter_name:
+          type: string
+        meter_roman:
+          type: string
+        meter_id:
+          type: integer
+        feet:
+          type: string
+        full_code:
+          type: string
+        feet_list:
+          type: array
+          items:
+            $ref: '#/components/schemas/IslahFeetSegment'
+      additionalProperties: false
+
+    IslahInferredMeter:
+      type: object
+      required: [meter_name, meter_roman, meter_id, feet, score, feet_list]
+      properties:
+        meter_name:
+          type: string
+        meter_roman:
+          type: string
+        meter_id:
+          type: integer
+        feet:
+          type: string
+        score:
+          type: integer
+        feet_list:
+          type: array
+          items:
+            $ref: '#/components/schemas/IslahFeetSegment'
+      additionalProperties: false
+
+    IslahAlignment:
+      type: object
+      required: [distance, edit_ops, leverage]
+      properties:
+        distance:
+          type: integer
+          minimum: 0
+        edit_ops:
+          type: array
+          items:
+            $ref: '#/components/schemas/EditOp'
+        leverage:
+          type: array
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              type: integer
+      additionalProperties: false
+
+    IslahResponse:
+      type: object
+      required:
+        - analysis_level
+        - summary
+        - original_line
+        - full_code
+        - syllables
+        - word_boundaries
+        - word_codes
+      properties:
+        analysis_level:
+          type: string
+          enum: [syllables, feet, meter]
+        summary:
+          $ref: '#/components/schemas/IslahSummary'
+        original_line:
+          type: string
+        full_code:
+          type: string
+        syllables:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyllableItem'
+        word_boundaries:
+          type: array
+          items:
+            $ref: '#/components/schemas/WordBoundary'
+        word_codes:
+          type: array
+          items:
+            $ref: '#/components/schemas/IslahWordCode'
+        feet_list:
+          type: array
+          items:
+            $ref: '#/components/schemas/IslahFeetSegment'
+        meters:
+          type: array
+          items:
+            $ref: '#/components/schemas/IslahMeter'
+        inferred_meter:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/IslahInferredMeter'
+        meter_pattern:
+          type: string
+        alignment:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/IslahAlignment'
+        deviations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Deviation'
+      additionalProperties: false
+
+    RadeefKafiyaResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: object
+          required: [radeef, kafiya]
+          properties:
+            radeef:
+              description: Raw `check_radeef` output.
+              oneOf:
+                - type: object
+                - type: array
+                - type: string
+                - type: number
+                - type: boolean
+                - type: 'null'
+            kafiya:
+              description: Raw `check_kafiya` output.
+              oneOf:
+                - type: object
+                - type: array
+                - type: string
+                - type: number
+                - type: boolean
+                - type: 'null'
+          additionalProperties: false
+      additionalProperties: false
