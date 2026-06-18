@@ -119,8 +119,88 @@ def _passes_length_one_guard(profile: Dict[str, str], candidate_word: str) -> Tu
     return True, "length_1_guard_relaxed_mixed_matla"
 
 
+def _build_length_one_guard_profile_single(word: str) -> Dict[str, str]:
+    """Build a 1-letter kafiya guard profile from a single reference word."""
+    if len(word) < 2:
+        return {"mode": "missing_preceding"}
+
+    prev = word[-2]
+    if is_urdu_vowel_letter(prev):
+        return {"mode": "strict_vowel", "vowel": prev}
+    return {"mode": "non_vowel_class"}
+
+
+def _reference_suffix_length_single(ph_word: str) -> int:
+    """Suffix length for single-word kafiya reference (avoid full-word-only match)."""
+    if not ph_word:
+        return 0
+    if len(ph_word) == 1:
+        return 1
+    return len(ph_word) - 1
+
+
+def _compare_candidate_to_reference(
+    *,
+    line_no: int,
+    verse_idx: int,
+    full_line: str,
+    raw_word: str,
+    reference_suffix_phonetic: str,
+    reference_suffix_script: str,
+    suffix_len: int,
+    length_one_profile: Dict[str, str],
+) -> Tuple[Dict[str, Any], str]:
+    """Compare one candidate word to the established kafiya reference suffix."""
+    script_word = normalize_urdu_text(raw_word)
+    ph_word = _full_normalize_kafiya_word(raw_word)
+    actual_script_suffix = _suffix(script_word, suffix_len)
+    actual_ph_suffix = _suffix(ph_word, suffix_len)
+
+    guard_ok = True
+    guard_reason = ""
+    if suffix_len == 1 and length_one_profile:
+        guard_ok, guard_reason = _passes_length_one_guard(length_one_profile, script_word)
+
+    if not guard_ok:
+        status = "flagged"
+        reason = f"kafiya_break {guard_reason}"
+        outcome = "flagged"
+    elif actual_script_suffix == reference_suffix_script:
+        status = "match"
+        reason = f"script_suffix_match=-{reference_suffix_script}"
+        if suffix_len == 1 and guard_reason:
+            reason = f"{reason}; {guard_reason}"
+        outcome = "matched"
+    elif actual_ph_suffix == reference_suffix_phonetic:
+        status = "phonetic_match"
+        reason = (
+            f"phonetic_suffix_match=-{reference_suffix_phonetic};"
+            f" script_suffix=-{actual_script_suffix}"
+        )
+        if suffix_len == 1 and guard_reason:
+            reason = f"{reason}; {guard_reason}"
+        outcome = "phonetic_matched"
+    else:
+        status = "flagged"
+        reason = (
+            f"kafiya_break expected_phonetic=-{reference_suffix_phonetic}"
+            f" got_phonetic=-{actual_ph_suffix}"
+        )
+        outcome = "flagged"
+
+    entry = {
+        "line_no": line_no,
+        "verse_index": verse_idx,
+        "full_line": full_line,
+        "word": script_word,
+        "status": status,
+        "reason": reason,
+    }
+    return entry, outcome
+
+
 def _extract_kafiya_candidates(
-    text: str, radeef_result: Dict[str, Any]
+    text: str, radeef_result: Dict[str, Any], *, has_matla: bool = False
 ) -> Tuple[List[Tuple[int, int, str, str]], List[str], List[str], str]:
     """
     Extract candidate kafiya words from radeef-validated relevant lines.
@@ -171,19 +251,32 @@ def _extract_kafiya_candidates(
             continue
         candidates.append((line_no, verse_index, original or normalized, kafiya_word))
 
-    if len(candidates) < 2:
+    min_candidates = 2 if has_matla else 1
+    if len(candidates) < min_candidates:
         errors.append("insufficient_kafiya_candidates")
 
     return candidates, errors, warnings, kafiya_mode
 
 
-def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[str, Any]:
+def _check_candidates(
+    candidates: Sequence[Tuple[int, int, str, str]], *, has_matla: bool = False
+) -> Dict[str, Any]:
     """
     Validate candidate words against a reference kafiya suffix.
 
-    The first two candidates (matla) define the suffix reference. Remaining
-    candidates are marked as script match, phonetic match, or flagged break.
+    With matla, the first two candidates define the suffix reference.
+    Without matla, only the first candidate is the reference.
+    Remaining candidates are marked as script match, phonetic match, or flagged break.
     """
+    if has_matla:
+        return _check_candidates_with_matla(candidates)
+    return _check_candidates_without_matla(candidates)
+
+
+def _check_candidates_with_matla(
+    candidates: Sequence[Tuple[int, int, str, str]],
+) -> Dict[str, Any]:
+    """Matla path: first two relevant lines establish the kafiya reference suffix."""
     # First two relevant candidates define kafiya reference (matla behavior).
     line_no_1, verse_1, full_line_1, word_1 = candidates[0]
     line_no_2, verse_2, full_line_2, word_2 = candidates[1]
@@ -235,55 +328,151 @@ def _check_candidates(candidates: Sequence[Tuple[int, int, str, str]]) -> Dict[s
         length_one_profile = _build_length_one_guard_profile(script_word_1, script_word_2)
 
     for line_no, verse_idx, full_line, raw_word in candidates[2:]:
-        script_word = normalize_urdu_text(raw_word)
-        ph_word = _full_normalize_kafiya_word(raw_word)
-        actual_script_suffix = _suffix(script_word, suffix_len)
-        actual_ph_suffix = _suffix(ph_word, suffix_len)
-
-        guard_ok = True
-        guard_reason = ""
-        if suffix_len == 1:
-            guard_ok, guard_reason = _passes_length_one_guard(length_one_profile, script_word)
-
-        if not guard_ok:
-            status = "flagged"
-            reason = f"kafiya_break {guard_reason}"
-            flagged += 1
-        elif actual_script_suffix == reference_suffix_script:
-            status = "match"
-            reason = f"script_suffix_match=-{reference_suffix_script}"
-            if suffix_len == 1:
-                reason = f"{reason}; {guard_reason}"
-            matched += 1
-        elif actual_ph_suffix == reference_suffix_phonetic:
-            status = "phonetic_match"
-            reason = (
-                f"phonetic_suffix_match=-{reference_suffix_phonetic};"
-                f" script_suffix=-{actual_script_suffix}"
-            )
-            if suffix_len == 1:
-                reason = f"{reason}; {guard_reason}"
-            phonetic_matched += 1
-        else:
-            status = "flagged"
-            reason = (
-                f"kafiya_break expected_phonetic=-{reference_suffix_phonetic}"
-                f" got_phonetic=-{actual_ph_suffix}"
-            )
-            flagged += 1
-
-        results.append(
-            {
-                "line_no": line_no,
-                "verse_index": verse_idx,
-                "full_line": full_line,
-                "word": script_word,
-                "status": status,
-                "reason": reason,
-            }
+        entry, outcome = _compare_candidate_to_reference(
+            line_no=line_no,
+            verse_idx=verse_idx,
+            full_line=full_line,
+            raw_word=raw_word,
+            reference_suffix_phonetic=reference_suffix_phonetic,
+            reference_suffix_script=reference_suffix_script,
+            suffix_len=suffix_len,
+            length_one_profile=length_one_profile,
         )
+        if outcome == "matched":
+            matched += 1
+        elif outcome == "phonetic_matched":
+            phonetic_matched += 1
+        elif outcome == "flagged":
+            flagged += 1
+        results.append(entry)
 
     total_checked = max(0, len(candidates) - 2)
+    return {
+        "pass": flagged == 0,
+        "reference_suffix_phonetic": reference_suffix_phonetic,
+        "reference_suffix_script": reference_suffix_script,
+        "suffix_length": suffix_len,
+        "summary": {
+            "candidate_lines": len(candidates),
+            "checked_lines": total_checked,
+            "matches": matched,
+            "phonetic_matches": phonetic_matched,
+            "flagged": flagged,
+        },
+        "results": results,
+        "errors": [],
+        "warnings": [],
+    }
+
+
+def _check_candidates_without_matla(
+    candidates: Sequence[Tuple[int, int, str, str]],
+) -> Dict[str, Any]:
+    """Non-matla path: first radeef-relevant line is the qafiya reference."""
+    line_no_1, verse_1, full_line_1, word_1 = candidates[0]
+
+    script_word_1 = normalize_urdu_text(word_1)
+    ph_word_1 = _full_normalize_kafiya_word(word_1)
+
+    if len(candidates) == 1:
+        suffix_len = _reference_suffix_length_single(ph_word_1)
+        if suffix_len == 0:
+            return {
+                "pass": False,
+                "reference_suffix_phonetic": "",
+                "reference_suffix_script": "",
+                "suffix_length": 0,
+                "results": [],
+                "errors": ["no_kafiya_reference_suffix"],
+                "warnings": [],
+            }
+        reference_suffix_phonetic = _suffix(ph_word_1, suffix_len)
+        reference_suffix_script = _suffix(script_word_1, suffix_len)
+        return {
+            "pass": True,
+            "reference_suffix_phonetic": reference_suffix_phonetic,
+            "reference_suffix_script": reference_suffix_script,
+            "suffix_length": suffix_len,
+            "summary": {
+                "candidate_lines": 1,
+                "checked_lines": 0,
+                "matches": 0,
+                "phonetic_matches": 0,
+                "flagged": 0,
+            },
+            "results": [
+                {
+                    "line_no": line_no_1,
+                    "verse_index": verse_1,
+                    "full_line": full_line_1,
+                    "word": script_word_1,
+                    "status": "reference",
+                    "reason": f"reference_suffix=-{reference_suffix_phonetic}",
+                },
+            ],
+            "errors": [],
+            "warnings": [],
+        }
+
+    _, _, _, word_2 = candidates[1]
+    script_word_2 = normalize_urdu_text(word_2)
+    ph_word_2 = _full_normalize_kafiya_word(word_2)
+
+    suffix_len = _longest_common_suffix_length(ph_word_1, ph_word_2)
+    if suffix_len == 0:
+        suffix_len = _reference_suffix_length_single(ph_word_1)
+    if suffix_len == 0:
+        return {
+            "pass": False,
+            "reference_suffix_phonetic": "",
+            "reference_suffix_script": "",
+            "suffix_length": 0,
+            "results": [],
+            "errors": ["no_kafiya_reference_suffix"],
+            "warnings": [],
+        }
+
+    reference_suffix_phonetic = _suffix(ph_word_1, suffix_len)
+    reference_suffix_script = _suffix(script_word_1, suffix_len)
+    results: List[Dict[str, Any]] = [
+        {
+            "line_no": line_no_1,
+            "verse_index": verse_1,
+            "full_line": full_line_1,
+            "word": script_word_1,
+            "status": "reference",
+            "reason": f"reference_suffix=-{reference_suffix_phonetic}",
+        },
+    ]
+
+    matched = 0
+    phonetic_matched = 0
+    flagged = 0
+
+    length_one_profile: Dict[str, str] = {}
+    if suffix_len == 1:
+        length_one_profile = _build_length_one_guard_profile(script_word_1, script_word_2)
+
+    for line_no, verse_idx, full_line, raw_word in candidates[1:]:
+        entry, outcome = _compare_candidate_to_reference(
+            line_no=line_no,
+            verse_idx=verse_idx,
+            full_line=full_line,
+            raw_word=raw_word,
+            reference_suffix_phonetic=reference_suffix_phonetic,
+            reference_suffix_script=reference_suffix_script,
+            suffix_len=suffix_len,
+            length_one_profile=length_one_profile,
+        )
+        if outcome == "matched":
+            matched += 1
+        elif outcome == "phonetic_matched":
+            phonetic_matched += 1
+        elif outcome == "flagged":
+            flagged += 1
+        results.append(entry)
+
+    total_checked = max(0, len(candidates) - 1)
     return {
         "pass": flagged == 0,
         "reference_suffix_phonetic": reference_suffix_phonetic,
@@ -306,6 +495,7 @@ def check_kafiya(
     text: str,
     *,
     radeef_result: Optional[Dict[str, Any]] = None,
+    has_matla: bool = False,
 ) -> Dict[str, Any]:
     """
     Check kafiya by consuming check_radeef output plus original text.
@@ -314,13 +504,21 @@ def check_kafiya(
         text: Raw multiline ghazal text.
         radeef_result: Optional precomputed check_radeef(...) result.
                        If absent, this function computes it.
+        has_matla: When True, first two radeef lines (matla) define kafiya reference.
+                   When False, only the first radeef-relevant line is the reference.
 
     Returns:
         A diagnostics dictionary including pass/fail, detected reference
         suffixes, per-line status, summary counts, and warnings/errors.
     """
-    rr = radeef_result if isinstance(radeef_result, dict) else check_radeef(text, mode="strict")
-    candidates, errors, warnings, kafiya_mode = _extract_kafiya_candidates(text, rr)
+    rr = (
+        radeef_result
+        if isinstance(radeef_result, dict)
+        else check_radeef(text, mode="strict", has_matla=has_matla)
+    )
+    candidates, errors, warnings, kafiya_mode = _extract_kafiya_candidates(
+        text, rr, has_matla=has_matla
+    )
 
     if errors:
         return {
@@ -341,7 +539,7 @@ def check_kafiya(
             "warnings": warnings,
         }
 
-    out = _check_candidates(candidates)
+    out = _check_candidates(candidates, has_matla=has_matla)
     out["kafiya_mode"] = kafiya_mode
     out["warnings"] = list(set(out.get("warnings", []) + warnings))
     return out

@@ -162,18 +162,21 @@ paths:
       description: |
         Accepts JSON/form/raw text input. Returns top-level `results` with
         `radeef` and `kafiya` payloads from rhyme engine functions.
+
+        Set `has_matla` to true when the first sher in the text is the matla
+        (both misre carry radeef and define kafiya reference). Defaults to false.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TextInput'
+              $ref: '#/components/schemas/RadeefKafiyaInput'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/TextInput'
+              $ref: '#/components/schemas/RadeefKafiyaInput'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/TextInput'
+              $ref: '#/components/schemas/RadeefKafiyaInput'
           text/plain:
             schema:
               type: string
@@ -290,6 +293,21 @@ components:
         text:
           type: string
           minLength: 1
+
+    RadeefKafiyaInput:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+        has_matla:
+          type: boolean
+          default: false
+          description: |
+            When true, verses 1–2 are treated as matla for radeef and kafiya.
+            When false (default), only even verses (2, 4, 6, …) carry radeef.
 
     MeterCandidateInput:
       type: object

@@ -27,14 +27,18 @@ from aruuz.rhyme.text_utils import (
 _TRIVIAL_SINGLE_TOKEN_STOPLIST = {}
 
 
-def _assign_relevant_positions(total_lines: int) -> List[int]:
+def _assign_relevant_positions(total_lines: int, *, has_matla: bool = False) -> List[int]:
     """
     Ghazal radeef appears on these **non-empty** misras (1-based verse index):
 
+    With matla (``has_matla=True``):
     - Verse 1 and 2: matla (both misre)
     - Then verse 4, 6, 8, …: second misra of each subsequent sher
 
-    (Verse 3, 5, 7, … are the first misra of each sher after the matla — no radeef.)
+    Without matla (``has_matla=False``; poet has not written matla first):
+    - Verse 2, 4, 6, 8, …: second misra of each sher in the text
+
+    (Odd verses after matla, or all odd verses when there is no matla, have no radeef.)
 
     ``total_lines`` is the count of non-empty lines only; ``pos`` is 0-based into that list.
     """
@@ -44,9 +48,12 @@ def _assign_relevant_positions(total_lines: int) -> List[int]:
     relevant: List[int] = []
     for pos in range(total_lines):
         verse_index = pos + 1
-        if verse_index in (1, 2):
-            relevant.append(pos)
-        elif verse_index >= 4 and verse_index % 2 == 0:
+        if has_matla:
+            if verse_index in (1, 2):
+                relevant.append(pos)
+            elif verse_index >= 4 and verse_index % 2 == 0:
+                relevant.append(pos)
+        elif verse_index % 2 == 0:
             relevant.append(pos)
     return relevant
 
@@ -159,6 +166,7 @@ def check_radeef(
     *,
     mode: str = "strict",
     max_suffix_tokens: int = 6,
+    has_matla: bool = False,
 ) -> Dict[str, Any]:
     """
     Detect and validate radeef for Urdu ghazal text (strict MVP).
@@ -167,6 +175,8 @@ def check_radeef(
         text: Raw multiline Urdu text.
         mode: Must be "strict" in MVP.
         max_suffix_tokens: Max token length used for suffix candidate generation.
+        has_matla: When True, verses 1–2 are treated as matla (both carry radeef).
+                   When False, only even verses (2, 4, 6, …) are checked.
 
     Returns:
         JSON-like dict with pass/fail and diagnostics.
@@ -213,10 +223,11 @@ def check_radeef(
     if non_empty_count < 2:
         errors.append("insufficient_lines")
 
-    relevant_positions = _assign_relevant_positions(non_empty_count)
+    relevant_positions = _assign_relevant_positions(non_empty_count, has_matla=has_matla)
     relevant_lines = [normalized_lines[i] for i in relevant_positions if i < len(normalized_lines)]
 
-    if len(relevant_lines) < 2:
+    min_relevant = 2 if has_matla else 1
+    if len(relevant_lines) < min_relevant:
         errors.append("insufficient_relevant_lines")
 
     if non_empty_count % 2 != 0:
