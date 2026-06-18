@@ -407,6 +407,10 @@
             },
 
             init() {
+                if (typeof PoetryDraft !== 'undefined') {
+                    const saved = PoetryDraft.load();
+                    if (saved !== null) this.text = saved;
+                }
                 this.cache = new ResultCache();
                 this.initBahrTooltips = () => {
                     const root = this.$el;
@@ -418,6 +422,7 @@
                     });
                 };
                 this.$watch('text', (value) => {
+                    if (typeof PoetryDraft !== 'undefined') PoetryDraft.save(value);
                     if (this.debounceTimer) clearTimeout(this.debounceTimer);
                     if (value.trim()) {
                         this.debounceTimer = setTimeout(() => {
@@ -426,6 +431,10 @@
                         }, CONFIG.DEBOUNCE_DELAY);
                     }
                 });
+
+                if (this.text.trim()) {
+                    this.$nextTick(() => this.silentUpdate());
+                }
             },
 
             getDisplayCode(result) {

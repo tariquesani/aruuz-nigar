@@ -147,7 +147,7 @@
     <!-- Input Card -->
     <div class="card mb-3">
         <div class="card-body py-3">
-            <form method="POST" action="/" class="needs-validation" novalidate>
+            <form method="POST" action="/" class="needs-validation" novalidate data-auto-scan="{{ 'false' if line_results else 'true' }}">
                 <label for="text" class="form-label">Enter Urdu Poetry Lines (one per line)</label>
 
                 <textarea
