@@ -448,6 +448,7 @@
                 if (typeof PoetryDraft !== 'undefined') {
                     const saved = PoetryDraft.load();
                     if (saved !== null) this.text = saved;
+                    this.hasMatla = PoetryDraft.loadHasMatla();
                 }
                 this.cache = new ResultCache();
                 this.initBahrTooltips = () => {
@@ -468,6 +469,9 @@
                             if (!this.loading) this.silentUpdate();
                         }, CONFIG.DEBOUNCE_DELAY);
                     }
+                });
+                this.$watch('hasMatla', (value) => {
+                    if (typeof PoetryDraft !== 'undefined') PoetryDraft.saveHasMatla(value);
                 });
 
                 if (this.text.trim()) {

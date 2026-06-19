@@ -5,29 +5,63 @@
     var DEBOUNCE_MS = 300;
     var debounceTimer = null;
 
-    function load() {
+    function readState() {
         try {
-            return localStorage.getItem(STORAGE_KEY);
+            var raw = localStorage.getItem(STORAGE_KEY);
+            if (raw === null) return null;
+            if (raw.charAt(0) === '{') {
+                var parsed = JSON.parse(raw);
+                return {
+                    text: parsed.text == null ? '' : String(parsed.text),
+                    hasMatla: !!parsed.hasMatla
+                };
+            }
+            return { text: raw, hasMatla: false };
         } catch (e) {
             return null;
         }
     }
 
-    function save(text) {
+    function writeState(state) {
         try {
-            localStorage.setItem(STORAGE_KEY, text == null ? '' : String(text));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                text: state.text == null ? '' : String(state.text),
+                hasMatla: !!state.hasMatla
+            }));
         } catch (e) {
             // quota exceeded or private browsing
         }
     }
 
+    function load() {
+        var state = readState();
+        return state ? state.text : null;
+    }
+
+    function loadHasMatla() {
+        var state = readState();
+        return state ? state.hasMatla : false;
+    }
+
+    function save(text) {
+        var state = readState() || { text: '', hasMatla: false };
+        state.text = text == null ? '' : String(text);
+        writeState(state);
+    }
+
+    function saveHasMatla(hasMatla) {
+        var state = readState() || { text: '', hasMatla: false };
+        state.hasMatla = !!hasMatla;
+        writeState(state);
+    }
+
     function bindTextarea(el) {
         if (!el) return;
 
-        var saved = load();
+        var state = readState();
         var restoredFromStorage = false;
-        if (saved !== null) {
-            el.value = saved;
+        if (state !== null) {
+            el.value = state.text;
             restoredFromStorage = true;
         } else {
             save(el.value);
@@ -70,7 +104,9 @@
 
     window.PoetryDraft = {
         load: load,
+        loadHasMatla: loadHasMatla,
         save: save,
+        saveHasMatla: saveHasMatla,
         bindTextarea: bindTextarea
     };
 
