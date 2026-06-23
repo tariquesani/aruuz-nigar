@@ -41,9 +41,10 @@ ARUUZ_NIGAR_BASE_URL = "http://127.0.0.1:5000"
 mcp = FastMCP(
     name="aruuz-nigar",
     instructions="""
-    This server provides meter (bahr) analysis for Urdu poetry lines (misra)
-    using the Aruuz Nigar engine. Use it during ghazal islah to validate and
-    compare meter. Tools available: scan, compare, help.
+    This server provides meter (bahr) and ghazal rhyme (radeef/qafiya) analysis
+    for Urdu poetry using the Aruuz Nigar engine. Use scan/compare during ghazal
+    islah to validate meter; use rhyme for whole-poem radeef and qafiya checks.
+    Tools available: scan, compare, rhyme, help.
     """
 )
 
@@ -448,6 +449,108 @@ def _format_compare_result(line1_data: dict, line2_data: dict) -> dict:
     return result
 
 
+def _format_rhyme_radeef(radeef: dict) -> dict:
+    """
+    Extract a compact radeef summary from raw check_radeef output.
+    """
+    line_results = (radeef.get("diagnostics") or {}).get("line_results") or []
+    lines = []
+    for entry in line_results:
+        lines.append(
+            {
+                "verse_index": entry.get("verse_index"),
+                "line_number": entry.get("line_number"),
+                "pass": entry.get("pass"),
+                "matched_radeef": entry.get("matched_radeef"),
+                "role": entry.get("role"),
+            }
+        )
+
+    return {
+        "pass": radeef.get("pass", False),
+        "detected_radeef": radeef.get("detected_radeef"),
+        "confidence": radeef.get("confidence"),
+        "summary": radeef.get("summary", {}),
+        "lines": lines,
+    }
+
+
+def _format_rhyme_kafiya(kafiya: dict) -> dict:
+    """
+    Extract a compact qafiya summary from raw check_kafiya output.
+    """
+    lines = []
+    for entry in kafiya.get("results") or []:
+        lines.append(
+            {
+                "line_no": entry.get("line_no"),
+                "verse_index": entry.get("verse_index"),
+                "word": entry.get("word"),
+                "status": entry.get("status"),
+            }
+        )
+
+    return {
+        "pass": kafiya.get("pass", False),
+        "kafiya_mode": kafiya.get("kafiya_mode"),
+        "reference_suffix_script": kafiya.get("reference_suffix_script", ""),
+        "reference_suffix_phonetic": kafiya.get("reference_suffix_phonetic", ""),
+        "suffix_length": kafiya.get("suffix_length"),
+        "summary": kafiya.get("summary", {}),
+        "lines": lines,
+    }
+
+
+def _format_rhyme_result(data: dict, *, has_matla: bool) -> dict:
+    """
+    Convert an /api/radeefkafiya response into an agent-oriented rhyme summary.
+    """
+    if "error" in data:
+        return data
+
+    results = data.get("results")
+    if not isinstance(results, dict):
+        return {
+            "error": "Unexpected /api/radeefkafiya response: missing results object."
+        }
+
+    radeef_raw = results.get("radeef") or {}
+    kafiya_raw = results.get("kafiya") or {}
+    if not isinstance(radeef_raw, dict) or not isinstance(kafiya_raw, dict):
+        return {
+            "error": "Unexpected /api/radeefkafiya response: radeef/kafiya must be objects."
+        }
+
+    radeef = _format_rhyme_radeef(radeef_raw)
+    kafiya = _format_rhyme_kafiya(kafiya_raw)
+
+    radeef_pass = bool(radeef.get("pass"))
+    kafiya_pass = bool(kafiya.get("pass"))
+    if radeef_pass and kafiya_pass:
+        verdict = "pass"
+    elif not radeef_pass and not kafiya_pass:
+        verdict = "both_failed"
+    elif not radeef_pass:
+        verdict = "radeef_failed"
+    else:
+        verdict = "qafiya_failed"
+
+    errors = list(radeef_raw.get("errors") or []) + list(kafiya_raw.get("errors") or [])
+    warnings = list(radeef_raw.get("warnings") or []) + list(kafiya_raw.get("warnings") or [])
+
+    formatted = {
+        "result": verdict,
+        "has_matla": has_matla,
+        "radeef": radeef,
+        "qafiya": kafiya,
+    }
+    if errors:
+        formatted["errors"] = errors
+    if warnings:
+        formatted["warnings"] = warnings
+    return formatted
+
+
 # --- Tools -------------------------------------------------------------------
 
 @mcp.tool()
@@ -485,6 +588,29 @@ def compare(misra: str, reference_misra: str) -> dict:
 
 
 @mcp.tool()
+def rhyme(ghazal: str, has_matla: bool = False) -> dict:
+    """
+    Check radeef and qafiya for a full Urdu ghazal.
+
+    Accepts newline-separated ghazal text (whole poem, not a single misra).
+    Set has_matla to true when the first sher is matla (both misre carry radeef
+    and define the qafiya reference). When false (default), radeef is expected
+    on even verses only (2, 4, 6, …).
+
+    Parameters:
+        ghazal (str): Full ghazal text in Urdu script (newline-separated lines).
+        has_matla (bool): Whether the poem includes a matla sher. Defaults to false.
+
+    Returns:
+        dict: Summary with result ("pass", "radeef_failed", "qafiya_failed", or
+        "both_failed"), has_matla, compact radeef and qafiya blocks (detected
+        radeef, reference suffix, per-line pass/status), and any errors or warnings.
+    """
+    raw = _post("/api/radeefkafiya", {"text": ghazal, "has_matla": has_matla})
+    return _format_rhyme_result(raw, has_matla=has_matla)
+
+
+@mcp.tool()
 def help() -> str:
     """
     List available MCP tools and summarize their behavior.
@@ -492,6 +618,7 @@ def help() -> str:
     Provides a concise, human-readable description of the server's tools:
     - scan(misra): Scans one or more Urdu misra (newline-separated). Single-line input returns one formatted result; multiline input returns per-line results.
     - compare(misra, reference_misra): Compares two misra producing a verdict (same/different/unidentified bahr), per-line scansion details (full_code, word_codes, feet, meter_pattern), distance metrics, deviations, and alignment edit operations.
+    - rhyme(ghazal, has_matla): Checks radeef and qafiya for a full ghazal; returns pass/fail verdict and per-line rhyme status.
     - help(): Shows this description.
     
     Note: Meter analysis is performed by a locally running Aruuz Nigar service; results are analytical suggestions and may require user judgement.
@@ -513,6 +640,11 @@ def help() -> str:
         per-line scansion (full_code, word_codes, feet, meter_pattern), distance
         from the closest bahr, deviations, and a positional code diff showing
         exactly where the two lines diverge from each other.
+
+    rhyme(ghazal, has_matla=false)
+        Checks radeef and qafiya for a full ghazal (newline-separated Urdu text).
+        Set has_matla=true when the first sher is matla. Returns a pass/fail
+        verdict plus detected radeef, qafiya reference suffix, and per-line status.
     
     help()
         Shows this description.
