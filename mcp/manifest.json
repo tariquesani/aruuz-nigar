@@ -1,0 +1,51 @@
+{
+  "manifest_version": "0.3",
+  "name": "Aruuz-Nigar",
+  "version": "1.0.0",
+  "description": "Meter (bahr) analysis for Urdu poetry. Provides scansion, bahr identification, and structural comparison of Urdu misra.",
+  "author": {
+    "name": "Dr. Tarique Sani"
+  },
+  "tools": [
+    {
+      "name": "scan",
+      "description": "Scans one or more Urdu misra (newline-separated text). Single-line input returns one result; multiline input returns per-line results."
+    },
+    {
+      "name": "compare",
+      "description": "Compares two Urdu misra with full structural detail: bahr match verdict, per-line scansion (full_code, word_codes, feet, meter_pattern), distance from the closest bahr, deviations, and a positional code diff showing exactly where the two lines diverge."
+    },
+    {
+      "name": "rhyme",
+      "description": "Identifies the rhyme scheme of a given Urdu poem."
+    },
+    {
+      "name": "help",
+      "description": "Shows the server description and available tools."
+    }
+  ],
+  "server": {
+    "type": "binary",
+    "entry_point": "mcp-claude-bridge.exe",
+    "mcp_config": {
+      "command": "${__dirname}/mcp-claude-bridge.exe",
+      "args": [
+        "--url", "${user_config.server_url}",
+        "--reconnect"
+      ]
+    }
+  },
+  "user_config": {
+    "server_url": {
+      "type": "string",
+      "title": "Server URL",
+      "description": "The URL of your Aruuz-Nigar SSE endpoint",
+      "default": "http://127.0.0.1:8765/sse",
+      "required": true
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": ["win32"]
+  }
+}
