@@ -7,6 +7,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Aruuz Nigar: Urdu Poetry Scansion Tool{% endblock %}</title>
 
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='img/site.webmanifest') }}">
+
     <!-- Bootstrap 5.3.3 CSS (Bootswatch Cerulean, local) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-cerulean.min.css') }}">
     <!-- Bootstrap Icons (local) -->
