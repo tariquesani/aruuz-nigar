@@ -132,7 +132,7 @@ After raw codes are assigned, **inter-word rules** are applied:
 1. **Al (ال) handling**
 2. **Izafat handling**
 3. **Ataf (و) handling**
-4. **Word grafting (وصال الف)**
+4. **Word grafting (الفِ وصل)**
 
 These rules:
 - Modify word codes
