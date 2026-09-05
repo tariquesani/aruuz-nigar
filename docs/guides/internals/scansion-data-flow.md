@@ -23,10 +23,11 @@ Each subsection lists *what happens*, the *function*, and the *file* (with repre
 - **What**: Split the sher into separate lines, remove punctuation, normalize characters, and instantiate `Lines`.
 - **Functions**:
   - `Lines.__init__()` — `python/aruuz/models.py` L184-L242
-  - `clean_line()` / `clean_word()` / `handle_noon_followed_by_stop()` — `python/aruuz/utils/text.py`
+  - `clean_line()` / `clean_word()` — `python/aruuz/utils/text.py`
 - **Notes**:
   - `clean_line()` strips punctuation and zero-width chars.
-  - Regex `r'[, ]+'` splits into tokens; Noon+stop clusters are split.
+  - Regex `r'[, ]+'` splits into tokens. Tokens are words: a word is never broken
+    up here, so every boundary the prosodic rules later see is a real one.
   - Each token becomes a `Words` object with diacritics removed via `remove_araab()`.
 
 ### Stage 2 — Word Objects → Initial Codes
@@ -37,10 +38,29 @@ Each subsection lists *what happens*, the *function*, and the *file* (with repre
   - `WordLookup.find_word()` — `python/aruuz/database/word_lookup.py`
   - `compute_scansion()` — `python/aruuz/scansion/code_assignment.py` L20-L119
   - Length scanners (`length_one_scan()` … `length_five_scan()`) — `python/aruuz/scansion/length_scanners.py`
+  - `classify_noon()` / `drop_noon()` — `python/aruuz/scansion/noon_model.py`
 - **Notes**:
   - Strategy 1: Database tables (`exceptions`, `mastertable`, `variations`, `Plurals`) provide taqti strings which convert to codes.
   - Strategy 2: Heuristics derive syllable lengths when DB misses.
   - Strategy 3: `_split_compound_word()` attempts to combine DB + heuristic halves; stores Cartesian products of codes/muarrab.
+  - Strategy 4: `_apply_noon_keep_drop()` settles whether a noon in the word is
+    counted. See [Noon: keep or drop](#26--noon-keep-or-drop).
+
+### 2.6 — Noon: keep or drop
+
+- **What**: Decide whether a ن inside a word is counted, and recount the word without it when it is not.
+- **Functions**:
+  - `WordScansionAssigner._apply_noon_keep_drop()` — `python/aruuz/scansion/word_scansion_assigner.py`
+  - `classify_noon()` / `drop_noon()` / `is_protected_noon()` — `python/aruuz/scansion/noon_model.py`
+  - `noon_ghunna()` (the jazm-marked path) — `python/aruuz/scansion/length_scanners.py`
+  - `NoonGhunnaLexicon` — `python/aruuz/database/noon_ghunna_lexicon.py`
+- **Notes**:
+  - Taqṭīʿ treats a noon as one of three cases on the single word: **نونِ غنہ** (nasalisation, weightless, dropped), **نونِ اصلی** (a real consonant, counted) or **نونِ شبہِ غنہ** (weak but still counted, e.g. جنگ).
+  - The decision is always made on one word. Nothing is split off, and `Words.word` keeps its original spelling; only the scansion sees the noon-dropped form.
+  - The default is to **keep**. A noon is dropped only on positive evidence: the nasal is written ں, `noon_ghunna()` recognises an explicit jazm pattern, or the ghunna lexicon flags the word.
+  - A word-initial ن (نمک) and the prefix ان- (انتخاب، انتقام، انتقال، اندرون) are نونِ اصلی and are never dropped.
+  - Lexicon entries are stems. A flag on جھانک answers for جھانکتے، جھانکتی، جھانکنا, because a suffix cannot break up the نک cluster it names.
+  - A word that scans both ways (جان as against جاں) is flagged `either` and gets both codes; meter matching in Stage 5 picks between them.
 
 ### Stage 3 — Contextual Prosodic Rules
 
@@ -113,6 +133,7 @@ Each subsection lists *what happens*, the *function*, and the *file* (with repre
 | --- | --- | --- |
 | Input cleaning & line split | `Lines.__init__()`; `clean_line()`, `clean_word()` | `python/aruuz/models.py`; `python/aruuz/utils/text.py` |
 | Word code assignment | `WordScansionAssigner.assign_code_to_word()`; `WordLookup.find_word()`; `compute_scansion()` | `python/aruuz/scansion/word_scansion_assigner.py`; `python/aruuz/database/word_lookup.py`; `python/aruuz/scansion/code_assignment.py` |
+| Noon keep/drop | `classify_noon()`, `drop_noon()`; `noon_ghunna()`; `NoonGhunnaLexicon` | `python/aruuz/scansion/noon_model.py`; `python/aruuz/scansion/length_scanners.py`; `python/aruuz/database/noon_ghunna_lexicon.py` |
 | Prosodic adjustments | `ProsodicRules.apply_rules()` | `python/aruuz/scansion/prosodic_rules.py` |
 | Tree building | `CodeTree.build_from_line()` | `python/aruuz/tree/code_tree.py` |
 | Meter traversal | `CodeTree.find_meter()` / `_traverse()` / `_is_match()` | `python/aruuz/tree/code_tree.py` |

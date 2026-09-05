@@ -6,8 +6,7 @@ flowchart TD
     subgraph lineStage["Line initialization & tokenization"]
         linesInit["Lines.__init__() cleans line"]
         lineClean["clean_line() strips punctuation/ZWJ"]
-        wordSplit["Split on [, ]+ regex"]
-        noonStop["handle_noon_followed_by_stop()"]
+        wordSplit["Split on [, ]+ regex (word boundaries only)"]
         wordClean["clean_word() per token"]
     end
 
@@ -21,6 +20,7 @@ flowchart TD
         heuristics["compute_scansion() heuristics"]
         lengthScanners["length_one/two/three/four/five_scan()"]
         compound["split_compound_word() fallback"]
+        noonKeepDrop["_apply_noon_keep_drop(): keep or drop نون on the single word"]
     end
 
     %% Prosodic rules
@@ -61,8 +61,7 @@ flowchart TD
 
     linesInit --> lineClean
     lineClean --> wordSplit
-    wordSplit --> noonStop
-    noonStop --> wordClean
+    wordSplit --> wordClean
     wordClean --> assignStart
 
     assignStart --> dbLookup
@@ -71,9 +70,10 @@ flowchart TD
     heuristics --> lengthScanners
     heuristics --> compound
 
-    dbTaqti --> prosodyApply
-    lengthScanners --> prosodyApply
-    compound --> prosodyApply
+    dbTaqti --> noonKeepDrop
+    lengthScanners --> noonKeepDrop
+    compound --> noonKeepDrop
+    noonKeepDrop --> prosodyApply
 
     prosodyApply --> alRule
     prosodyApply --> izafatRule

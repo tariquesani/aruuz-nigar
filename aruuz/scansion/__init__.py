@@ -38,6 +38,20 @@ from .length_scanners import (
     noon_ghunna
 )
 
+# Noon keep/drop model
+from .noon_model import (
+    DROP,
+    EITHER,
+    KEEP,
+    NoonDecision,
+    candidate_noon_positions,
+    classify_noon,
+    drop_noon,
+    has_jazm,
+    is_protected_noon,
+    medial_noon_positions
+)
+
 __all__ = [
     'Scansion',
     'is_match',
@@ -56,5 +70,15 @@ __all__ = [
     'length_four_scan',
     'length_five_scan',
     'noon_ghunna',
-    'ExplanationBuilder'
+    'ExplanationBuilder',
+    'KEEP',
+    'DROP',
+    'EITHER',
+    'NoonDecision',
+    'candidate_noon_positions',
+    'classify_noon',
+    'drop_noon',
+    'has_jazm',
+    'is_protected_noon',
+    'medial_noon_positions'
 ]

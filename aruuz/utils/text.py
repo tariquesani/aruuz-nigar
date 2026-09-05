@@ -63,66 +63,12 @@ def clean_line(line: str) -> str:
     return cleaned
 
 
-def handle_noon_followed_by_stop(words: list[str]) -> list[str]:
-    """
-    Split words that contain noon (ن or ں) immediately followed by a stop consonant.
+# `handle_noon_followed_by_stop()` lived here and split a word on a nasal+stop
+# cluster (جھانکتے into جھانک + تے). It has been removed: the engine no longer
+# invents word boundaries for the benefit of the length scanners. Whether a noon
+# counts is now a keep/drop decision made on the single word, in
+# `aruuz.scansion.noon_model`, which also carries over this function's guard
+# against touching a word-initial ان- (انتخاب، انتقام، انتقال، اندرون).
 
-    If a word contains "ن" or "ں" immediately followed by a stop consonant
-    (ک، گ، ت، د، پ، ب، چ، ج), split it into two parts:
-    1. Everything up to and including the stop consonant
-    2. The remaining suffix
-    3. Excludes word-initial "ان" - this is a special case that should not be split
-
-    Args:
-        words: List of Urdu words
-
-    Returns:
-        List of words with matching words split into two parts.
-        Word order is preserved.
-    """
-    # Stop consonants: ک، گ، ت، د، پ، ب، چ، ج
-    stop_consonants = "کگتدپبچج"
-
-    result = []
-    for word in words:
-        if not word:
-            result.append(word)
-            continue
-        
-        # Find noon followed by a stop consonant, excluding word-initial "ان"
-        found_split = False
-        # Not the best way to do this, but it works for now, A better way would be
-        # to use is_post_vocalic_nasal function from ChatGPT thread.
-        for i in range(len(word) - 1):
-            if (
-                word[i] in ("ن", "ں")
-                and word[i + 1] in stop_consonants
-                and not (i == 0 and word[i] == "ن")        # block نکما, نمک
-                and not (i == 1 and word.startswith("ان")) # excludes word-initial "ان"
-            ):
-
-                # Split at position after stop consonant
-                # First part: everything up to and including stop consonant
-                first_part = word[:i + 2]
-                # Second part: remaining suffix
-                second_part = word[i + 2:]
-                
-                # Do not allow splits that produce vowel-less fragments
-                if second_part and not any(ch in "اآییوے" for ch in second_part):
-                    continue
-
-                result.append(first_part)
-                if second_part:
-                    result.append(second_part)
-                found_split = True
-                break
-        
-        # If no split found, add word unchanged
-        if not found_split:
-            result.append(word)
-    
-    return result
-
-
-__all__ = ["clean_word", "clean_line", "handle_noon_followed_by_stop"]
+__all__ = ["clean_word", "clean_line"]
 
