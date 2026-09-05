@@ -5,7 +5,7 @@ This module contains data classes for words, lines, and output structures.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Set
 from aruuz.utils.text import clean_line, clean_word, handle_noon_followed_by_stop
 from aruuz.utils.araab import remove_araab
 # ProsodicRules imported lazily in Lines.__init__ to avoid circular import:
@@ -281,6 +281,10 @@ class Lines:
     Attributes:
         original_line: Original line text
         words_list: List of Words objects in this line
+        prosodic_rules_applied: Names of the prosodic rules already applied to
+            this line. The rules rewrite word codes in place and are not
+            idempotent, so each one records itself here and refuses to run a
+            second time on the same line.
     """
     def __init__(self, line: str):
         """
@@ -305,6 +309,9 @@ class Lines:
         # Initialize words list
         self.words_list: List[Words] = []
         
+        # Prosodic rules are applied at most once per line; see ProsodicRules.
+        self.prosodic_rules_applied: Set[str] = set()
+
         # Split by comma and space delimiters (matching C# behavior)
         # C# uses: originalLine.Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
         import re

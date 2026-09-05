@@ -52,6 +52,7 @@ Each subsection lists *what happens*, the *function*, and the *file* (with repre
   - **Ataf (عطف)**: Handle conjunction “و” by merging with previous word’s cadence.
   - **Word grafting**: When a consonant-ending word joins a following `ا/آ` word, push alternative codes into `word.taqti_word_graft`.
   - For each affected `Words` instance, append human-readable messages to `prosodic_transformation_steps` describing these contextual adjustments.
+  - **Once per line**: these rules rewrite codes in place and are not idempotent — a second ataf pass would turn سخن `--x` into `---x`. Each rule records itself in `line.prosodic_rules_applied` and returns early if it has already run, so scanning a line twice (as `get_scansion()` does, once to collect meter candidates and once to find the poem's dominant bahr) leaves the codes unchanged.
 
 ### Stage 4 — Code Tree Construction
 
