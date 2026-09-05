@@ -6,10 +6,8 @@ This module contains data classes for words, lines, and output structures.
 
 from dataclasses import dataclass, field
 from typing import List, Optional
-from aruuz.utils.text import clean_line, clean_word, handle_noon_followed_by_stop
+from aruuz.utils.text import clean_line, clean_word
 from aruuz.utils.araab import remove_araab
-# ProsodicRules imported lazily in Lines.__init__ to avoid circular import:
-# models -> scansion.prosodic_rules -> scansion.__init__ -> core -> models
 
 # Import moved inside _refresh_profile_fields() to break circular dependency
 # from aruuz.scansion.word_analysis import (
@@ -289,10 +287,14 @@ class Lines:
         This method:
         1. Cleans the line using clean_line() to remove punctuation
         2. Splits the line into words by comma and space delimiters
-        3. Handles noon followed by stop consonant (split words like جھانکتے -> جھانک, تے)
-           OR ProsodicRules.preprocess_nasal_coda()
-        4. Cleans each word using clean_word() to apply character replacements
-        5. Creates Words objects with cleaned words and calculates length       
+        3. Cleans each word using clean_word() to apply character replacements
+        4. Creates Words objects with cleaned words and calculates length
+
+        Tokens are word tokens and nothing else. A word is never broken up here,
+        so every boundary the later prosodic rules see is a real one. A word
+        whose noon may be نونِ غنہ keeps its spelling; whether that noon counts
+        is settled per word during scansion — see `aruuz.scansion.noon_model`.
+
         Args:
             line: Line of Urdu poetry text
         """
@@ -310,14 +312,6 @@ class Lines:
         import re
         delimiters_pattern = r'[, ]+'  # Match comma or space, one or more times
         words_raw = re.split(delimiters_pattern, cleaned_line)
-        
-        # Handle noon followed by stop consonant (split words like جھانکتے -> جھانک, تے)
-        # words_raw = handle_noon_followed_by_stop(words_raw)
-
-        # Split words when a nasal (ن/ں) acts as a syllable coda
-        # and is immediately followed by a stop consonant.
-        from aruuz.scansion.prosodic_rules import ProsodicRules
-        words_raw = ProsodicRules.preprocess_nasal_coda(words_raw)
         
         # Process each word
         for word_text in words_raw:

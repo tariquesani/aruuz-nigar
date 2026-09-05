@@ -7,11 +7,13 @@ Handles database lookup, heuristics fallback, and compound word splitting.
 
 from typing import Optional
 
+from aruuz.database.noon_ghunna_lexicon import NoonGhunnaLexicon, get_noon_ghunna_lexicon
 from aruuz.database.word_lookup import WordLookup
 from aruuz.utils.araab import remove_araab
 from aruuz.models import Words
 from .code_assignment import compute_scansion
 from .length_scanners import length_two_scan
+from .noon_model import DROP, classify_noon, drop_noon
 from .explain_logging import get_explain_logger
 
 
@@ -23,18 +25,33 @@ class WordScansionAssigner:
     - Database lookup (Strategy 1)
     - Heuristics fallback (Strategy 2)
     - Compound word splitting (Strategy 3)
+    - Noon keep/drop (Strategy 4)
     """
     
-    def __init__(self, word_lookup: Optional[WordLookup] = None):
+    def __init__(
+        self,
+        word_lookup: Optional[WordLookup] = None,
+        noon_lexicon: Optional[NoonGhunnaLexicon] = None,
+    ):
         """
         Initialize WordScansionAssigner.
         
         Args:
             word_lookup: Optional WordLookup instance for database access
+            noon_lexicon: Optional ghunna lexicon for the noon keep/drop model.
+                Defaults to the shared lexicon; pass one explicitly in tests.
         """
         self.word_lookup = word_lookup
+        self._noon_lexicon = noon_lexicon
     
-    def assign_code_to_word(self, word: Words) -> Words:
+    @property
+    def noon_lexicon(self) -> NoonGhunnaLexicon:
+        """Ghunna lexicon backing the keep/drop model, loaded on first use."""
+        if self._noon_lexicon is None:
+            self._noon_lexicon = get_noon_ghunna_lexicon()
+        return self._noon_lexicon
+    
+    def assign_code_to_word(self, word: Words, apply_noon_model: bool = True) -> Words:
         """
         Assign scansion code to a word in-place using database lookup (if available) or heuristics.
         
@@ -42,12 +59,31 @@ class WordScansionAssigner:
         1. Tries database lookup first (if available)
         2. Falls back to heuristics using the compute_scansion function
         3. If heuristics fail (empty code) and word length > 4, tries compound word splitting
+        4. Asks the noon keep/drop model whether a نونِ غنہ should be dropped and
+           the word recounted without it
+        
+        Args:
+            word: Words object to assign code to
+            apply_noon_model: Set False to skip step 4. Used when scanning the
+                noon-dropped form of a word, which must not recurse.
+            
+        Returns:
+            Words object with code assigned
+        """
+        word = self._assign_base_code(word)
+        if apply_noon_model and word.assignment_method != "already_assigned":
+            word = self._apply_noon_keep_drop(word)
+        return word
+    
+    def _assign_base_code(self, word: Words) -> Words:
+        """
+        Assign a code using the database, heuristics and compound splitting.
         
         Args:
             word: Words object to assign code to
             
         Returns:
-            Words object with code assigned
+            Words object with code assigned, before the noon model runs
         """
         # If word already has codes, return as is
         if len(word.code) > 0:
@@ -120,6 +156,69 @@ class WordScansionAssigner:
             explain_logger = get_explain_logger()
             explain_logger.info(f"RULE | Word ('{word.word}') | Assigned code '{code}' | Source: heuristic")
         
+        return word
+    
+    def _apply_noon_keep_drop(self, word: Words) -> Words:
+        """
+        Settle whether a noon in this word is counted, and recount if it is not.
+
+        Classical taqṭīʿ decides نونِ غنہ against نونِ اصلی on the word itself, so
+        this works on the single token: nothing is split off, and `word.word`
+        keeps its original spelling for display. Only the scansion sees the
+        noon-dropped form.
+
+        The default is to keep the noon, so most words are left untouched. A
+        word the model reads as ghunna (چاند، جھانکتے) is rescanned without its
+        noon and takes the shorter reading; a word that scans both ways
+        (جان / جاں) gets both, and bahr matching picks.
+
+        Args:
+            word: Words object that already has at least one code
+            
+        Returns:
+            The same Words object, with codes adjusted where the model applies
+        """
+        if not word.code or not any(word.code):
+            return word
+
+        decision = classify_noon(word.word, self.noon_lexicon)
+        if decision.keeps_noon:
+            return word
+
+        dropped_form = drop_noon(word.word, decision.index)
+        if not dropped_form or dropped_form == word.word:
+            return word
+
+        dropped = Words()
+        dropped.word = dropped_form
+        dropped = self.assign_code_to_word(dropped, apply_noon_model=False)
+        dropped_codes = [code for code in dropped.code if code]
+        if not dropped_codes:
+            return word
+
+        if decision.decision == DROP:
+            # نونِ غنہ: the noon carries no weight, so the kept reading is wrong.
+            codes = dropped_codes
+            step = "DROPPED_NOON_GHUNNA_AND_RECOUNTED"
+            outcome = f"Recounted as '{dropped_form}'"
+        else:
+            # The word scans either way; offer both and let the meter decide.
+            codes = list(word.code) + [c for c in dropped_codes if c not in word.code]
+            step = "ADDED_NOON_GHUNNA_ALTERNATIVE_SCANSION"
+            outcome = f"Kept, plus the reading as '{dropped_form}'"
+
+        if codes == word.code:
+            return word
+
+        word.code = codes
+        word.scansion_generation_steps.append(
+            f"{step}:form={dropped_form},codes={','.join(codes)},evidence={decision.reason}"
+        )
+        explain_logger = get_explain_logger()
+        explain_logger.info(
+            f"RULE | Noon ghunna | Word ('{word.word}') | {outcome} "
+            f"| Codes: {', '.join(codes)} | Evidence: {decision.reason}"
+        )
         return word
     
     def _apply_db_variations(self, word: Words) -> Words:

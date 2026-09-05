@@ -25,14 +25,25 @@ from aruuz.scansion.word_analysis import (
     locate_araab,
     contains_noon
 )
+from aruuz.scansion.noon_model import is_protected_noon
 
 logger = logging.getLogger(__name__)
 
 
 def noon_ghunna(word: str, code: str) -> str:
     """
-    Adjust code for noon ghunna (ن with jazm) patterns.
-    
+    Adjust the code of a word whose ن is explicitly marked with jazm (نْ).
+
+    This is the definite half of the keep/drop model in
+    `aruuz.scansion.noon_model`: where the writer has marked the noon, the
+    patterns below say whether that noon is نونِ غنہ and therefore weightless
+    (آنت، ہنس، باندھ، بانگ), in which case its mora is removed from `code`.
+    Everything else keeps the noon and the code is returned untouched.
+
+    The one position that is never reduced is a word-initial ان- prefix
+    (انتخاب، انتقام، انتقال، اندرون، انگ، اندر). Its noon is نونِ اصلی and is
+    always counted, whatever jazm the spelling carries.
+
     Args:
         word: Original word
         code: Current scansion code
@@ -52,8 +63,8 @@ def noon_ghunna(word: str, code: str) -> str:
                     code = "=-"
         elif stripped[1] == 'ن' and len(loc) > 1 and loc[1] == ARABIC_DIACRITICS[2]:
             if code == "=-":
-                if stripped[0] == 'ا':  # انگ
-                    code = "=-"
+                if is_protected_noon(stripped, 1):  # انگ: ان- prefix, noon always counted
+                    pass
                 elif is_vowel_plus_h(stripped[0]):  # ہنس
                     code = "="
     elif len(stripped) == 4:
@@ -63,8 +74,8 @@ def noon_ghunna(word: str, code: str) -> str:
                     code = "=="
         elif stripped[1] == 'ن' and len(loc) > 1 and loc[1] == ARABIC_DIACRITICS[2]:
             if code == "==":
-                if stripped[0] == 'ا':  # اندر
-                    code = "=="
+                if is_protected_noon(stripped, 1):  # اندر: ان- prefix, noon always counted
+                    pass
                 elif is_vowel_plus_h(stripped[0]):  # ہنسا
                     code = "-="
             # Note: code.Equals("=--") case has no example in C# code
@@ -82,10 +93,9 @@ def noon_ghunna(word: str, code: str) -> str:
                 if len(code) > 1 and code[1] == '-':
                     code = code[:1] + code[2:]  # Remove character at position 1
         elif stripped[1] == 'ن' and len(loc) > 1 and loc[1] == ARABIC_DIACRITICS[2]:
-            if len(code) > 0 and code[0] == '=':
-                # Note: انگیزی case has no code change in C#
-                pass
+            # انگیزی and the rest of the ان- prefix words keep their noon.
             # Note: code.Equals("=--") case has no example in C# code
+            pass
         elif stripped[2] == 'ن' and len(loc) > 2 and loc[2] == ARABIC_DIACRITICS[2]:
             if len(code) > 1 and code[0] == '=' and code[1] == '-':
                 if is_vowel_plus_h(stripped[1]):

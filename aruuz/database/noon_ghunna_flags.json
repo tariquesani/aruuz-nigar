@@ -1,0 +1,36 @@
+{
+  "note": [
+    "Seed data for the noon keep/drop model. This is NOT meant to grow into an",
+    "exhaustive list of every noon-bearing word - that does not scale. It is a",
+    "starting set for the words whose ghunna cannot be read off the spelling.",
+    "The scalable source is a `noon_ghunna` table in the scansion database,",
+    "which takes precedence over this file when present.",
+    "",
+    "Entries are stems, not inflected forms. When the flagged noon sits in a",
+    "nasal+stop cluster no suffix can break it up, so the flag is inherited by",
+    "longer words: جھانک answers for جھانکتے، جھانکتی، جھانکنا. A stem with no",
+    "such cluster, like جان, answers only for itself and leaves جانب alone.",
+    "",
+    "decision: drop   = نونِ غنہ, the noon carries no weight (چاند counts as چاد)",
+    "decision: either = the word scans both ways and the bahr decides (جان / جاں)",
+    "decision: keep   = نونِ اصلی or نونِ شبہِ غنہ; this is also the default, so",
+    "                   it is only worth writing down to override a stem match"
+  ],
+  "entries": [
+    {
+      "word": "جھانک",
+      "decision": "drop",
+      "note": "جھانْک - the noon nasalises the ا and is not counted; covers جھانکتے، جھانکنا"
+    },
+    {
+      "word": "چاند",
+      "decision": "drop",
+      "note": "چانْد counts as چاد; covers چاندنی، چاندی"
+    },
+    {
+      "word": "جان",
+      "decision": "either",
+      "note": "reads as جان or جاں depending on the meter"
+    }
+  ]
+}
