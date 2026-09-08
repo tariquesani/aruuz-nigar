@@ -22,8 +22,38 @@ class ProsodicRules:
     All methods are static methods (pure transformations).
     Call ordering must match current implementation:
     Al → Izafat → Ataf → Word Grafting
+
+    Each rule rewrites the word codes of the line in place and is not
+    idempotent: running ataf twice on سخن turns -= into --x and then into
+    ---x. A line may legitimately be scanned more than once (get_scansion()
+    matches every line, then scans the poem again to find the dominant bahr),
+    so every rule claims its slot via _claim_rule() and silently returns if it
+    has already run on that line.
     """
-    
+
+    @staticmethod
+    def _claim_rule(line: 'Lines', rule_name: str) -> bool:
+        """
+        Record that a prosodic rule is about to run on a line.
+
+        Args:
+            line: Lines instance being processed
+            rule_name: Identifier of the rule claiming the line
+
+        Returns:
+            True if the rule may run, False if it already ran on this line.
+        """
+        applied = getattr(line, 'prosodic_rules_applied', None)
+        if not isinstance(applied, set):
+            applied = set()
+            line.prosodic_rules_applied = applied
+
+        if rule_name in applied:
+            return False
+
+        applied.add(rule_name)
+        return True
+
     @staticmethod
     def process_al_prefix(line: 'Lines') -> None:
         """
@@ -35,6 +65,9 @@ class ProsodicRules:
         Args:
             line: Lines instance to process (modified in-place)
         """
+        if not ProsodicRules._claim_rule(line, 'al_prefix'):
+            return
+
         # Modify codes when next word starts with "ال" and current word ends with zabar or paish
         for i in range(len(line.words_list) - 1):
             wrd = line.words_list[i]
@@ -114,6 +147,9 @@ class ProsodicRules:
         Args:
             line: Lines instance to process (modified in-place)
         """
+        if not ProsodicRules._claim_rule(line, 'izafat'):
+            return
+
         # Adjust codes for possessive markers
         for wrd in line.words_list:
             if is_izafat(wrd.word):
@@ -181,6 +217,9 @@ class ProsodicRules:
         Args:
             line: Lines instance to process (modified in-place)
         """
+        if not ProsodicRules._claim_rule(line, 'ataf'):
+            return
+
         # Handle conjunction "و" between words
         for i in range(1, len(line.words_list)):
             wrd = line.words_list[i]
@@ -296,6 +335,9 @@ class ProsodicRules:
         Args:
             line: Lines instance to process (modified in-place)
         """
+        if not ProsodicRules._claim_rule(line, 'word_grafting'):
+            return
+
         # Create taqti_word_graft codes when word starts with 'ا' or 'آ' following a consonant
         for i in range(1, len(line.words_list)):
             wrd = line.words_list[i]
@@ -349,6 +391,8 @@ class ProsodicRules:
         AUXILIARY_VERBS = {ہے, ہوں, تھا, تھے, رہی, رہا, گئے}
         LIGHT_PARTICLES = {نہ, ہی, بھی, تو, بھی}
         """
+        if not ProsodicRules._claim_rule(line, 'final_vowel_weakening'):
+            return
 
         for i in range(len(line.words_list) - 1):
             wrd = line.words_list[i]

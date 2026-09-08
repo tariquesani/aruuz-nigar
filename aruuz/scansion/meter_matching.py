@@ -105,6 +105,9 @@ class MeterMatcher:
             self.code_assigner.assign_code_to_word(word)
         
         # Step 1.5-1.8: Apply prosodic rules (Al → Izafat → Ataf → Word Grafting -> Final Vowel Weakening)
+        # Each rule runs at most once per line, so a line that is scanned again
+        # (e.g. by get_scansion(), which matches lines and then rescans the poem
+        # for the dominant bahr) keeps its single-pass codes.
         ProsodicRules.process_al_prefix(line)
         ProsodicRules.process_izafat(line)
         ProsodicRules.process_ataf(line)
