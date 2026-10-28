@@ -47,6 +47,7 @@ class Words:
         scansion_generation_steps: Step-by-step explanation of what led to generation of scansion code for the word, only positive events not negative ones
         prosodic_transformation_steps: Step-by-step explanation of prosodic adjustments applied to this word after base scansion (Al, Izafat, Ataf, grafting)
         scan_trace_steps: Detailed technical trace of decisions made inside length_*_scan functions (low-level pattern matching, condition checks, and decision points)
+        scan_alternate_codes: Extra heuristic readings kept beside the primary code. The tree walks every entry in code, so an older reading stays available.
         
     Profile Fields (automatically populated from word string):
         word_no_araab: Word with all diacritical marks removed
@@ -78,6 +79,7 @@ class Words:
     scansion_generation_steps: List[str] = field(default_factory=list)
     prosodic_transformation_steps: List[str] = field(default_factory=list)
     scan_trace_steps: List[str] = field(default_factory=list)
+    scan_alternate_codes: List[str] = field(default_factory=list)
     word_no_araab: str = field(init=False, default="")
     has_araab: bool = field(init=False, default=False)
     araab_mask: str = field(init=False, default="")
@@ -109,7 +111,8 @@ class Words:
             fallback_used=self.fallback_used,
             scansion_generation_steps=self.scansion_generation_steps.copy(),
             prosodic_transformation_steps=self.prosodic_transformation_steps.copy(),
-            scan_trace_steps=self.scan_trace_steps.copy()
+            scan_trace_steps=self.scan_trace_steps.copy(),
+            scan_alternate_codes=self.scan_alternate_codes.copy()
         )
 
     def __post_init__(self):
@@ -217,6 +220,7 @@ class LineScansionResult:
         text: Full poem text (optional)
         url: URL reference (optional)
         num_lines: Number of lines in the poem
+        line_index: Index of the source line in the poem, or -1 if unset
         is_dominant: True if this is the dominant meter from crunch()
     """
     original_line: str = ""
@@ -234,6 +238,7 @@ class LineScansionResult:
     text: str = ""
     url: str = ""
     num_lines: int = 0
+    line_index: int = -1  # Index of the source line; -1 when the caller did not set one
     is_dominant: bool = False  # True if this is the dominant meter from crunch()
 
 

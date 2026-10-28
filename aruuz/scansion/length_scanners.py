@@ -849,13 +849,16 @@ def length_four_scan(word: str, trace: Optional[List[str]] = None) -> str:
     return code
 
 
-def length_five_scan(word: str, trace: Optional[List[str]] = None) -> str:
+def length_five_scan(word: str, trace: Optional[List[str]] = None,
+                     alternates: Optional[List[str]] = None) -> str:
     """
     Handle 5+ character words for scansion.
     
     Args:
         word: Five or more character substring
         trace: Optional list to record trace messages
+        alternates: Optional list. A second reading is appended here and the
+            return value stays the older code, so both reach the meter tree.
         
     Returns:
         Scansion code based on character patterns
@@ -865,6 +868,7 @@ def length_five_scan(word: str, trace: Optional[List[str]] = None) -> str:
     trace.append(f"L5S| INPUT_SUBSTRING: substr={word}")
     logger.debug(f"length_five_scan: Input substring = '{word}'")
     code = ""
+    initial_aspirate_yeh = False
     # Remove ھ and ں for scansion purposes
     word_no_aspirate = word.replace("\u06BE", "").replace("\u06BA", "")
     trace.append(f"L5S| AFTER_REMOVING_HAY_AND_NUN: result={word_no_aspirate}")
@@ -891,6 +895,12 @@ def length_five_scan(word: str, trace: Optional[List[str]] = None) -> str:
         for i in range(len(word) - 2):
             if word[i+1] == 'ھ' and word[i+2] == 'ی':
                 trace.append(f"L5S| DETECTED_ASPIRATED_YEH_PATTERN: start_pos={i+1},end_pos={i+2}")
+                # Word-initial پھـ / کھـ / جھـ : keep -== and also weigh the
+                # stripped skeleton. A medial ھ+ی (اندھیرے, دیکھیے) still stops here.
+                if i == 0:
+                    initial_aspirate_yeh = True
+                    trace.append("L5S| WORD_INITIAL_ASPIRATED_YEH: keep -== and continue")
+                    continue
                 trace.append("L5S| EARLY_RETURN_ASPIRATED_YEH_PATTERN: return_code=-==")
                 logger.debug(f"length_five_scan: Early return for aspirated+ی pattern, returning '-=='")
                 return "-=="  # Short-long-long: Aspirated+ی forces short medial vowel
@@ -1389,6 +1399,15 @@ def length_five_scan(word: str, trace: Optional[List[str]] = None) -> str:
                 trace.append(f"L5S| VOWEL_POSITION_DETECTED: position=2_non_muarrab,char={word_no_diacritics[1]}")
                 if len(word_no_diacritics) > 3 and is_vowel_plus_h(word_no_diacritics[3]):
                     code = "==-"
+                    # Final یے is its own syllable (روکیے). Keep ==- and also
+                    # offer =-=. A fourth-letter vowel that is not this ending
+                    # (پیرہن) stays on ==- alone.
+                    if (alternates is not None
+                            and len(word_no_diacritics) > 4
+                            and word_no_diacritics[3] == 'ی'
+                            and word_no_diacritics[4] == 'ے'):
+                        alternates.append("=-=")
+                        trace.append("L5S| ALTERNATE_FINAL_YE: kept '==-' also '=-='")
                     trace.append(f"L5S| PATTERN_MATCHED: vowel_at_pos_2_and_3_non_muarrab,code={code}")
                     logger.debug(f"length_five_scan: Position 2 Vowel with vowel at 3: code='{code}' (no split)")
                 else:
@@ -1513,6 +1532,12 @@ def length_five_scan(word: str, trace: Optional[List[str]] = None) -> str:
         trace.append(f"L5S| APPLIED_YAA_ADJUSTMENT: old_code={code},new_code={new_code}")
         logger.debug(f"length_five_scan: Applying yaa adjustment: '{code}' -> '{new_code}'")
         code = new_code
+
+    if initial_aspirate_yeh and code and code != "-==":
+        if alternates is not None:
+            alternates.append(code)
+            trace.append(f"L5S| ALTERNATE_WITH_CURRENT: current='-==',alternate='{code}'")
+        code = "-=="
 
     trace.append(f"L5S| RETURNING: code={code}")
     logger.debug(f"length_five_scan: Final code for '{word}' = '{code}'")

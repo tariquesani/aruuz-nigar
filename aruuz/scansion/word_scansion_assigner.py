@@ -106,8 +106,12 @@ class WordScansionAssigner:
                 return word_result
             # Otherwise, continue with empty code (will be stored below)
         
-        # Store code in word
+        # Store code in word. Alternate readings stay beside the primary so
+        # a line that already matches through the older code still matches.
         word.code = [code]
+        for alt in word.scan_alternate_codes:
+            if alt and alt not in word.code:
+                word.code.append(alt)
         
         # Set assignment method for heuristic path
         if word.assignment_method is None:
@@ -118,7 +122,8 @@ class WordScansionAssigner:
             # Append assignment summary step
             word.scansion_generation_steps.append(f"ASSIGNED_SCANSION_CODE_HEURISTIC:code={code}")
             explain_logger = get_explain_logger()
-            explain_logger.info(f"RULE | Word ('{word.word}') | Assigned code '{code}' | Source: heuristic")
+            codes_str = ', '.join(word.code)
+            explain_logger.info(f"RULE | Word ('{word.word}') | Assigned code '{codes_str}' | Source: heuristic")
         
         return word
     
