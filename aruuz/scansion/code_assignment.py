@@ -4,7 +4,7 @@ Code Assignment Logic
 Main heuristic-based code assignment function.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
     from aruuz.models import Words
@@ -34,6 +34,7 @@ def compute_scansion(word: 'Words') -> str:
     # Initialize tracking properties
     word.heuristic_scanner_used = None
     word.heuristic_taqti_used = False
+    word.scan_alternate_codes = []
     
     # Create trace list for length_*_scan functions
     trace_steps = []
@@ -181,7 +182,9 @@ def compute_scansion(word: 'Words') -> str:
             word.scansion_generation_steps.append("APPLIED_LENGTH_FOUR_SCAN")
         elif len(word1) >= 5:
             word.heuristic_scanner_used = "length_five_scan"
-            code = length_five_scan(word.word, trace=trace_steps)
+            alternates: List[str] = []
+            code = length_five_scan(word.word, trace=trace_steps, alternates=alternates)
+            word.scan_alternate_codes = [alt for alt in alternates if alt and alt != code]
             word.scansion_generation_steps.append("APPLIED_LENGTH_FIVE_SCAN")
         else:
             code = "-"  # Default fallback

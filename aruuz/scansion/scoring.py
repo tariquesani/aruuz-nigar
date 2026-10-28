@@ -209,6 +209,8 @@ class MeterResolver:
         - The candidate (group or individual) with the highest count > 1 is selected.
         - If a group is selected, the representative meter is the group member with
             the highest individual count.
+        - If that winner misses a line and a non-special meter matches every line,
+            the non-special meter is selected instead.
         1. If no candidate has count > 1, fall back to score-based selection.
         2. Score each meter by summing calculateScore() for all matching lines
         3. Sort scores and meter names together (maintain pairing)
@@ -225,12 +227,33 @@ class MeterResolver:
         if not results:
             return []
 
-        # Count-based dominance: prefer the meter (or special-meter group) that appears
-        # in the most lines. Special meters (SPECIAL_METER_NAMES) are grouped by
-        # conceptual bahr (part before '/'); their line-match counts are summed when
-        # competing. Non-special meters compete individually. Foot-match score is used
-        # only as fallback when no candidate has count > 1.
+        # Count-based dominance. Each matching path counts, so one line can contribute
+        # more than once. Special meters (SPECIAL_METER_NAMES) are grouped by
+        # conceptual bahr (part before '/'); their counts are summed when competing.
+        # Non-special meters compete individually. Foot-match score is used only as
+        # fallback when no candidate has count > 1.
         c = Counter(item.meter_name for item in results if item.meter_name)
+
+        # A regular meter that matches every line is the poem's meter. Do not let a
+        # higher path count on fewer lines replace it. Special meters are left out
+        # of this set: دم اندھیرے keeps خفیف (four paths on one line) ahead of
+        # زمزمہ, which matches both lines.
+        lines_by_meter: dict = {}
+        for item in results:
+            if not item.meter_name:
+                continue
+            line_id = item.line_index if item.line_index >= 0 else item.original_line
+            lines_by_meter.setdefault(item.meter_name, set()).add(line_id)
+        poem_lines = set()
+        for lines in lines_by_meter.values():
+            poem_lines.update(lines)
+        spanning_regular = [
+            meter_name
+            for meter_name, lines in lines_by_meter.items()
+            if meter_name not in SPECIAL_METER_NAMES
+            and len(poem_lines) > 1
+            and lines == poem_lines
+        ]
 
         # Build special-meter groups: conceptual bahr = name.split('/', 1)[0].strip()
         group_count = {}
@@ -330,6 +353,21 @@ class MeterResolver:
             # Log final dominance selection with all scores
             scores_str = ', '.join([f"{meter_name}={score}" for score, meter_name in paired])
             explain_logger.info(f"SELECT | Dominance | Selected '{final_meter}' | Scores: {scores_str}")
+
+        if (
+            final_meter
+            and spanning_regular
+            and final_meter not in spanning_regular
+            and len(lines_by_meter.get(final_meter, ())) < len(poem_lines)
+        ):
+            final_meter = max(
+                spanning_regular,
+                key=lambda m: (c[m], METER_PREFERENCE.get(m, 0.0)),
+            )
+            explain_logger = get_explain_logger()
+            explain_logger.info(
+                f"SELECT | Dominance | Selected '{final_meter}' | Regular meter matches every line"
+            )
 
         if not final_meter:
             return []

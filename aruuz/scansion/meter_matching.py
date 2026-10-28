@@ -148,6 +148,7 @@ class MeterMatcher:
             for meter_idx in sp.meters:
                 so = LineScansionResult()
                 so.original_line = line.original_line
+                so.line_index = line_index
                 so.words = words_list.copy()
                 so.word_taqti = word_taqti_list.copy()
                 so.word_muarrab = [w.word for w in words_list]  # Use original word as muarrab
